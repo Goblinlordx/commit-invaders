@@ -224,8 +224,8 @@ export function simulate(
     if (saltResult.events.some((e) => e.type === 'game_end')) return saltResult
   }
 
-  // Absolute last resort — return whatever we got
-  return simulateCore(grid, seed, config, waveHitChances)
+  // Absolute last resort — run with emergency breach clearing enabled
+  return simulateCore(grid, seed, config, waveHitChances, MAX_FRAMES, true)
 }
 
 function simulateCore(
@@ -234,6 +234,7 @@ function simulateCore(
   config: SimConfig,
   waveHitChances: Map<number, number> = new Map(),
   stopAtFrame: number = MAX_FRAMES,
+  emergencyBreach: boolean = false,
 ): SimOutput {
   const prng = createPRNG(seed)
   const dt = 1 / config.framesPerSecond
@@ -689,9 +690,26 @@ function simulateCore(
       if (breached) break
     }
     if (breached) {
-      // Invader reached the ship — abort this attempt.
-      // The outer retry loop will re-run with higher hitChance for the failed wave.
-      break
+      if (emergencyBreach) {
+        // Last resort: destroy all remaining invaders and continue
+        for (const formation of formations) {
+          const fState = formation.getState()
+          if (!fState.active) continue
+          for (const inv of fState.invaders) {
+            if (!inv.destroyed) {
+              inv.hp = 0; inv.destroyed = true; inv.destroyedAtFrame = frame
+              score += inv.cell.count
+              frameEvents.push({ frame, type: 'destroy', entityId: inv.id, position: { ...inv.position } })
+              addInflection(inv.id, 'invader', { frame, position: { ...inv.position }, type: 'destroy' })
+            }
+          }
+          fState.active = false
+          frameEvents.push({ frame, type: 'wave_clear', entityId: `formation-${fState.waveIndex}`, position: { x: 0, y: 0 }, data: { waveIndex: fState.waveIndex } })
+        }
+      } else {
+        // Abort — outer retry loop will re-run with higher hitChance
+        break
+      }
     }
 
     // 3. Solver: only active when no lifecycle pending (wave must be started)
