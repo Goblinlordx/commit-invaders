@@ -56,7 +56,78 @@ const actionsRow = $('#actions-row') as HTMLElement
 const debugPanel = $('#debug-panel') as HTMLElement
 const debugGrid = $('#debug-grid') as HTMLElement
 
-// ── Fixture grid ──
+// ── Fetch real GitHub contributions ──
+async function fetchContributionGrid(username: string): Promise<Grid | null> {
+  try {
+    // Try multiple fetch strategies:
+    // 1. Vite dev proxy (dev mode)
+    // 2. CORS proxy (production)
+    const urls = [
+      `/api/contributions/${username}`,
+      `https://corsproxy.io/?url=${encodeURIComponent(`https://github.com/users/${username}/contributions`)}`,
+    ]
+    let res: Response | null = null
+    for (const url of urls) {
+      try {
+        const r = await fetch(url, { signal: AbortSignal.timeout(5000) })
+        if (r.ok) { res = r; break }
+      } catch { /* try next */ }
+    }
+    if (!res) return null
+    const html = await res.text()
+
+    // Parse contribution calendar from HTML
+    // Each day is a <td> with data-date and data-level attributes
+    const parser = new DOMParser()
+    const doc = parser.parseFromString(html, 'text/html')
+    const days = doc.querySelectorAll('td[data-date][data-level]')
+    if (days.length === 0) return null
+
+    const cells: Grid['cells'] = []
+    const dateToWeekDay = new Map<string, { week: number; day: number }>()
+
+    // Collect all dates and sort to determine week/day mapping
+    const dates: string[] = []
+    days.forEach(td => {
+      const date = td.getAttribute('data-date')!
+      dates.push(date)
+    })
+    dates.sort()
+
+    // Map dates to week/day grid positions
+    const startDate = new Date(dates[0]!)
+    for (const date of dates) {
+      const d = new Date(date)
+      const diffDays = Math.round((d.getTime() - startDate.getTime()) / 86400000)
+      const week = Math.floor(diffDays / 7)
+      const day = diffDays % 7
+      dateToWeekDay.set(date, { week, day })
+    }
+
+    days.forEach(td => {
+      const date = td.getAttribute('data-date')!
+      const level = parseInt(td.getAttribute('data-level') || '0', 10) as ContributionLevel
+      const pos = dateToWeekDay.get(date)
+      if (!pos) return
+
+      // Count from tooltip text or estimate from level
+      let count = 0
+      const tooltip = td.querySelector('.sr-only')?.textContent || td.getAttribute('aria-label') || ''
+      const match = tooltip.match(/(\d+)\s+contribution/)
+      if (match) count = parseInt(match[1]!, 10)
+      else count = level === 0 ? 0 : level * 3
+
+      cells.push({ x: pos.week, y: pos.day, level, date, count })
+    })
+
+    const maxWeek = Math.max(...cells.map(c => c.x)) + 1
+    return { width: maxWeek, height: 7, cells }
+  } catch {
+    return null
+  }
+}
+
+// ── Fixture grid (fallback) ──
 function makeFixtureGrid(weeks: number, seed: string): Grid {
   const prng = createPRNG(seed)
   const cells = []
@@ -140,16 +211,23 @@ function updateTimeDisplay(t: number) {
 }
 
 // ── Generation ──
-function doGenerate() {
+async function doGenerate() {
   const username = usernameInput.value.trim() || 'demo'
   generateBtn.disabled = true
   generateBtn.textContent = '...'
-  previewContainer.innerHTML = '<p class="preview-placeholder" style="color: var(--accent); font-family: var(--font-display); font-size: 0.7rem;">Generating...</p>'
+  previewContainer.innerHTML = '<p class="preview-placeholder" style="color: var(--accent); font-family: var(--font-display); font-size: 0.7rem;">Fetching contributions...</p>'
 
-  requestAnimationFrame(() => {
-    setTimeout(() => {
-      try {
-        const grid = makeFixtureGrid(53, username)
+  try {
+    // Try fetching real GitHub data, fall back to fixture
+    let grid = await fetchContributionGrid(username)
+    if (!grid) {
+      previewContainer.innerHTML = '<p class="preview-placeholder" style="color: var(--accent); font-family: var(--font-display); font-size: 0.7rem;">Generating...</p>'
+      grid = makeFixtureGrid(53, username)
+    }
+
+    await new Promise(r => setTimeout(r, 10)) // yield for UI update
+
+    try {
         const seed = `${username}-${new Date().toISOString().slice(0, 10)}`
         const output = simulate(grid, seed, currentConfig)
         const lastDate = grid.cells.reduce((max, c) => (c.date > max ? c.date : max), '')
@@ -178,13 +256,14 @@ function doGenerate() {
         updateTimeDisplay(0)
         isPlaying = true
         startPlaying()
-      } catch (e) {
-        previewContainer.innerHTML = `<p class="preview-placeholder" style="color:#ff4444">Error: ${(e as Error).message}</p>`
-      }
-      generateBtn.disabled = false
-      generateBtn.textContent = 'Generate'
-    }, 50)
-  })
+    } catch (e) {
+      previewContainer.innerHTML = `<p class="preview-placeholder" style="color:#ff4444">Error: ${(e as Error).message}</p>`
+    }
+  } catch (e) {
+    previewContainer.innerHTML = `<p class="preview-placeholder" style="color:#ff4444">Error: ${(e as Error).message}</p>`
+  }
+  generateBtn.disabled = false
+  generateBtn.textContent = 'Generate'
 }
 
 // ── Theme ──

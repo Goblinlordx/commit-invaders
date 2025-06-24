@@ -6,10 +6,21 @@ export default defineConfig({
   resolve: {
     alias: {
       '../src': resolve(__dirname, '../src'),
+      '../dev': resolve(__dirname, '../dev'),
     },
   },
   build: {
     outDir: resolve(__dirname, '../docs'),
     emptyOutDir: true,
+  },
+  server: {
+    proxy: {
+      // Proxy GitHub contributions page for dev mode
+      '/api/contributions': {
+        target: 'https://github.com',
+        changeOrigin: true,
+        rewrite: (path) => path.replace('/api/contributions/', '/users/') + '/contributions',
+      },
+    },
   },
 })
