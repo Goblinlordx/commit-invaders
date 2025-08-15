@@ -305,10 +305,11 @@ input[type="text"]:focus {
 }
 
 .scrubber-hint {
-  font-size: 0.6rem;
+  font-size: 0.55rem;
   color: var(--text-muted);
-  opacity: 0.6;
-  white-space: nowrap;
+  opacity: 0.5;
+  text-align: center;
+  margin: 0.2rem 0 0 0;
   font-variant-numeric: tabular-nums;
 }
 
