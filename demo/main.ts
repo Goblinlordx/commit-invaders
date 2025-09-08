@@ -36,11 +36,18 @@ function defaultConfig(): SimConfig {
 // ── State ──
 let currentConfig = defaultConfig()
 let currentSvgString = ''
+let animDuration = 0
+let isPlaying = true
+let playRaf = 0
+let playStartTime = 0
+let playStartOffset = 0
 
 // ── DOM refs ──
 const $ = (sel: string) => document.querySelector(sel)!
 const previewContainer = $('#preview-container') as HTMLElement
 const previewFrame = $('#preview-frame') as HTMLElement
+const scrubber = $('#scrubber') as HTMLInputElement
+const playPause = $('#play-pause') as HTMLButtonElement
 const timeDisplay = $('#time-display') as HTMLElement
 const generateBtn = $('#generate-btn') as HTMLButtonElement
 const usernameInput = $('#username') as HTMLInputElement
@@ -72,6 +79,66 @@ function makeFixtureGrid(weeks: number, seed: string): Grid {
   return { width: weeks, height: 7, cells }
 }
 
+// ── SVG Scrubber ──
+// Animations are now class-based (not inline style), so we can override with !important.
+// Inject a <style> inside the SVG to pause and seek.
+
+function getScrubStyle(): HTMLStyleElement | null {
+  const svg = previewContainer.querySelector('svg')
+  if (!svg) return null
+  let el = svg.querySelector('#scrub') as HTMLStyleElement
+  if (!el) {
+    el = document.createElementNS('http://www.w3.org/2000/svg', 'style') as any
+    el.id = 'scrub'
+    svg.appendChild(el)
+  }
+  return el
+}
+
+function seekTo(timeSec: number) {
+  const s = getScrubStyle()
+  if (!s) return
+  s.textContent = `* { animation-play-state: paused !important; animation-delay: -${timeSec.toFixed(3)}s !important; }`
+  updateTimeDisplay(timeSec)
+}
+
+function clearScrub() {
+  const s = getScrubStyle()
+  if (s) s.textContent = ''
+}
+
+function startPlaying() {
+  isPlaying = true
+  playPause.textContent = '⏸'
+
+  const curTime = (parseInt(scrubber.value) / 1000) * animDuration
+  playStartOffset = curTime
+  playStartTime = performance.now()
+
+  cancelAnimationFrame(playRaf)
+  const tick = () => {
+    if (!isPlaying) return
+    const elapsed = (performance.now() - playStartTime) / 1000
+    const t = (playStartOffset + elapsed) % animDuration
+    // Drive the animation by setting delay — always paused, always in sync
+    seekTo(t)
+    scrubber.value = String(Math.floor((t / animDuration) * 1000))
+    playRaf = requestAnimationFrame(tick)
+  }
+  playRaf = requestAnimationFrame(tick)
+}
+
+function pausePlayback() {
+  isPlaying = false
+  playPause.textContent = '▶'
+  cancelAnimationFrame(playRaf)
+}
+
+function updateTimeDisplay(t: number) {
+  const fmt = (s: number) => `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, '0')}`
+  timeDisplay.textContent = `${fmt(t)} / ${fmt(animDuration)}`
+}
+
 // ── Generation ──
 function doGenerate() {
   const username = usernameInput.value.trim() || 'demo'
@@ -89,23 +156,28 @@ function doGenerate() {
         const scoreboard = computeScoreboard(grid, lastDate, grid.width * 7, 10)
 
         currentSvgString = composeSvg({ grid, seed, config: currentConfig, scoreboard })
-        const dur = output.totalFrames / currentConfig.framesPerSecond
+        animDuration = output.totalFrames / currentConfig.framesPerSecond
 
+        // Insert SVG with animations paused — JS drives the time
         previewContainer.innerHTML = currentSvgString
+        seekTo(0)
+        playStartOffset = 0
 
-        // Stats
         const activeCells = grid.cells.filter(c => c.level > 0).length
         const totalCommits = grid.cells.reduce((sum, c) => sum + c.count, 0)
         const waveCount = output.events.filter(e => e.type === 'wave_spawn').length
         $('#stat-cells')!.textContent = `${activeCells} cells`
         $('#stat-commits')!.textContent = `${totalCommits} commits`
         $('#stat-waves')!.textContent = `${waveCount} waves`
-        $('#stat-duration')!.textContent = `${dur.toFixed(1)}s`
+        $('#stat-duration')!.textContent = `${animDuration.toFixed(1)}s`
         $('#stat-size')!.textContent = `${(currentSvgString.length / 1024).toFixed(1)} KB`
-        const fmt = (s: number) => `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, '0')}`
-        timeDisplay.textContent = `Duration: ${fmt(dur)} | ${waveCount} waves | ${(currentSvgString.length / 1024).toFixed(0)} KB`
         statsRow.style.display = 'flex'
         actionsRow.style.display = 'flex'
+
+        scrubber.value = '0'
+        updateTimeDisplay(0)
+        isPlaying = true
+        startPlaying()
       } catch (e) {
         previewContainer.innerHTML = `<p class="preview-placeholder" style="color:#ff4444">Error: ${(e as Error).message}</p>`
       }
@@ -179,6 +251,20 @@ function setNestedValue(obj: any, path: string, val: number) {
 // ── Event Listeners ──
 generateBtn.addEventListener('click', doGenerate)
 usernameInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') doGenerate() })
+
+playPause.addEventListener('click', () => {
+  if (isPlaying) pausePlayback()
+  else startPlaying()
+})
+
+scrubber.addEventListener('input', () => {
+  if (isPlaying) {
+    isPlaying = false
+    playPause.textContent = '▶'
+    cancelAnimationFrame(playRaf)
+  }
+  seekTo((parseInt(scrubber.value) / 1000) * animDuration)
+})
 
 document.querySelectorAll('.btn-theme').forEach(btn => {
   btn.addEventListener('click', () => setTheme((btn as HTMLElement).dataset.theme!))

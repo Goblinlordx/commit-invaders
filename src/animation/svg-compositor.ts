@@ -135,6 +135,17 @@ export function composeSvg(options: CompositeSvgOptions): string {
   const elements: string[] = []
   const cssRules: string[] = []
 
+  // Class-based animation helper — enables CSS scrubbing via !important overrides.
+  // Instead of inline ${anim(`...`)}, each element gets a class with the
+  // animation rule in the <style> block.
+  let animId = 0
+  /** Returns class="aX" attribute string. Pass extra classes to merge. */
+  function anim(animation: string, extraClasses?: string): string {
+    const cls = `a${animId++}`
+    cssRules.push(`.${cls} { animation: ${animation}; }`)
+    return extraClasses ? `class="${extraClasses} ${cls}"` : `class="${cls}"`
+  }
+
   // ── Shared keyframes ──
   cssRules.push(sharedKeyframes())
   if (styled) {
@@ -192,8 +203,8 @@ export function composeSvg(options: CompositeSvgOptions): string {
   ${restoreFadeEnd.toFixed(2)}% { opacity: 1; }
 }`)
       elements.push(
-        `<rect class="gc" x="${x}" y="${y}" width="${config.cellSize}" height="${config.cellSize}" fill="${color}" ` +
-        `style="animation: ${gcKfName} ${dur}s linear infinite" />`
+        `<rect x="${x}" y="${y}" width="${config.cellSize}" height="${config.cellSize}" fill="${color}" ` +
+        `${anim(`${gcKfName} ${dur}s linear infinite`, 'gc')} />`
       )
     } else {
       elements.push(`<rect class="gc" x="${x}" y="${y}" width="${config.cellSize}" height="${config.cellSize}" fill="${color}" />`)
@@ -205,8 +216,8 @@ export function composeSvg(options: CompositeSvgOptions): string {
   const overlayKfName = 'overlay-opacity'
   cssRules.push(opacityKeyframes(overlayKfName, overlayStops))
   elements.push(
-    `<rect class="overlay" x="0" y="0" width="${screenW}" height="${screenH}" fill="${BG_COLOR}" ` +
-    `style="animation: ${overlayKfName} ${dur}s linear infinite" />`
+    `<rect x="0" y="0" width="${screenW}" height="${screenH}" fill="${BG_COLOR}" ` +
+    `${anim(`${overlayKfName} ${dur}s linear infinite`, 'overlay')} />`
   )
 
   // ── Lifecycle cells ──
@@ -265,7 +276,7 @@ export function composeSvg(options: CompositeSvgOptions): string {
       cssRules.push(`@keyframes ${pluckKfName} {\n  ${pluckStops.join('\n  ')}\n}`)
       elements.push(
         `<rect x="${-invHalf}" y="${-invHalf}" width="${config.invaderSize}" height="${config.invaderSize}" fill="${PLUCK_COLOR}" opacity="0" ` +
-        `style="animation: ${pluckKfName} ${dur}s linear infinite" />`
+        `${anim(`${pluckKfName} ${dur}s linear infinite`)} />`
       )
 
       // Invader sprite (fades in at hatch, visible until despawn)
@@ -290,12 +301,12 @@ export function composeSvg(options: CompositeSvgOptions): string {
       cssRules.push(`@keyframes ${hatchKfName} {\n  ${hatchStops.join('\n  ')}\n}`)
       elements.push(
         `<use href="#${spriteId}" x="${-invHalf}" y="${-invHalf}" width="${config.invaderSize}" height="${config.invaderSize}" opacity="0" ` +
-        `style="animation: ${hatchKfName} ${dur}s linear infinite" />`
+        `${anim(`${hatchKfName} ${dur}s linear infinite`)} />`
       )
     } else {
       elements.push(
-        `<rect class="lc" x="${-invHalf}" y="${-invHalf}" width="${config.invaderSize}" height="${config.invaderSize}" fill="${PLUCK_COLOR}" opacity="0" ` +
-        `style="animation: ${cellKfName} ${dur}s linear infinite" />`
+        `<rect x="${-invHalf}" y="${-invHalf}" width="${config.invaderSize}" height="${config.invaderSize}" fill="${PLUCK_COLOR}" opacity="0" ` +
+        `${anim(`${cellKfName} ${dur}s linear infinite`, 'lc')} />`
       )
     }
   }
@@ -341,7 +352,7 @@ export function composeSvg(options: CompositeSvgOptions): string {
         // Invader sprite + explosion on destroy
         invaderElements.push(
           `<use href="#${spriteId}" x="${sx - half}" y="${sy - half}" width="${config.invaderSize}" height="${config.invaderSize}" ` +
-          `opacity="0" style="animation: ${invKfName} ${dur}s linear infinite" />`
+          `opacity="0" ${anim(`${invKfName} ${dur}s linear infinite`)} />`
         )
         // Collect explosion data for pooling (placed outside formation group)
         if (destroyIp) {
@@ -366,14 +377,14 @@ export function composeSvg(options: CompositeSvgOptions): string {
       } else {
         invaderElements.push(
           `<rect x="${sx - half}" y="${sy - half}" width="${config.invaderSize}" height="${config.invaderSize}" ` +
-          `fill="${INVADER_COLOR}" opacity="0" style="animation: ${invKfName} ${dur}s linear infinite" />`
+          `fill="${INVADER_COLOR}" opacity="0" ${anim(`${invKfName} ${dur}s linear infinite`)} />`
         )
       }
     }
 
     // Formation group with oscillation
     elements.push(
-      `<g style="animation: ${fmKfName} ${dur}s linear infinite">${invaderElements.join('')}</g>`
+      `<g ${anim(`${fmKfName} ${dur}s linear infinite`)}>${invaderElements.join('')}</g>`
     )
   }
 
@@ -400,7 +411,7 @@ export function composeSvg(options: CompositeSvgOptions): string {
 }`)
       elements.push(
         `<use href="#sprite-explosion" x="${-half}" y="${-half}" width="${s}" height="${s}" ` +
-        `opacity="0" style="animation: ${kfName} ${dur}s linear infinite" />`
+        `opacity="0" ${anim(`${kfName} ${dur}s linear infinite`)} />`
       )
     }
   }
@@ -421,12 +432,12 @@ export function composeSvg(options: CompositeSvgOptions): string {
     if (styled) {
       elements.push(
         `<use href="#sprite-laser" x="${ld.screenX - half}" y="${ld.screenY - half}" width="${config.laserWidth}" height="${config.laserWidth}" ` +
-        `opacity="0" style="animation: ${laserKfName} ${dur}s linear infinite" />`
+        `opacity="0" ${anim(`${laserKfName} ${dur}s linear infinite`)} />`
       )
     } else {
       elements.push(
         `<rect x="${ld.screenX - half}" y="${ld.screenY - half}" width="${config.laserWidth}" height="${config.laserWidth}" ` +
-        `fill="${LASER_COLOR}" opacity="0" style="animation: ${laserKfName} ${dur}s linear infinite" />`
+        `fill="${LASER_COLOR}" opacity="0" ${anim(`${laserKfName} ${dur}s linear infinite`)} />`
       )
     }
   }
@@ -474,12 +485,12 @@ export function composeSvg(options: CompositeSvgOptions): string {
     if (styled) {
       elements.push(
         `<use href="#sprite-ship" x="${-half}" y="${-half}" width="${config.invaderSize}" height="${config.invaderSize}" ` +
-        `style="animation: ship-move ${dur}s linear infinite" />`
+        `${anim(`ship-move ${dur}s linear infinite`)} />`
       )
     } else {
       elements.push(
-        `<rect class="ship" x="${-half}" y="${-half}" width="${config.invaderSize}" height="${config.invaderSize}" ` +
-        `fill="${SHIP_COLOR}" style="animation: ship-move ${dur}s linear infinite" />`
+        `<rect x="${-half}" y="${-half}" width="${config.invaderSize}" height="${config.invaderSize}" ` +
+        `fill="${SHIP_COLOR}" ${anim(`ship-move ${dur}s linear infinite`, 'ship')} />`
       )
     }
   }
@@ -510,7 +521,7 @@ export function composeSvg(options: CompositeSvgOptions): string {
     elements.push(
       `<text x="${screenW / 2}" y="${gameAreaH / 2}" text-anchor="middle" dominant-baseline="middle" ` +
       `font-family="monospace" font-weight="bold" font-size="16" fill="#e6edf3" opacity="0" ` +
-      `style="animation: ${waveLabelKf} ${dur}s linear infinite">WAVE ${wi + 1}/${totalWaves}</text>`
+      `${anim(`${waveLabelKf} ${dur}s linear infinite`)}>WAVE ${wi + 1}/${totalWaves}</text>`
     )
   }
 
@@ -596,7 +607,7 @@ export function composeSvg(options: CompositeSvgOptions): string {
     elements.push(
       `<text x="${screenW - 8}" y="${statusY}" text-anchor="end" dominant-baseline="middle" ` +
       `font-family="monospace" font-weight="bold" font-size="12" fill="#39d353" opacity="0" ` +
-      `style="animation: ${kfName} ${dur}s linear infinite">${fmtScore(layer.score)} COMMITS</text>`
+      `${anim(`${kfName} ${dur}s linear infinite`)}>${fmtScore(layer.score)} COMMITS</text>`
     )
   }
 
@@ -612,7 +623,7 @@ export function composeSvg(options: CompositeSvgOptions): string {
   elements.push(
     `<text x="8" y="${statusY}" dominant-baseline="middle" ` +
     `font-family="monospace" font-size="11" fill="#8b949e" ` +
-    `style="animation: status-ready-start ${dur}s linear infinite">READY</text>`
+    `${anim(`status-ready-start ${dur}s linear infinite`)}>READY</text>`
   )
 
   // "WAVE N/M" for each wave — visible from wave spawn to wave clear
@@ -642,7 +653,7 @@ export function composeSvg(options: CompositeSvgOptions): string {
     elements.push(
       `<text x="8" y="${statusY}" dominant-baseline="middle" ` +
       `font-family="monospace" font-size="11" fill="#8b949e" opacity="0" ` +
-      `style="animation: ${waveKf} ${dur}s linear infinite">WAVE ${wi + 1}/${totalWaves}</text>`
+      `${anim(`${waveKf} ${dur}s linear infinite`)}>WAVE ${wi + 1}/${totalWaves}</text>`
     )
   }
 
@@ -660,7 +671,7 @@ export function composeSvg(options: CompositeSvgOptions): string {
     elements.push(
       `<text x="8" y="${statusY}" dominant-baseline="middle" ` +
       `font-family="monospace" font-size="11" fill="#8b949e" opacity="0" ` +
-      `style="animation: status-ready-reset ${dur}s linear infinite">READY</text>`
+      `${anim(`status-ready-reset ${dur}s linear infinite`)}>READY</text>`
     )
     // "0 COMMITS" during reset — same fade
     cssRules.push(`@keyframes status-score-reset {
@@ -672,7 +683,7 @@ export function composeSvg(options: CompositeSvgOptions): string {
     elements.push(
       `<text x="${screenW - 8}" y="${statusY}" text-anchor="end" dominant-baseline="middle" ` +
       `font-family="monospace" font-weight="bold" font-size="12" fill="#39d353" opacity="0" ` +
-      `style="animation: status-score-reset ${dur}s linear infinite">0 COMMITS</text>`
+      `${anim(`status-score-reset ${dur}s linear infinite`)}>0 COMMITS</text>`
     )
   }
 
@@ -707,10 +718,10 @@ export function composeSvg(options: CompositeSvgOptions): string {
 }`)
     const scoreText = `${fmtScore(finalScore)} COMMITS`
     elements.push(
-      `<g style="animation: wiggle-score 0.6s ease-in-out infinite">` +
+      `<g ${anim(`wiggle-score 0.6s ease-in-out infinite`)}>` +
       `<text x="${screenW / 2}" y="${gameAreaH / 2}" text-anchor="middle" dominant-baseline="middle" ` +
       `font-family="monospace" font-weight="bold" font-size="14" fill="#39d353" opacity="0" ` +
-      `style="animation: ending-score-text ${dur}s linear infinite">${scoreText}</text></g>`
+      `${anim(`ending-score-text ${dur}s linear infinite`)}>${scoreText}</text></g>`
     )
 
     // Scoreboard — fade in over boardInDuration, hold, fade out over blackoutDuration
@@ -763,7 +774,7 @@ export function composeSvg(options: CompositeSvgOptions): string {
       }
 
       elements.push(
-        `<g opacity="0" style="animation: ending-board ${dur}s linear infinite">${boardElements.join('')}</g>`
+        `<g opacity="0" ${anim(`ending-board ${dur}s linear infinite`)}>${boardElements.join('')}</g>`
       )
     }
 
@@ -781,7 +792,7 @@ export function composeSvg(options: CompositeSvgOptions): string {
 }`)
     elements.push(
       `<rect x="0" y="0" width="${screenW}" height="${screenH}" fill="#000000" opacity="0" ` +
-      `style="animation: ending-blackout ${dur}s linear infinite" />`
+      `${anim(`ending-blackout ${dur}s linear infinite`)} />`
     )
   }
 

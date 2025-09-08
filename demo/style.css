@@ -304,6 +304,14 @@ input[type="text"]:focus {
   font-variant-numeric: tabular-nums;
 }
 
+.scrubber-hint {
+  font-size: 0.6rem;
+  color: var(--text-muted);
+  opacity: 0.6;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+
 /* ── Stats ── */
 .stats-row {
   display: flex;
