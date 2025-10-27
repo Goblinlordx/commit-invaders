@@ -8,21 +8,50 @@
 
 import type { SimConfig, ContributionLevel } from '../types.js'
 
-// ── Colors (must match canvas renderer) ──
+// ── Color Palettes ──
 
-export const GRID_COLORS: Record<number, string> = {
-  0: '#1a1a2e',
-  1: '#0e4429',
-  2: '#006d32',
-  3: '#26a641',
-  4: '#39d353',
+export interface ColorPalette {
+  grid: Record<number, string>
+  invader: string
+  laser: string
+  ship: string
+  bg: string
+  pluck: string
+  overlay: string
+  text: string
+  textMuted: string
+  scoreText: string
 }
-export const INVADER_COLOR = '#ff4444'
-export const LASER_COLOR = '#ffff00'
-export const SHIP_COLOR = '#4488ff'
-export const BG_COLOR = '#0d1117'
-export const PLUCK_COLOR = '#d29922'
-export const OVERLAY_COLOR = '#0d1117'
+
+export const PALETTE_DARK: ColorPalette = {
+  grid: { 0: '#1a1a2e', 1: '#0e4429', 2: '#006d32', 3: '#26a641', 4: '#39d353' },
+  invader: '#ff4444', laser: '#ffff00', ship: '#4488ff',
+  bg: '#0d1117', pluck: '#d29922', overlay: '#0d1117',
+  text: '#e6edf3', textMuted: '#8b949e', scoreText: '#39d353',
+}
+
+export const PALETTE_LIGHT: ColorPalette = {
+  grid: { 0: '#ebedf0', 1: '#9be9a8', 2: '#40c463', 3: '#30a14e', 4: '#216e39' },
+  invader: '#cf222e', laser: '#bf8700', ship: '#0969da',
+  bg: '#ffffff', pluck: '#bf8700', overlay: '#ffffff',
+  text: '#1f2328', textMuted: '#656d76', scoreText: '#1a7f37',
+}
+
+export const PALETTE_CLASSIC: ColorPalette = {
+  grid: { 0: '#0a0a12', 1: '#003311', 2: '#005522', 3: '#1a8833', 4: '#22bb44' },
+  invader: '#ff3333', laser: '#33ff33', ship: '#33ff33',
+  bg: '#000000', pluck: '#ffaa00', overlay: '#000000',
+  text: '#33ff33', textMuted: '#227722', scoreText: '#33ff33',
+}
+
+// Default exports for backward compatibility
+export const GRID_COLORS = PALETTE_DARK.grid
+export const INVADER_COLOR = PALETTE_DARK.invader
+export const LASER_COLOR = PALETTE_DARK.laser
+export const SHIP_COLOR = PALETTE_DARK.ship
+export const BG_COLOR = PALETTE_DARK.bg
+export const PLUCK_COLOR = PALETTE_DARK.pluck
+export const OVERLAY_COLOR = PALETTE_DARK.overlay
 
 // ── Grid Cell ──
 

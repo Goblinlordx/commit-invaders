@@ -3,6 +3,13 @@ import { composeSvg } from '../src/animation/svg-compositor.js'
 import { simulate } from '../src/simulator/simulate.js'
 import { computeScoreboard } from '../src/scoreboard.js'
 import { createPRNG } from '../src/simulator/prng.js'
+import { PALETTE_DARK, PALETTE_LIGHT, PALETTE_CLASSIC, type ColorPalette } from '../src/animation/entity-templates.js'
+
+const PALETTES: Record<string, ColorPalette> = {
+  dark: PALETTE_DARK,
+  light: PALETTE_LIGHT,
+  classic: PALETTE_CLASSIC,
+}
 
 // ── Layout constants ──
 const CELL_SIZE = 11
@@ -233,7 +240,8 @@ async function doGenerate() {
         const lastDate = grid.cells.reduce((max, c) => (c.date > max ? c.date : max), '')
         const scoreboard = computeScoreboard(grid, lastDate, grid.width * 7, 10)
 
-        currentSvgString = composeSvg({ grid, seed, config: currentConfig, scoreboard })
+        const palette = PALETTES[currentTheme] ?? PALETTE_DARK
+        currentSvgString = composeSvg({ grid, seed, config: currentConfig, scoreboard, palette })
         animDuration = output.totalFrames / currentConfig.framesPerSecond
 
         // Insert SVG with animations paused — JS drives the time
@@ -268,10 +276,13 @@ async function doGenerate() {
 
 // ── Theme ──
 function setTheme(theme: string) {
+  currentTheme = theme
   document.querySelectorAll('.btn-theme').forEach(btn => {
     btn.classList.toggle('active', (btn as HTMLElement).dataset.theme === theme)
   })
   previewFrame.classList.toggle('classic', theme === 'classic')
+  // Regenerate SVG with new palette
+  if (currentSvgString) doGenerate()
 }
 
 // ── Debug Panel ──

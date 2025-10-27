@@ -26,12 +26,8 @@ import {
   sharedKeyframes,
 } from './keyframes.js'
 import {
-  GRID_COLORS,
-  INVADER_COLOR,
-  LASER_COLOR,
-  SHIP_COLOR,
-  PLUCK_COLOR,
-  BG_COLOR,
+  PALETTE_DARK,
+  type ColorPalette,
 } from './entity-templates.js'
 
 const RENDER_MARGIN = 10
@@ -113,14 +109,22 @@ export interface CompositeSvgOptions {
   config: SimConfig
   renderMode?: RenderMode
   scoreboard?: ScoreboardResult
+  palette?: ColorPalette
 }
 
 /**
  * Generate the complete animated SVG from simulation data.
  */
 export function composeSvg(options: CompositeSvgOptions): string {
-  const { grid, seed, config, renderMode = 'styled' } = options
+  const { grid, seed, config, renderMode = 'styled', palette: pal = PALETTE_DARK } = options
   const styled = renderMode === 'styled'
+  // Color aliases from palette
+  const BG_COLOR = pal.bg
+  const PLUCK_COLOR = pal.pluck
+  const INVADER_COLOR = pal.invader
+  const LASER_COLOR = pal.laser
+  const SHIP_COLOR = pal.ship
+  const GRID_COLORS = pal.grid
   const output = simulate(grid, seed, config)
   const fps = config.framesPerSecond
   const dur = totalDuration(output.totalFrames, fps)
@@ -520,7 +524,7 @@ export function composeSvg(options: CompositeSvgOptions): string {
     cssRules.push(visibilityKeyframes(waveLabelKf, [[startPct, endPct]]))
     elements.push(
       `<text x="${screenW / 2}" y="${gameAreaH / 2}" text-anchor="middle" dominant-baseline="middle" ` +
-      `font-family="monospace" font-weight="bold" font-size="16" fill="#e6edf3" opacity="0" ` +
+      `font-family="monospace" font-weight="bold" font-size="16" fill="${pal.text}" opacity="0" ` +
       `${anim(`${waveLabelKf} ${dur}s linear infinite`)}>WAVE ${wi + 1}/${totalWaves}</text>`
     )
   }
@@ -530,7 +534,7 @@ export function composeSvg(options: CompositeSvgOptions): string {
   const finalScore = output.finalScore
 
   // Status bar background
-  elements.push(`<rect x="0" y="${gameAreaH}" width="${screenW}" height="${STATUS_BAR_HEIGHT}" fill="#161b22" />`)
+  elements.push(`<rect x="0" y="${gameAreaH}" width="${screenW}" height="${STATUS_BAR_HEIGHT}" fill="${pal.bg}" />`)
 
   // Wave label (left): "READY" → "WAVE N/M" at each wave spawn → "READY" at reset
   // Score label (right): increments at each hit event
@@ -606,7 +610,7 @@ export function composeSvg(options: CompositeSvgOptions): string {
     }
     elements.push(
       `<text x="${screenW - 8}" y="${statusY}" text-anchor="end" dominant-baseline="middle" ` +
-      `font-family="monospace" font-weight="bold" font-size="12" fill="#39d353" opacity="0" ` +
+      `font-family="monospace" font-weight="bold" font-size="12" fill="${pal.scoreText}" opacity="0" ` +
       `${anim(`${kfName} ${dur}s linear infinite`)}>${fmtScore(layer.score)} COMMITS</text>`
     )
   }
@@ -622,7 +626,7 @@ export function composeSvg(options: CompositeSvgOptions): string {
   cssRules.push(visibilityKeyframes('status-ready-start', [[0, readyEndPct]]))
   elements.push(
     `<text x="8" y="${statusY}" dominant-baseline="middle" ` +
-    `font-family="monospace" font-size="11" fill="#8b949e" ` +
+    `font-family="monospace" font-size="11" fill="${pal.textMuted}" ` +
     `${anim(`status-ready-start ${dur}s linear infinite`)}>READY</text>`
   )
 
@@ -652,7 +656,7 @@ export function composeSvg(options: CompositeSvgOptions): string {
     }
     elements.push(
       `<text x="8" y="${statusY}" dominant-baseline="middle" ` +
-      `font-family="monospace" font-size="11" fill="#8b949e" opacity="0" ` +
+      `font-family="monospace" font-size="11" fill="${pal.textMuted}" opacity="0" ` +
       `${anim(`${waveKf} ${dur}s linear infinite`)}>WAVE ${wi + 1}/${totalWaves}</text>`
     )
   }
@@ -670,7 +674,7 @@ export function composeSvg(options: CompositeSvgOptions): string {
 }`)
     elements.push(
       `<text x="8" y="${statusY}" dominant-baseline="middle" ` +
-      `font-family="monospace" font-size="11" fill="#8b949e" opacity="0" ` +
+      `font-family="monospace" font-size="11" fill="${pal.textMuted}" opacity="0" ` +
       `${anim(`status-ready-reset ${dur}s linear infinite`)}>READY</text>`
     )
     // "0 COMMITS" during reset — same fade
@@ -682,7 +686,7 @@ export function composeSvg(options: CompositeSvgOptions): string {
 }`)
     elements.push(
       `<text x="${screenW - 8}" y="${statusY}" text-anchor="end" dominant-baseline="middle" ` +
-      `font-family="monospace" font-weight="bold" font-size="12" fill="#39d353" opacity="0" ` +
+      `font-family="monospace" font-weight="bold" font-size="12" fill="${pal.scoreText}" opacity="0" ` +
       `${anim(`status-score-reset ${dur}s linear infinite`)}>0 COMMITS</text>`
     )
   }
@@ -720,7 +724,7 @@ export function composeSvg(options: CompositeSvgOptions): string {
     elements.push(
       `<g ${anim(`wiggle-score 0.6s ease-in-out infinite`)}>` +
       `<text x="${screenW / 2}" y="${gameAreaH / 2}" text-anchor="middle" dominant-baseline="middle" ` +
-      `font-family="monospace" font-weight="bold" font-size="14" fill="#39d353" opacity="0" ` +
+      `font-family="monospace" font-weight="bold" font-size="14" fill="${pal.scoreText}" opacity="0" ` +
       `${anim(`ending-score-text ${dur}s linear infinite`)}>${scoreText}</text></g>`
     )
 
@@ -743,7 +747,7 @@ export function composeSvg(options: CompositeSvgOptions): string {
       const boardElements: string[] = []
       boardElements.push(
         `<text x="${screenW / 2}" y="12" text-anchor="middle" dominant-baseline="middle" ` +
-        `font-family="monospace" font-weight="bold" font-size="10" fill="#39d353">HIGH SCORES</text>`
+        `font-family="monospace" font-weight="bold" font-size="10" fill="${pal.scoreText}">HIGH SCORES</text>`
       )
 
       if (options.scoreboard.isNewHighScore) {
@@ -761,9 +765,9 @@ export function composeSvg(options: CompositeSvgOptions): string {
         const colX = col === 0 ? screenW * 0.25 : screenW * 0.75
         const y = entryStartY + row * 11
         const isCurrent = entry.isCurrent
-        const rankColor = isCurrent ? '#ffff00' : '#8b949e'
-        const dateColor = isCurrent ? '#e6edf3' : '#8b949e'
-        const scoreColor = isCurrent ? '#39d353' : '#58a6ff'
+        const rankColor = isCurrent ? '${pal.laser}' : '${pal.textMuted}'
+        const dateColor = isCurrent ? '${pal.text}' : '${pal.textMuted}'
+        const scoreColor = isCurrent ? '${pal.scoreText}' : '${pal.ship}'
         const fw = isCurrent ? 'bold' : 'normal'
 
         boardElements.push(
@@ -791,7 +795,7 @@ export function composeSvg(options: CompositeSvgOptions): string {
   100.00% { opacity: 0; }
 }`)
     elements.push(
-      `<rect x="0" y="0" width="${screenW}" height="${screenH}" fill="#000000" opacity="0" ` +
+      `<rect x="0" y="0" width="${screenW}" height="${screenH}" fill="${pal.bg}" opacity="0" ` +
       `${anim(`ending-blackout ${dur}s linear infinite`)} />`
     )
   }
@@ -816,8 +820,9 @@ export function generateAnimatedSvg(
   grid: Grid,
   seed: string,
   config: SimConfig,
+  palette?: ColorPalette,
 ): string {
   const lastDate = grid.cells.reduce((max, c) => (c.date > max ? c.date : max), '')
   const scoreboard = computeScoreboard(grid, lastDate, grid.width * 7, 10)
-  return composeSvg({ grid, seed, config, scoreboard })
+  return composeSvg({ grid, seed, config, scoreboard, palette })
 }
