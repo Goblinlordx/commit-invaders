@@ -66,10 +66,11 @@ function makeFixtureGrid(weeks: number, seed: string): Grid {
     for (let d = 0; d < 7; d++) {
       const roll = prng.next()
       let level: ContributionLevel
-      if (roll < 0.3) level = 0
-      else if (roll < 0.6) level = 1
-      else if (roll < 0.8) level = 2
-      else if (roll < 0.92) level = 3
+      // Realistic distribution: ~80% empty, ~20% active (matches real GitHub profiles)
+      if (roll < 0.80) level = 0
+      else if (roll < 0.90) level = 1
+      else if (roll < 0.95) level = 2
+      else if (roll < 0.98) level = 3
       else level = 4
       cells.push({
         x: w, y: d, level,
