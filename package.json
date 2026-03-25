@@ -17,6 +17,7 @@
     "dev:sim": "vite dev/sim-viewer",
     "dev:entities": "vite dev/entity-test",
     "dev:validator": "vite dev/entity-validator",
+    "dev:css-validator": "vite dev/css-validator",
     "test:visual": "playwright test"
   },
   "keywords": [
