@@ -92,40 +92,29 @@ async function fetchContributionGrid(username: string): Promise<Grid | null> {
     if (days.length === 0) return null
 
     const cells: Grid['cells'] = []
-    const dateToWeekDay = new Map<string, { week: number; day: number }>()
-
-    // Collect all dates and sort to determine week/day mapping
-    const dates: string[] = []
-    days.forEach(td => {
-      const date = td.getAttribute('data-date')!
-      dates.push(date)
-    })
-    dates.sort()
-
-    // Map dates to week/day grid positions
-    const startDate = new Date(dates[0]!)
-    for (const date of dates) {
-      const d = new Date(date)
-      const diffDays = Math.round((d.getTime() - startDate.getTime()) / 86400000)
-      const week = Math.floor(diffDays / 7)
-      const day = diffDays % 7
-      dateToWeekDay.set(date, { week, day })
-    }
 
     days.forEach(td => {
       const date = td.getAttribute('data-date')!
       const level = parseInt(td.getAttribute('data-level') || '0', 10) as ContributionLevel
-      const pos = dateToWeekDay.get(date)
-      if (!pos) return
+      // Grid position from element ID: contribution-day-component-{col}-{row}
+      const id = td.getAttribute('id') || ''
+      const idMatch = id.match(/contribution-day-component-(\d+)-(\d+)/)
+      if (!idMatch) return
+      // GitHub layout: col=day-of-week, row=week-index
+      const day = parseInt(idMatch[1]!, 10)
+      const week = parseInt(idMatch[2]!, 10)
 
-      // Count from tooltip text or estimate from level
+      // Get commit count from linked <tool-tip for="element-id">
+      const tooltip = doc.querySelector(`tool-tip[for="${id}"]`)
       let count = 0
-      const tooltip = td.querySelector('.sr-only')?.textContent || td.getAttribute('aria-label') || ''
-      const match = tooltip.match(/(\d+)\s+contribution/)
-      if (match) count = parseInt(match[1]!, 10)
-      else count = level === 0 ? 0 : level * 3
+      if (tooltip) {
+        const text = tooltip.textContent || ''
+        const m = text.match(/(\d+)\s+contribution/)
+        if (m) count = parseInt(m[1]!, 10)
+      }
+      if (count === 0 && level > 0) count = level * 3 // fallback estimate
 
-      cells.push({ x: pos.week, y: pos.day, level, date, count })
+      cells.push({ x: week, y: day, level, date, count })
     })
 
     const maxWeek = Math.max(...cells.map(c => c.x)) + 1
@@ -245,6 +234,11 @@ async function doGenerate() {
         const scoreboard = computeScoreboard(grid, lastDate, grid.width * 7, 10)
 
         const palette = PALETTES[currentTheme] ?? PALETTE_DARK
+        // Debug: check for breaches
+        const emergencyKills = output.events.filter(e => e.type === 'destroy').length - output.events.filter(e => e.type === 'hit').length
+        const lockedMisses = output.events.filter(e => e.type === 'locked_miss').length
+        console.log(`[sim] active=${grid.cells.filter(c => c.level > 0).length} frames=${output.totalFrames} hits=${output.events.filter(e => e.type === 'hit').length} fires=${output.events.filter(e => e.type === 'fire_laser').length} emergencyKills=${emergencyKills} lockedMisses=${lockedMisses} gameEnd=${output.events.some(e => e.type === 'game_end')}`)
+
         currentSvgString = composeSvg({ grid, seed, config: currentConfig, scoreboard, palette })
         animDuration = output.totalFrames / currentConfig.framesPerSecond
 
