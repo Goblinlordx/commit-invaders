@@ -1,0 +1,161 @@
+id: cell-lifecycle_20260325110700Z
+title: "Cell Lifecycle — Pluck, Travel, Hatch with Wave Phase Transitions"
+type: feature
+status: pending
+created: 2026-03-25
+updated: 2026-03-25
+spec:
+  summary: |
+    Add cell pluck/travel/hatch lifecycle to the simulation with
+    configurable timing, wave phase tracking, inflection points, and
+    renderer support for the full visual sequence per wave.
+  context: |
+    Current state: all cells are always in_grid with detachProgress=0.
+    The types already define CellState.status and detachProgress but
+    the simulation never populates them. Event types cell_detach and
+    cell_transform exist but are never emitted.
+
+    The full visual sequence per wave:
+    1. BRIGHTEN — overlay fades out, grid becomes visible ("look at the grid")
+    2. PLUCK — selected cells change color (green → amber), still at grid position
+    3. DARKEN — overlay fades back in, combat mode returns
+    4. TRAVEL — plucked cells animate from grid position to formation area
+    5. HATCH — cells at destination transform (amber → red invader color)
+    6. ACTIVE — formation starts oscillating, ship fires
+    7. CLEARING — wave cleared, brief pause before next cycle
+
+    For the hitbox sim-viewer, these are just color changes and position
+    interpolation. The CSS/SVG renderer will later add smooth transitions.
+  codebase_analysis: |
+    Types (src/types.ts):
+      CellState.status: 'in_grid' | 'detaching' | 'transformed' | 'destroyed'
+      CellState.detachProgress: number (0-1)
+      SimEventType: includes 'cell_detach', 'cell_transform' (unused)
+      WaveConfig: { weeksPerWave, spawnDelay }
+      GameState.gridCells: CellState[]
+
+    Simulation (src/simulator/simulate.ts):
+      buildGameState always returns all cells as in_grid/0
+      Wave spawn is instant — no lifecycle phases
+      The solver pauses during solveCooldown but not for wave transitions
+
+    Renderer (dev/sim-viewer/renderer.ts):
+      Draws grid cells at fixed positions, always grid colors
+      Overlay is binary (on when formations.length > 0)
+
+    Wave manager (src/simulator/wave-manager.ts):
+      trySpawnNext checks lastClearedWave and spawnDelay
+      No concept of pre-spawn phases
+  acceptance_criteria:
+    - CellState.status expanded with 'plucked' and 'hatching' states
+    - WaveConfig gains timing fields (brightenDuration, pluckDuration, travelDuration, hatchDuration, darkenDuration)
+    - GameState gains wavePhase field tracking current transition state
+    - Simulation runs full lifecycle before wave becomes active
+    - Cell positions interpolate during travel phase (detachProgress 0→1)
+    - Inflection points emitted for each cell at pluck, travel_start, travel_end, hatch_start, hatch_complete
+    - Wave phase inflection points emitted (brighten, darken, wave_active)
+    - Renderer shows plucked cells as amber, hatching cells transitioning, traveling cells interpolated
+    - Renderer overlay opacity varies by wave phase (transparent during brighten/pluck, opaque during travel/active)
+    - All timings configurable via SimConfig tuning panel in sim-viewer
+    - Existing tests updated — simulation still completes all invaders
+    - Perf benchmark still passes (full year under 500ms)
+  out_of_scope: |
+    Smooth CSS transitions (visual-polish track).
+    Particle effects during hatch. Wave label text overlay.
+    Score counter animation.
+  technical_notes: |
+    Type changes:
+
+      CellState.status: 'in_grid' | 'plucked' | 'traveling' | 'hatching' | 'transformed' | 'destroyed'
+
+      WaveConfig additions:
+        brightenDuration: number  // frames for overlay fade-out
+        pluckDuration: number     // frames cells show as plucked at grid pos
+        darkenDuration: number    // frames for overlay fade-in
+        travelDuration: number    // frames for cell position interpolation
+        hatchDuration: number     // frames for color transition at destination
+
+      GameState addition:
+        wavePhase: 'idle' | 'brightening' | 'plucking' | 'darkening' | 'traveling' | 'hatching' | 'active' | 'clearing'
+
+    Simulation flow change:
+
+      When wave manager says "next wave ready":
+      1. Enter brightening phase (brightenDuration frames)
+         - Emit wave_phase_change event
+      2. Enter plucking phase (pluckDuration frames)
+         - Mark selected cells as 'plucked'
+         - Emit cell_pluck events + inflection points per cell
+      3. Enter darkening phase (darkenDuration frames)
+      4. Enter traveling phase (travelDuration frames)
+         - Each frame: detachProgress += 1/travelDuration
+         - Cell position = lerp(gridPos, formationPos, detachProgress)
+         - Emit cell_travel_start at beginning, track in inflections
+      5. Enter hatching phase (hatchDuration frames)
+         - Mark cells as 'hatching'
+         - Emit cell_hatch events + inflection points
+      6. Convert cells to invaders, enter active phase
+         - Mark cells as 'transformed'
+         - Formation starts, solver engages
+
+      The solver's solveCooldown should be extended to cover the full
+      lifecycle duration so the ship doesn't fire during transitions.
+      Ship can still move freely during phases 1-5 (free movement time).
+
+    Renderer changes:
+
+      Grid cell colors by status:
+        in_grid:     normal green shades (level-based)
+        plucked:     #d29922 (amber/gold)
+        traveling:   #d29922 at interpolated position
+        hatching:    lerp(#d29922, #ff4444, hatchProgress)
+        transformed: not drawn (now an invader)
+
+      Overlay opacity by wavePhase:
+        idle:        0.0 (fully transparent)
+        brightening: lerp(0.6, 0.0, phaseProgress)
+        plucking:    0.0 (transparent — see the plucked cells)
+        darkening:   lerp(0.0, 0.6, phaseProgress)
+        traveling:   0.6
+        hatching:    0.6
+        active:      0.6
+        clearing:    0.6
+
+    Cell selection for waves:
+
+      The wave manager already groups cells by column into waves.
+      Each wave's cells map to specific grid positions. When a wave
+      enters pluck phase, those exact cells change status. The mapping
+      is: wave.cells[i].cell → find matching gridCell by (x, y).
+plan:
+  - phase: "Types & Config"
+    tasks:
+      - text: "Expand CellState.status with 'plucked' and 'hatching' states"
+        done: false
+      - text: "Add lifecycle timing fields to WaveConfig (brighten, pluck, darken, travel, hatch durations)"
+        done: false
+      - text: "Add wavePhase field to GameState"
+        done: false
+      - text: "Add new SimEventTypes: cell_pluck, cell_travel_start, cell_hatch_start, cell_hatch_complete, wave_phase_change"
+        done: false
+  - phase: "Simulation Lifecycle"
+    tasks:
+      - text: "Implement wave phase state machine in simulate() (brighten → pluck → darken → travel → hatch → active)"
+        done: false
+      - text: "Track cell status changes through lifecycle (in_grid → plucked → traveling → hatching → transformed)"
+        done: false
+      - text: "Interpolate cell positions during travel phase using detachProgress"
+        done: false
+      - text: "Emit inflection points for each cell at each lifecycle transition"
+        done: false
+      - text: "Update existing tests and perf benchmark for new timing fields"
+        done: false
+  - phase: "Renderer & Tuning"
+    tasks:
+      - text: "Update renderer: cell colors by status (amber pluck, interpolated travel, hatching transition)"
+        done: false
+      - text: "Update renderer: overlay opacity varies by wavePhase"
+        done: false
+      - text: "Add lifecycle timing sliders to sim-viewer tuning panel"
+        done: false
+extra: {}
