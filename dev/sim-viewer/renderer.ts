@@ -108,10 +108,9 @@ export function renderFrame(
 
   for (const gc of state.gridCells) {
     const status = gc.status
-    // Draw lifecycle cells + transformed (waiting for wave start)
-    // Transformed cells despawn when formation appears (phase=active)
-    if (status === 'transformed' && phase === 'active') continue
-    if (status !== 'plucked' && status !== 'traveling' && status !== 'hatching' && status !== 'transformed') continue
+    // Only draw active lifecycle states (plucked/traveling/hatching)
+    // Transformed = done, never drawn (formation takes over)
+    if (status !== 'plucked' && status !== 'traveling' && status !== 'hatching') continue
 
     // Grid position (top-left of cell)
     const gridX = gridScreenOffsetX + gc.cell.x * stride
@@ -148,10 +147,7 @@ export function renderFrame(
       const b = Math.round(34 + (68 - 34) * t)
       ctx.fillStyle = `rgb(${r},${g},${b})`
       ctx.fillRect(targetCenterX - invHalf, targetCenterY - invHalf, config.invaderSize, config.invaderSize)
-    } else if (status === 'transformed') {
-      // Waiting for all cells to transform → draw as invader (exact match)
-      ctx.fillStyle = INVADER_COLOR
-      ctx.fillRect(targetCenterX - invHalf, targetCenterY - invHalf, config.invaderSize, config.invaderSize)
+    // transformed cells are not drawn — formation layer handles them
     }
   }
 
