@@ -28,7 +28,7 @@ function defaultConfig(): SimConfig {
   return {
     framesPerSecond: 60,
     waveConfig: {
-      weeksPerWave: 4, spawnDelay: 60,
+      weeksPerWave: 4, spawnDelay: 0, // no extra delay — lifecycle IS the transition
       brightenDuration: 30, pluckDuration: 20, darkenDuration: 20,
       travelDuration: 40, hatchDuration: 20,
     },
