@@ -6,50 +6,72 @@ created: 2026-03-25
 updated: 2026-03-25
 spec:
   summary: |
-    Build a canvas-based browser renderer that peeks the simulation's
-    StateHistory at any frame. Dev tool for human visual acceptance. The
-    renderer does NOT run the simulation — it just reads pre-computed state
-    via peek(frame). Exposes seekToFrame() API for Playwright in Track 3.
+    Build a canvas-based browser renderer that peeks the SimOutput at any
+    frame. Dev tool for human visual acceptance. The renderer does NOT run
+    the simulation — it reads pre-computed state via SimOutput.peek(frame).
+    Exposes seekToFrame() API for Playwright in the CSS generation track.
   context: |
-    The simulation (Track 1) pre-computes a complete StateHistory. This
-    renderer simply calls stateHistory.peek(frame) and draws the result
-    on a canvas. Because state is pre-computed:
-    - Seeking to any frame is instant (no re-simulation)
+    simulate(grid, seed, config) produces a SimOutput with:
+      - peek(frame) → GameState (reconstructed from events + LRU cache)
+      - getInflections(entityId) → InflectionPoint[]
+      - getAllInflections() → Map<string, EntityTimeline>
+      - totalFrames, finalScore, events[]
+
+    This renderer calls SimOutput.peek(frame) and draws the GameState on
+    a canvas. Because state is pre-computed:
+    - Seeking to any frame is instant (LRU cache + anchor snapshots)
     - Playing forward and backward is trivial
     - Every frame renders identically every time (deterministic)
 
     Two purposes:
-    1. HUMAN VALIDATION: developer watches, tunes choreographer params,
+    1. HUMAN VALIDATION: developer watches, tunes SimConfig physics params,
        accepts the game visually. One-time per major change.
     2. PLAYWRIGHT API: exposes window.simController.seekToFrame(n) so
-       automated tests (Track 3) can capture screenshots at any frame.
+       automated tests (CSS generation track) can capture screenshots.
 
     Dev tool only — rough visuals. Simple shapes, not final sprites.
   codebase_analysis: |
-    Builds on Track 1 StateHistory.peek(frame) API. The renderer is a thin
-    visualization layer — all game logic is in the simulation.
+    Current API (src/simulator/simulate.ts):
+      simulate(grid: Grid, seed: string, config: SimConfig) → SimOutput
+
+    SimOutput.peek(frame) returns GameState with:
+      - frame, score, totalInvaders
+      - formations[] (each with invaders[], offset, direction, speed)
+      - ship (position, targetX)
+      - lasers[] (position, speed, active)
+      - effects[]
+      - gridCells[] (cell, status, detachProgress)
+
+    SimConfig physics params (all tunable via UI):
+      laserSpeed, laserWidth, invaderSize, shipSpeed, shipY,
+      formationBaseSpeed, formationMaxSpeed, formationRowDrop,
+      hitChance, cellSize, cellGap, playArea, gridArea, waveConfig
+
+    No separate engine or choreographer — simulate() is the single entry point.
+    No ShipScript as public input — ship actions are solved internally.
   acceptance_criteria:
-    - Canvas renderer calls stateHistory.peek(frame) — does NOT run simulation itself
-    - seekToFrame(n) renders any frame instantly (pre-computed state, no delay)
+    - Canvas renderer calls SimOutput.peek(frame) — does NOT run simulation itself
+    - seekToFrame(n) renders any frame instantly
     - Forward AND backward seeking works (just peek different frame numbers)
     - Same frame always renders identical canvas (deterministic peek + deterministic draw)
-    - Grid cells drawn as colored rects matching GitHub layout
-    - Detaching cells show position interpolation between grid pos and spawn area
+    - Grid cells drawn as colored rects matching GitHub contribution levels
     - Formations visible with zigzag movement
     - Damaged invaders show reduced opacity per remaining HP
-    - Ship visible, moves per ShipScript
+    - Ship visible at config.shipY
     - Lasers visible traveling upward
-    - Explosions visible on hit
-    - Wave transitions visible (clear → next wave spawns from grid)
+    - Explosions visible on destroy events
+    - Wave transitions visible (clear → next wave spawns)
     - Playback controls: play, pause, step +1/-1/+10/-10, speed slider, restart
     - Frame scrubber (range slider) for direct frame access
     - HUD: frame number, total frames, wave number, invaders remaining, score
+    - SimConfig physics tuning panel (sliders for laserSpeed, shipSpeed, formationBaseSpeed, hitChance, etc.) — re-runs simulate() on change
+    - Seed input field — re-runs simulate() on change
     - Fixture selector or JSON paste for different Grid inputs
     - window.simController API exposed for Playwright
     - Runs via vite dev server (imports src/ directly)
   out_of_scope: |
-    Final sprites. CSS/SVG generation (Track 3). GitHub Action (Track 4).
-    Automated Playwright tests (Track 3 — this track just provides the API).
+    Final sprites. CSS/SVG generation. GitHub Action.
+    Automated Playwright tests (CSS track provides those).
   technical_notes: |
     Directory structure:
       dev/
@@ -57,33 +79,43 @@ spec:
           index.html        — page with canvas + controls
           renderer.ts       — draws GameState to canvas
           playback.ts       — frame stepping, play/pause, speed
-          main.ts           — loads sim, wires controls, exposes API
+          main.ts           — calls simulate(), wires controls, exposes API
 
     Key principle: the renderer is stateless. It receives a GameState
     from peek() and draws it. No internal game state, no event processing,
     no simulation logic. Just: GameState → canvas pixels.
 
+    Entry point:
+      const output = simulate(grid, seed, config)
+      // output.peek(frame) → GameState → render to canvas
+
     window.simController API:
-      seekToFrame(n)        — peek(n) then render
+      seekToFrame(n)        — output.peek(n) then render
       play() / pause()      — toggle requestAnimationFrame loop
       step(delta)           — seek to currentFrame + delta
       setSpeed(mult)        — playback speed multiplier
       restart()             — seekToFrame(0)
       getFrame()            — current frame number
-      getTotalFrames()      — stateHistory.totalFrames
+      getTotalFrames()      — output.totalFrames
       getState()            — current GameState (for Playwright assertions)
+      rerun(config, seed)   — re-run simulate() with new params
 
     Canvas drawing (simple shapes):
       Grid: rounded rects, green shades (0=empty, 1-4=intensity)
       Invaders: colored squares, opacity = currentHP / maxHP
-      Ship: triangle at fixed y
-      Lasers: thin bright lines
+      Ship: triangle at config.shipY
+      Lasers: thin bright lines (width from config.laserWidth)
       Explosions: expanding circle with fade
-      Cell detach: lerp position from gridPos to spawnPos based on
-        detach progress (stored in GameState.gridCells[].detachProgress)
+      Wave labels: "WAVE N" text during spawn transitions
+
+    Physics tuning panel:
+      Sliders for all SimConfig numeric fields. Changing any value
+      re-runs simulate() with the new config and resets playback to
+      frame 0. This lets developers quickly iterate on game feel
+      (e.g., faster lasers, slower formations, higher hit chance).
 
     Backward play: just decrement frame counter and peek.
-    No special logic needed — StateHistory already has every frame.
+    No special logic needed — SimOutput.peek() handles any frame.
 plan:
   - phase: "Canvas Renderer"
     tasks:
@@ -103,17 +135,17 @@ plan:
         done: false
       - text: "Implement frame scrubber: range input for direct frame access"
         done: false
-      - text: "Expose window.simController API with seekToFrame, play, pause, step, getState"
+      - text: "Expose window.simController API with seekToFrame, play, pause, step, getState, rerun"
         done: false
-  - phase: "Integration & Human Validation"
+  - phase: "Integration & Tuning"
     tasks:
-      - text: "Wire up: load fixture Grid → run choreographer + simulation → pass StateHistory to renderer"
+      - text: "Wire up: call simulate(grid, seed, config) and pass SimOutput to renderer"
         done: false
-      - text: "Add fixture selector dropdown and JSON paste for different grids"
+      - text: "Add seed input field and fixture selector dropdown for different Grid inputs"
+        done: false
+      - text: "Add SimConfig physics tuning panel (sliders for speeds, sizes, hitChance)"
         done: false
       - text: "Visually validate game flow: wave spawn, zigzag, combat, wave clear, game end"
-        done: false
-      - text: "Tune parameters: wave spawn delay, formation speed, ship speed, laser speed"
         done: false
       - text: "Verify seekToFrame determinism: same frame always produces identical canvas"
         done: false

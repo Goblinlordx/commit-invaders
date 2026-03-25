@@ -27,8 +27,9 @@ spec:
   out_of_scope: |
     Marketplace publishing. GIF output. Web demo.
   technical_notes: |
-    See previous track version — unchanged. Execution flow:
-    fetch → choreographer → simulate → extract inflections → CSS → SVG → write → push
+    Execution flow (simplified by unified solver):
+    fetch → simulate(grid, seed, config) → CSS generation from inflections → SVG → write → push
+    No separate choreographer or inflection extraction step needed.
 plan:
   - phase: "Action Entrypoint"
     tasks:

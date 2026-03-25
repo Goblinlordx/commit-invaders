@@ -1,5 +1,5 @@
 id: css-generation_20260325065302Z
-title: "CSS Generation & Automated Visual Validation"
+title: "Inflection Extraction, CSS Generation & Automated Visual Validation"
 type: feature
 status: pending
 created: 2026-03-25
@@ -13,7 +13,7 @@ spec:
     Pipeline: SimOutput.getInflections() → CSS keyframes → SVG
 
     No inflection extraction step — inflection points are already computed
-    by the simulation engine (Track 1e) and stored in SimOutput.entityTimelines.
+    by simulate() and stored in SimOutput.entityTimelines.
     This track just maps them to CSS percentages and emits keyframes.
 
     Data-driven CSS: ~15 shared @keyframes templates parameterized by CSS
@@ -26,7 +26,7 @@ spec:
     3. Playwright freezes CSS SVG at equivalent time via negative animation-delay
     4. Pixel diff comparison at inflection points — automated, runs in CI
   codebase_analysis: |
-    Builds on SimOutput (engine track) and sim renderer (Track 2).
+    Builds on SimOutput from simulate() and sim renderer dev tool.
     Inflection points come pre-computed from the simulation — no extraction needed.
     CSS seek via negative animation-delay is a well-known technique.
   acceptance_criteria:
@@ -69,7 +69,7 @@ spec:
           simulation-vs-css.spec.ts  — Playwright regression tests
 
     Inflection points:
-      Pre-computed by the simulation engine (SimOutput.getInflections()).
+      Pre-computed by simulate() (SimOutput.getInflections()).
       This track just maps frame numbers to CSS percentages via timeline.ts.
       No extraction logic needed — just query and transform.
 
