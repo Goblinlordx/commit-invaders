@@ -242,12 +242,40 @@ export function renderFrame(
     ctx.restore()
   }
 
-  // Ending: scoreboard display
-  const showScore = phase === 'ending_score' || phase === 'ending_hold' || phase === 'ending_blackout'
-  if (showScore && scoreboardData) {
+  // Ending: score display — "N COMMITS DESTROYED" with wiggle
+  if (phase === 'ending_score') {
     const gameAreaH = config.playArea.width + RENDER_MARGIN * 2
     const centerX = screen.width / 2
-    const scoreAlpha = phase === 'ending_score' ? state.wavePhaseProgress : (phase === 'ending_blackout' ? 1 - state.wavePhaseProgress : 1)
+    const centerY = gameAreaH / 2
+    const alpha = state.wavePhaseProgress
+
+    ctx.save()
+    ctx.globalAlpha = alpha
+    const bigSize = Math.max(14, Math.floor(gameAreaH * 0.14))
+    ctx.font = `bold ${bigSize}px monospace`
+    ctx.textAlign = 'center'
+    ctx.textBaseline = 'middle'
+
+    const text = `${formatScore(state.score)} COMMITS`
+    const charW = bigSize * 0.62
+    const startX = centerX - (text.length * charW) / 2
+
+    for (let i = 0; i < text.length; i++) {
+      const wiggle = Math.sin((state.frame * 0.08 + i * 0.5) % (Math.PI * 2)) * 3
+      ctx.fillStyle = '#39d353'
+      ctx.fillText(text[i]!, startX + i * charW, centerY + wiggle)
+    }
+
+    ctx.globalAlpha = 1
+    ctx.restore()
+  }
+
+  // Ending: scoreboard display
+  const showScoreboard = phase === 'ending_hold' || phase === 'ending_blackout'
+  if (showScoreboard && scoreboardData) {
+    const gameAreaH = config.playArea.width + RENDER_MARGIN * 2
+    const centerX = screen.width / 2
+    const scoreAlpha = phase === 'ending_blackout' ? 1 - state.wavePhaseProgress : 1
 
     ctx.save()
     ctx.globalAlpha = scoreAlpha
@@ -259,20 +287,13 @@ export function renderFrame(
     const fontSize = Math.max(9, Math.floor(h * 0.09))
     const rowHeight = Math.floor(h * 0.11)
 
-    // Title with wiggle
-    const title = 'HIGH SCORES'
+    // Title (static)
     const titleY = Math.floor(h * 0.08)
     ctx.font = `bold ${titleSize}px monospace`
     ctx.textAlign = 'center'
     ctx.textBaseline = 'middle'
-    const titleCharW = titleSize * 0.62
-    const titleStartX = centerX - (title.length * titleCharW) / 2
-
-    for (let i = 0; i < title.length; i++) {
-      const wiggle = Math.sin((state.frame * 0.08 + i * 0.4) % (Math.PI * 2)) * 2.5
-      ctx.fillStyle = '#39d353'
-      ctx.fillText(title[i]!, titleStartX + i * titleCharW, titleY + wiggle)
-    }
+    ctx.fillStyle = '#39d353'
+    ctx.fillText('HIGH SCORES', centerX, titleY)
 
     // "New High Score!" indicator
     let tableStartY = Math.floor(h * 0.18)
@@ -291,10 +312,12 @@ export function renderFrame(
       tableStartY = Math.floor(h * 0.26)
     }
 
-    // Scoreboard table — 2 columns of 5
-    const colWidth = screen.width * 0.44
-    const colGap = screen.width * 0.04
-    const colOffsets = [centerX - colGap / 2 - colWidth / 2, centerX + colGap / 2 + colWidth / 2]
+    // Scoreboard table — 2 columns of 5, compact width
+    // Fixed layout: " 1. YYYY-MM-DD  1.23k" = ~22 chars per entry
+    const charW = fontSize * 0.6
+    const entryWidth = charW * 22 // rank(3) + date(10) + gap(2) + score(5) + padding(2)
+    const colGap = charW * 3
+    const colOffsets = [centerX - colGap / 2 - entryWidth / 2, centerX + colGap / 2 + entryWidth / 2]
     ctx.textBaseline = 'middle'
 
     for (let i = 0; i < scoreboardData.entries.length; i++) {
@@ -304,29 +327,30 @@ export function renderFrame(
       const colX = colOffsets[col]!
       const y = tableStartY + row * rowHeight
       const isCurrent = entry.isCurrent
+      const left = colX - entryWidth / 2
+      const right = colX + entryWidth / 2
 
       // Highlight current entry
       if (isCurrent) {
         ctx.fillStyle = 'rgba(57, 211, 83, 0.15)'
-        ctx.fillRect(colX - colWidth / 2 - 4, y - rowHeight / 2, colWidth + 8, rowHeight)
+        ctx.fillRect(left - 2, y - rowHeight / 2, entryWidth + 4, rowHeight)
       }
+
+      ctx.font = isCurrent ? `bold ${fontSize}px monospace` : `${fontSize}px monospace`
 
       // Rank
       ctx.textAlign = 'left'
       ctx.fillStyle = isCurrent ? '#ffff00' : '#8b949e'
-      ctx.font = isCurrent ? `bold ${fontSize}px monospace` : `${fontSize}px monospace`
-      ctx.fillText(`${String(entry.rank).padStart(2, ' ')}.`, colX - colWidth / 2, y)
+      ctx.fillText(`${String(entry.rank).padStart(2, ' ')}.`, left, y)
 
-      // Date (short: MM-DD)
+      // Date (full YYYY-MM-DD)
       ctx.fillStyle = isCurrent ? '#e6edf3' : '#8b949e'
-      const shortDate = entry.date.slice(5) // "MM-DD" from "YYYY-MM-DD"
-      ctx.fillText(shortDate, colX - colWidth / 2 + fontSize * 2.8, y)
+      ctx.fillText(entry.date, left + charW * 4, y)
 
-      // Score (formatted)
+      // Score (formatted, right-aligned)
       ctx.textAlign = 'right'
       ctx.fillStyle = isCurrent ? '#39d353' : '#58a6ff'
-      ctx.font = isCurrent ? `bold ${fontSize}px monospace` : `${fontSize}px monospace`
-      ctx.fillText(formatScore(entry.score), colX + colWidth / 2, y)
+      ctx.fillText(formatScore(entry.score), right, y)
     }
 
     ctx.globalAlpha = 1
