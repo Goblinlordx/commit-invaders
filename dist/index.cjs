@@ -22972,7 +22972,7 @@ async function commitToOutputBranch(branch, files, username) {
     info("No changes to commit");
     return;
   }
-  await exec("git", ["push", "origin", branch]);
+  await exec("git", ["push", "--force", "origin", branch]);
   info(`Pushed to origin/${branch}`);
 }
 run();

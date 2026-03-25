@@ -95,7 +95,7 @@ async function commitToOutputBranch(branch: string, files: string[], username: s
     return
   }
 
-  await exec.exec('git', ['push', 'origin', branch])
+  await exec.exec('git', ['push', '--force', 'origin', branch])
   core.info(`Pushed to origin/${branch}`)
 }
 
