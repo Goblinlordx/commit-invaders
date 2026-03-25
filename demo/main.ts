@@ -84,8 +84,15 @@ async function fetchContributionGrid(username: string): Promise<Grid | null> {
     if (!res) return null
     const html = await res.text()
 
-    // Parse contribution calendar from HTML
-    // Each day is a <td> with data-date and data-level attributes
+    // Build tooltip map from raw HTML: element-id → contribution count
+    const tooltipMap = new Map<string, number>()
+    const tooltipRegex = /for="(contribution-day-component-[^"]+)"[^>]*>(\d+)\s+contribution/g
+    let tm
+    while ((tm = tooltipRegex.exec(html)) !== null) {
+      tooltipMap.set(tm[1]!, parseInt(tm[2]!, 10))
+    }
+
+    // Parse contribution calendar via DOM
     const parser = new DOMParser()
     const doc = parser.parseFromString(html, 'text/html')
     const days = doc.querySelectorAll('td[data-date][data-level]')
@@ -96,7 +103,6 @@ async function fetchContributionGrid(username: string): Promise<Grid | null> {
     days.forEach(td => {
       const date = td.getAttribute('data-date')!
       const level = parseInt(td.getAttribute('data-level') || '0', 10) as ContributionLevel
-      // Grid position from element ID: contribution-day-component-{col}-{row}
       const id = td.getAttribute('id') || ''
       const idMatch = id.match(/contribution-day-component-(\d+)-(\d+)/)
       if (!idMatch) return
@@ -104,15 +110,7 @@ async function fetchContributionGrid(username: string): Promise<Grid | null> {
       const day = parseInt(idMatch[1]!, 10)
       const week = parseInt(idMatch[2]!, 10)
 
-      // Get commit count from linked <tool-tip for="element-id">
-      const tooltip = doc.querySelector(`tool-tip[for="${id}"]`)
-      let count = 0
-      if (tooltip) {
-        const text = tooltip.textContent || ''
-        const m = text.match(/(\d+)\s+contribution/)
-        if (m) count = parseInt(m[1]!, 10)
-      }
-      if (count === 0 && level > 0) count = level * 3 // fallback estimate
+      const count = tooltipMap.get(id) ?? (level === 0 ? 0 : level * 3)
 
       cells.push({ x: week, y: day, level, date, count })
     })
