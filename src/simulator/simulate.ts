@@ -572,8 +572,10 @@ function simulateCore(
 
           // Build cell list with formation target positions
           // Formation positions use a sequential layout (col 0..N, row from cell.y)
-          // Layout: wide grid — more columns (oscillation axis) than rows (depth)
-          const maxCols = Math.ceil(Math.sqrt(selectedIndices.length * 2))
+          // Layout: wide grid — cap columns so formation has room to oscillate
+          // Leave 1 stride margin on each side for oscillation travel
+          const maxFormationWidth = config.playArea.width - formationStride * 2
+          const maxCols = Math.max(1, Math.floor(maxFormationWidth / formationStride))
           const cells: Array<{ cellIndex: number; targetPos: Position }> = selectedIndices.map((ci, i) => {
             const cell = grid.cells[ci]!
             const row = Math.floor(i / maxCols)
