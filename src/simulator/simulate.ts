@@ -42,7 +42,8 @@ function predictWorldPos(
   dt: number,
 ): { x: number; y: number } {
   const s = formation.getState()
-  const alive = s.invaders.filter((i) => !i.destroyed)
+  // Use ALL invaders for boundary (original formation footprint)
+  const allInvaders = s.invaders
   let offX = s.offset.x
   let offY = s.offset.y
   let dir = s.direction
@@ -51,7 +52,7 @@ function predictWorldPos(
   for (let t = 0; t < ticksAhead; t++) {
     const dx = dir === 'right' ? spd : -spd
     let wouldExceed = false
-    for (const a of alive) {
+    for (const a of allInvaders) {
       if (a.position.x + offX + dx < playArea.x ||
           a.position.x + offX + dx >= playArea.x + playArea.width) {
         wouldExceed = true
@@ -107,9 +108,8 @@ function solveHit(
   const maxLaserTicks = Math.ceil(config.shipY / laserSpeedPerFrame) + 5
 
   const fState = target.formation.getState()
-  const alive = fState.invaders.filter((i) => !i.destroyed)
-  // Use current speed for near-future prediction. Speed increases as invaders die,
-  // but we re-validate solutions each frame so short-term prediction is sufficient.
+  // Use ALL invaders for boundary prediction (matches formation.ts — original footprint)
+  const allInvaders = fState.invaders
   const spd = fState.speed * dt // px/s → px/frame
 
   // Pre-compute the formation path once for (maxDelay + maxLaserTicks) ticks.
@@ -127,7 +127,7 @@ function solveHit(
   for (let t = 1; t < pathLen; t++) {
     const dx = dir === 'right' ? spd : -spd
     let wouldExceed = false
-    for (const a of alive) {
+    for (const a of allInvaders) {
       if (a.position.x + offX + dx < config.playArea.x ||
           a.position.x + offX + dx >= config.playArea.x + config.playArea.width) {
         wouldExceed = true; break

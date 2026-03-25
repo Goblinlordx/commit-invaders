@@ -55,8 +55,9 @@ export function createFormation(
   }
 
   function wouldExceedBoundary(dx: number): boolean {
-    const alive = aliveInvaders()
-    for (const inv of alive) {
+    // Use ALL invaders (including dead) so the formation oscillates within
+    // its original footprint regardless of how many are destroyed.
+    for (const inv of state.invaders) {
       const ex = inv.position.x + state.offset.x + dx
       if (ex < playArea.x || ex >= playArea.x + playArea.width) {
         return true
