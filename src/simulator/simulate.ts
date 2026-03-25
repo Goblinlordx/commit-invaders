@@ -164,7 +164,7 @@ function solveHit(
 
       const moveDist = Math.abs(predX - shipX)
       if (moveDist > extraDelay * shipSpeedPerFrame) {
-        break // need more delay
+        continue // ship can't reach this X yet — try more laser ticks (invader may bounce back)
       }
 
       return { fireFrame, fireX: predX, targetId: target.id }
