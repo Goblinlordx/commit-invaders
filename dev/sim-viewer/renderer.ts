@@ -149,22 +149,8 @@ export function renderFrame(
       ctx.fillStyle = PLUCK_COLOR
       ctx.fillRect(cx - half, cy - half, size, size)
     } else if (status === 'hatching') {
-      // Interpolate color: amber → bright orange → invader red
-      const t = gc.detachProgress
-      // Two-phase: amber(210,153,34) → orange(255,140,40) → red(255,68,68)
-      let r: number, g: number, b: number
-      if (t < 0.5) {
-        const t2 = t * 2
-        r = Math.round(210 + (255 - 210) * t2)
-        g = Math.round(153 + (140 - 153) * t2)
-        b = Math.round(34 + (40 - 34) * t2)
-      } else {
-        const t2 = (t - 0.5) * 2
-        r = 255
-        g = Math.round(140 + (68 - 140) * t2)
-        b = Math.round(40 + (68 - 40) * t2)
-      }
-      ctx.fillStyle = `rgb(${r},${g},${b})`
+      // Simple: invader color at invader size/position (matches invader exactly)
+      ctx.fillStyle = INVADER_COLOR
       ctx.fillRect(targetCenterX - invHalf, targetCenterY - invHalf, config.invaderSize, config.invaderSize)
     // transformed cells are not drawn — formation layer handles them
     }
