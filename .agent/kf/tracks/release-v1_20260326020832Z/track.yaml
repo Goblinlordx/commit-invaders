@@ -1,57 +1,68 @@
 id: release-v1_20260326020832Z
-title: "Release v1 — npm publish, GitHub release, demo deploy"
+title: Release v1 — npm publish, GitHub release, demo deploy
 type: chore
 status: pending
 created: 2026-03-26
-updated: 2026-03-26
+updated: '2026-03-26'
 spec:
-  summary: |
-    Prepare for public release: npm package with bin entry for npx,
+  summary: 'Prepare for public release: npm package with bin entry for npx,
+
     GitHub release with tag for action versioning, demo page build
+
     to docs/ for GitHub Pages, CI workflow for automated releases.
-  context: |
-    All code tracks are complete. The GH Action is built and bundled.
+
+    '
+  context: 'All code tracks are complete. The GH Action is built and bundled.
+
     The demo page works in dev. This track packages everything for
+
     public consumption across three channels: npm (npx CLI), GitHub
+
     Action (marketplace via tag), and GitHub Pages (demo).
+
+    '
   acceptance_criteria:
-    - npm package publishable with bin entry (npx commit-invaders username)
-    - GitHub release v1.0.0 with tag
-    - Demo page builds to docs/ and deploys via GitHub Pages
-    - CI workflow builds, tests, and publishes on tag push
-    - README updated with npm/npx usage
-    - package.json has correct name, version, bin, files fields
-  out_of_scope: |
-    Docker Hub. Marketplace listing. Serverless proxy for demo.
-  technical_notes: |
-    npm bin entry wraps scripts/generate.ts as a CLI.
+  - npm package publishable with bin entry (npx commit-invaders username)
+  - GitHub release v1.0.0 with tag
+  - Demo page builds to docs/ and deploys via GitHub Pages
+  - CI workflow builds, tests, and publishes on tag push
+  - README updated with npm/npx usage
+  - package.json has correct name, version, bin, files fields
+  out_of_scope: 'Docker Hub. Marketplace listing. Serverless proxy for demo.
+
+    '
+  technical_notes: 'npm bin entry wraps scripts/generate.ts as a CLI.
+
     GitHub Action uses dist/index.cjs (already built).
+
     Demo deploys from docs/ folder via GH Pages settings.
+
+    '
 plan:
-  - phase: npm Package
-    tasks:
-      - text: Add bin entry to package.json for npx commit-invaders CLI
-        done: false
-      - text: Create CLI wrapper (bin/commit-invaders.js) with arg parsing
-        done: false
-      - text: Set package.json name, version, files, repository fields
-        done: false
-  - phase: Demo and Release Config
-    tasks:
-      - text: Build demo to docs/ via vite build
-        done: false
-      - text: Add CI workflow for test and build on push
-        done: false
-      - text: Add release workflow for npm publish on version tag
-        done: false
-      - text: Add GitHub Pages deployment workflow
-        done: false
-  - phase: Documentation and Tag
-    tasks:
-      - text: Update README with npx usage instructions
-        done: false
-      - text: Create v1.0.0 tag and release
-        done: false
-      - text: Verify action works via tag reference
-        done: false
+- phase: npm Package
+  tasks:
+  - text: Add bin entry to package.json for npx commit-invaders CLI
+    done: true
+  - text: Create CLI wrapper (bin/commit-invaders.js) with arg parsing
+    done: true
+  - text: Set package.json name, version, files, repository fields
+    done: true
+- phase: Demo and Release Config
+  tasks:
+  - text: Build demo to docs/ via vite build
+    done: true
+  - text: Add CI workflow for test and build on push
+    done: true
+  - text: Add release workflow for npm publish on version tag
+    done: true
+  - text: Add GitHub Pages deployment workflow
+    done: true
+- phase: Documentation and Tag
+  tasks:
+  - text: Update README with npx usage instructions
+    done: true
+  - text: Create v1.0.0 tag and release
+    done: false
+  - text: Verify action works via tag reference
+    done: false
 extra: {}
