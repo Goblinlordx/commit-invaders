@@ -2,7 +2,7 @@
 
 [![GitHub release](https://img.shields.io/github/release/Goblinlordx/commit-invaders.svg?style=flat-square)](https://github.com/Goblinlordx/commit-invaders/releases/latest)
 ![TypeScript](https://img.shields.io/npm/types/typescript?style=flat-square)
-![License](https://img.shields.io/github/license/Goblinlordx/commit-invaders?style=flat-square)
+![License](https://img.shields.io/npm/l/commit-invaders?style=flat-square)
 
 Generate an animated Space Invaders game from your GitHub contribution graph. Your contribution cells are plucked from the grid, travel to formation positions, hatch into invaders, and a ship fires lasers to destroy them wave by wave — all in a seamlessly looping CSS animation.
 
