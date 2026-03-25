@@ -18,6 +18,7 @@
     "dev:entities": "vite dev/entity-test",
     "dev:validator": "vite dev/entity-validator",
     "dev:css-validator": "vite dev/css-validator",
+    "dev:demo": "vite demo",
     "test:visual": "playwright test"
   },
   "keywords": [

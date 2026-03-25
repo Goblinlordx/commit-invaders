@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Commit Invaders — Demo</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="./style.css" />
+</head>
+<body>
+  <div id="app">
+    <!-- Header -->
+    <header class="header">
+      <h1 class="title">COMMIT<span class="title-accent">INVADERS</span></h1>
+      <p class="subtitle">Transform your GitHub contributions into a Space Invaders battle</p>
+      <nav class="nav-links">
+        <a href="https://github.com/Goblinlordx/commit-invaders" target="_blank">GitHub</a>
+        <a href="https://github.com/Goblinlordx/commit-invaders#setup" target="_blank">Setup Guide</a>
+      </nav>
+    </header>
+
+    <!-- Controls -->
+    <section class="controls">
+      <div class="input-group">
+        <label for="username">GitHub Username</label>
+        <div class="input-row">
+          <input type="text" id="username" placeholder="Goblinlordx" value="Goblinlordx" />
+          <button id="generate-btn" class="btn btn-primary">Generate</button>
+        </div>
+      </div>
+      <div class="theme-row">
+        <label>Theme</label>
+        <div class="theme-buttons">
+          <button class="btn btn-theme active" data-theme="dark">Dark</button>
+          <button class="btn btn-theme" data-theme="light">Light</button>
+          <button class="btn btn-theme" data-theme="classic">Classic</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- Preview -->
+    <section class="preview-section">
+      <div class="preview-frame" id="preview-frame">
+        <div class="preview-container" id="preview-container">
+          <p class="preview-placeholder">Enter a GitHub username and click Generate</p>
+        </div>
+      </div>
+      <!-- Scrubber -->
+      <div class="scrubber-row">
+        <button id="play-pause" class="btn btn-small">⏸</button>
+        <input type="range" id="scrubber" min="0" max="1000" value="0" step="1" class="scrubber" />
+        <span id="time-display" class="time-display">0:00 / 0:00</span>
+      </div>
+    </section>
+
+    <!-- Stats -->
+    <div class="stats-row" id="stats-row" style="display:none">
+      <span id="stat-cells"></span>
+      <span id="stat-commits"></span>
+      <span id="stat-waves"></span>
+      <span id="stat-duration"></span>
+      <span id="stat-size"></span>
+    </div>
+
+    <!-- Actions -->
+    <div class="actions-row" id="actions-row" style="display:none">
+      <button id="download-svg" class="btn btn-secondary">Download SVG</button>
+      <button id="toggle-debug" class="btn btn-secondary">Debug Mode</button>
+    </div>
+
+    <!-- Debug Panel -->
+    <section class="debug-panel" id="debug-panel" style="display:none">
+      <h3>Simulation Parameters</h3>
+      <div class="debug-grid" id="debug-grid"></div>
+      <button id="reset-params" class="btn btn-small">Reset Defaults</button>
+    </section>
+
+    <!-- Footer -->
+    <footer class="footer">
+      <p>Made with CSS keyframes, no JavaScript in the SVG.</p>
+      <p><a href="https://github.com/Goblinlordx/commit-invaders">View source</a></p>
+    </footer>
+  </div>
+  <script type="module" src="./main.ts"></script>
+</body>
+</html>
