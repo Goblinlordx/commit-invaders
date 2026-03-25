@@ -449,9 +449,8 @@ function simulateCore(
       // Only target invaders not already locked by an in-flight laser
       const unlocked = targets.filter((t) => !lockedTargets.has(t.id))
       if (unlocked.length === 0) {
-        // All targets locked — fire a miss to maintain visual fire rate
-        const sol = solveMiss(formations, frame, ship.position.x, config, prng)
-        if (sol) { solution = sol } else { solveCooldown = prng.range(2, 5) }
+        // All targets locked — wait for a hit to resolve before firing again
+        solveCooldown = 3
         return
       }
 
