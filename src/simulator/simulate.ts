@@ -28,19 +28,22 @@ type Decision = { type: 'move'; x: number } | { type: 'fire' }
 // ── Prediction ──
 
 /**
- * Predict invader world-X at exactly N ticks in the future from the
- * formation's current state. Replicates formation.tick() boundary logic
- * exactly — verified to match.
+ * Predict invader world position at exactly N ticks in the future.
+ * Replicates formation.tick() boundary logic exactly — verified to match.
+ * Returns both X and Y (Y changes due to row drops on wall bounces).
  */
-function predictWorldX(
+function predictWorldPos(
   invBaseX: number,
+  invBaseY: number,
   formation: Formation,
   ticksAhead: number,
   playArea: { x: number; width: number },
-): number {
+  rowDrop: number,
+): { x: number; y: number } {
   const s = formation.getState()
   const alive = s.invaders.filter((i) => !i.destroyed)
   let offX = s.offset.x
+  let offY = s.offset.y
   let dir = s.direction
   const spd = s.speed
 
@@ -56,12 +59,13 @@ function predictWorldX(
     }
     if (wouldExceed) {
       dir = dir === 'right' ? 'left' : 'right'
+      offY += rowDrop
     } else {
       offX += dx
     }
   }
 
-  return invBaseX + offX
+  return { x: invBaseX + offX, y: invBaseY + offY }
 }
 
 // ── Firing solution ──
@@ -85,41 +89,58 @@ function solveHit(
   shipX: number,
   config: SimConfig,
 ): FiringSolution | null {
-  const fState = target.formation.getState()
-  const invWorldY = target.invBaseY + fState.offset.y
-
-  const dist = config.shipY - invWorldY
-  if (dist <= 0) return null
-  const travelFrames = Math.ceil(dist / config.laserSpeed)
-
-  // Search for the earliest feasible impact frame
-  // Impact frame must be >= currentFrame + travelFrames (laser needs time to travel)
-  // Fire frame = impact frame - travelFrames
-  // Ship must reach fireX by fireFrame: |fireX - shipX| <= (fireFrame - currentFrame) * shipSpeed
+  // Search over extraDelay (frames the ship has to move before firing).
+  // For each delay, predict invader position at (delay + travelFrames) ticks
+  // ahead. The laser Y and invader Y must intersect — find the tick count
+  // where the laser (traveling from shipY at laserSpeed) reaches the invader.
 
   for (let extraDelay = 0; extraDelay < 500; extraDelay++) {
-    const impactFrame = currentFrame + travelFrames + extraDelay
-    if (impactFrame >= MAX_FRAMES) return null
+    const fireFrame = currentFrame + extraDelay
+    if (fireFrame >= MAX_FRAMES) return null
 
-    const ticksAhead = travelFrames + extraDelay
-    const fireX = predictWorldX(
-      target.invBaseX,
-      target.formation,
-      ticksAhead,
-      config.playArea,
-    )
+    // Search for the tick count where laser Y <= invader Y
+    // Laser at tick T (from fire): y = shipY - T * laserSpeed
+    // Invader at tick (extraDelay + T) from now: predictWorldPos(extraDelay + T)
+    // We need: shipY - T * laserSpeed <= invader.y + halfSize (AABB overlap)
 
-    // Check fire position is in bounds
-    if (fireX < config.playArea.x || fireX >= config.playArea.x + config.playArea.width) {
-      continue
-    }
+    for (let laserTicks = 1; laserTicks < 500; laserTicks++) {
+      const totalTicks = extraDelay + laserTicks
+      const predicted = predictWorldPos(
+        target.invBaseX,
+        target.invBaseY,
+        target.formation,
+        totalTicks,
+        config.playArea,
+        config.formationRowDrop,
+      )
 
-    const fireFrame = impactFrame - travelFrames
-    const availableFrames = fireFrame - currentFrame
-    const moveDist = Math.abs(fireX - shipX)
+      const laserY = config.shipY - laserTicks * config.laserSpeed
+      if (laserY < 0) break // laser left play area
 
-    if (moveDist <= availableFrames * config.shipSpeed) {
-      return { fireFrame, fireX, targetId: target.id }
+      // Check AABB overlap: laser center at (fireX, laserY) size 2x2
+      // vs invader center at (predicted.x, predicted.y) size 11x11
+      const halfLaser = 1 // DEFAULT_LASER_WIDTH / 2
+      const halfInvader = INVADER_SIZE / 2
+
+      const yOverlap =
+        laserY - halfLaser < predicted.y + halfInvader &&
+        laserY + halfLaser > predicted.y - halfInvader
+
+      if (!yOverlap) continue
+
+      // Y overlaps at this tick — use predicted.x as fire position
+      // Check X bounds
+      if (predicted.x < config.playArea.x || predicted.x >= config.playArea.x + config.playArea.width) {
+        continue
+      }
+
+      // Ship feasibility: can reach predicted.x by fireFrame?
+      const moveDist = Math.abs(predicted.x - shipX)
+      if (moveDist > extraDelay * config.shipSpeed) {
+        break // need more delay, try next extraDelay
+      }
+
+      return { fireFrame, fireX: predicted.x, targetId: target.id }
     }
   }
 
@@ -148,7 +169,8 @@ function solveMiss(
 
     for (const inv of fState.invaders) {
       if (inv.destroyed) continue
-      const futureX = predictWorldX(inv.position.x, f, travelFrames, config.playArea)
+      const futurePos = predictWorldPos(inv.position.x, inv.position.y, f, travelFrames, config.playArea, config.formationRowDrop)
+      const futureX = futurePos.x
       occupiedXs.push(futureX)
     }
   }
