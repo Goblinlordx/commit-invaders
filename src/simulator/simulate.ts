@@ -303,7 +303,8 @@ function simulateCore(
     wavePhase: import('../types.js').WavePhase
     wavePhaseProgress: number
     cellStatuses: Array<{ status: import('../types.js').CellStatus; detachProgress: number; targetPosition: Position | null }>
-    formationCount: number // how many formations exist at this frame
+    formationCount: number
+    formationStates: import('../types.js').FormationState[] // deep-cloned
   }
   const frameLifecycleData: FrameLifecycle[] = []
 
@@ -478,6 +479,9 @@ function simulateCore(
   for (let frame = 0; frame < MAX_FRAMES; frame++) {
     const frameEvents: SimEvent[] = []
 
+    // Record formation count before lifecycle (to skip new formations in step 2)
+    const formationsBeforeLifecycle = formations.length
+
     // 1. Per-cell staggered lifecycle
     const wc = config.waveConfig
     const lifecycleTotal = wc.brightenDuration + wc.pluckDuration + wc.darkenDuration + wc.travelDuration + wc.hatchDuration
@@ -638,8 +642,10 @@ function simulateCore(
       }
     }
 
-    // 2. Advance formations
-    for (const formation of formations) {
+    // 2. Advance formations (skip newly created ones — they start next frame)
+    for (let fi = 0; fi < formations.length; fi++) {
+      if (fi >= formationsBeforeLifecycle) break // new formation, skip first tick
+      const formation = formations[fi]!
       const fState = formation.getState()
       if (!fState.active) continue
       const prevDir = fState.direction
@@ -784,6 +790,7 @@ function simulateCore(
         targetPosition: cs.targetPosition ? { ...cs.targetPosition } : null,
       })),
       formationCount: formations.length,
+      formationStates: formations.map(cloneFormationState),
     }
     totalFrames = frame + 1
 
@@ -834,9 +841,9 @@ function simulateCore(
         s.gridCells[i]!.detachProgress = lifecycle.cellStatuses[i]!.detachProgress
         s.gridCells[i]!.targetPosition = lifecycle.cellStatuses[i]!.targetPosition
       }
-      // Trim formations to match actual count at this frame
-      // (replay creates formations instantly, but lifecycle delays them)
-      s.formations = s.formations.slice(0, lifecycle.formationCount)
+      // Replace replay's formations with the recorded accurate ones
+      // (replay creates formations instantly with wrong timing/offset)
+      s.formations = lifecycle.formationStates
     }
     lruSet(targetFrame, s)
     return s

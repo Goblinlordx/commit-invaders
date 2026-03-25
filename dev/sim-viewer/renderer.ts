@@ -107,9 +107,9 @@ export function renderFrame(
 
   for (const gc of state.gridCells) {
     const status = gc.status
-    // Draw plucked, traveling, hatching, AND transformed
-    // Transformed cells render as invader-colored rects at invader position —
-    // once the formation exists, invaders draw on top (same pos/size/color = seamless)
+    // Draw lifecycle cells. Transformed cells only shown during non-active phase
+    // (once wave starts, formations draw the invaders instead)
+    if (status === 'transformed' && phase === 'active') continue
     if (status !== 'plucked' && status !== 'traveling' && status !== 'hatching' && status !== 'transformed') continue
 
     // Grid position (top-left of cell, like the background grid)
