@@ -189,11 +189,10 @@ export function renderFrame(
   else if (phase === 'ending_reset') shipAlpha = state.wavePhaseProgress
   else if (isEnding) shipAlpha = 0
   if (shipAlpha > 0.01) {
-    const { sx: shipSx, sy: shipSy } = simToScreen(
-      state.ship.position.x,
-      state.ship.position.y,
-      config,
-    )
+    // During reset, draw at initial position (must match frame 0)
+    const shipSimX = phase === 'ending_reset' ? config.playArea.width / 2 : state.ship.position.x
+    const shipSimY = phase === 'ending_reset' ? config.shipY : state.ship.position.y
+    const { sx: shipSx, sy: shipSy } = simToScreen(shipSimX, shipSimY, config)
     const shipHalf = config.invaderSize / 2
     ctx.globalAlpha = shipAlpha
     ctx.fillStyle = SHIP_COLOR
