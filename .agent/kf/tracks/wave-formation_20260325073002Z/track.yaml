@@ -1,54 +1,72 @@
 id: wave-formation_20260325073002Z
-title: "Wave Manager & Formation Movement"
+title: Wave Manager & Formation Movement
 type: feature
 status: pending
 created: 2026-03-25
-updated: 2026-03-25
+updated: '2026-03-25'
 spec:
-  summary: |
-    Wave manager that groups grid columns into waves and spawns them on
+  summary: 'Wave manager that groups grid columns into waves and spawns them on
+
     previous wave clear. Formation module that moves invaders in the
+
     classic Space Invaders zigzag pattern.
-  context: |
-    Waves are the core pacing mechanism. Each wave corresponds to a group
+
+    '
+  context: 'Waves are the core pacing mechanism. Each wave corresponds to a group
+
     of week columns from the contribution grid. Waves spawn sequentially —
+
     the next wave only starts after the current one is fully cleared. This
+
     creates natural pacing: dense commit weeks produce larger waves that
+
     take longer to clear.
 
+
     Formations move in the classic zigzag: right until boundary, drop one
+
     row, left until boundary, drop, repeat. Speed increases as invaders
+
     are destroyed (fewer invaders = faster movement, classic behavior).
+
+    '
   acceptance_criteria:
-    - Wave manager groups grid columns into waves (configurable weeks-per-wave)
-    - Only cells with level > 0 included in waves
-    - Waves spawn sequentially: next wave after previous clear + configurable delay
-    - Formation tracks all invader positions as a group offset
-    - Zigzag movement: right → drop → left → drop → repeat
-    - Boundary detection triggers direction changes
-    - Formation speed increases as invaders within it are destroyed
-    - All invaders assigned HP based on commit level (1-2=1HP, 3=2HP, 4=3HP)
-  out_of_scope: |
-    Combat, lasers, ship, choreographer, rendering.
-  technical_notes: |
-    Wave manager: iterates grid columns left-to-right, groups by configurable
+  - Wave manager groups grid columns into waves (configurable weeks-per-wave)
+  - Only cells with level > 0 included in waves
+  - Waves spawn sequentially: next wave after previous clear + configurable delay
+  - Formation tracks all invader positions as a group offset
+  - Zigzag movement: right → drop → left → drop → repeat
+  - Boundary detection triggers direction changes
+  - Formation speed increases as invaders within it are destroyed
+  - All invaders assigned HP based on commit level (1-2=1HP, 3=2HP, 4=3HP)
+  out_of_scope: 'Combat, lasers, ship, choreographer, rendering.
+
+    '
+  technical_notes: 'Wave manager: iterates grid columns left-to-right, groups by configurable
+
     wave size (default 1 week = 1 wave). Filters cells with level=0.
 
+
     Formation: maintains a group offset (dx, dy) applied to all invaders.
+
     Per-tick: advance dx in current direction. If any invader would exceed
+
     boundary → emit direction_change, set dy += rowHeight, flip direction.
+
     Speed = baseSpeed * (totalInvaders / remainingInvaders) capped at maxSpeed.
+
+    '
 plan:
-  - phase: "Wave Manager"
-    tasks:
-      - text: "Write tests: column grouping, wave ordering, level-0 filtering, spawn delay timing"
-        done: false
-      - text: "Implement wave manager (src/simulator/wave-manager.ts)"
-        done: false
-  - phase: "Formation"
-    tasks:
-      - text: "Write tests: initial positioning, zigzag, boundary detection, speed increase on kills"
-        done: false
-      - text: "Implement formation movement (src/simulator/formation.ts)"
-        done: false
+- phase: Wave Manager
+  tasks:
+  - text: 'Write tests: column grouping, wave ordering, level-0 filtering, spawn delay timing'
+    done: true
+  - text: Implement wave manager (src/simulator/wave-manager.ts)
+    done: true
+- phase: Formation
+  tasks:
+  - text: 'Write tests: initial positioning, zigzag, boundary detection, speed increase on kills'
+    done: true
+  - text: Implement formation movement (src/simulator/formation.ts)
+    done: true
 extra: {}
