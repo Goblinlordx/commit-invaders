@@ -73,11 +73,9 @@ export function renderFrame(
     ctx.fillRect(screenX, screenY, config.cellSize, config.cellSize)
   }
 
-  // Darken overlay during active waves
-  const hasActiveWave = state.formations.some(
-    (f) => f.active && f.invaders.some((i) => !i.destroyed),
-  )
-  if (hasActiveWave) {
+  // Darken overlay once game has started (any wave has spawned)
+  // This keeps the grid visible but dimmed so invaders/lasers stand out
+  if (state.formations.length > 0) {
     ctx.fillStyle = OVERLAY_COLOR
     ctx.fillRect(0, 0, screen.width, screen.height)
   }

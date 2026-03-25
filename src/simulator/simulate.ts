@@ -271,11 +271,20 @@ export function simulate(
     tl.inflections.push(point)
   }
 
+  function cloneFormationState(f: Formation): typeof f extends Formation ? ReturnType<typeof f.getState> : never {
+    const s = f.getState()
+    return {
+      ...s,
+      offset: { ...s.offset },
+      invaders: s.invaders.map((inv) => ({ ...inv, position: { ...inv.position }, cell: { ...inv.cell } })),
+    } as ReturnType<typeof f.getState>
+  }
+
   function buildGameState(frame: number, frameEvents: SimEvent[]): GameState {
     return {
       frame, score, totalInvaders,
       gridCells: grid.cells.map((c) => ({ cell: c, status: 'in_grid' as const, detachProgress: 0 })),
-      formations: formations.map((f) => f.getState()),
+      formations: formations.map(cloneFormationState),
       ship: { ...ship, position: { ...ship.position } },
       lasers: lasers.map((l) => ({ ...l, position: { ...l.position } })),
       effects: [],
