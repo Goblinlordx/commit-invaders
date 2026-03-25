@@ -43,7 +43,7 @@ spec:
     - Wave transitions visible (clear → next wave spawns from grid)
     - Playback controls: play, pause, step +1/-1/+10/-10, speed slider, restart
     - Frame scrubber (range slider) for direct frame access
-    - HUD: frame number, total frames, wave number, invaders remaining
+    - HUD: frame number, total frames, wave number, invaders remaining, score
     - Fixture selector or JSON paste for different Grid inputs
     - window.simController API exposed for Playwright
     - Runs via vite dev server (imports src/ directly)
@@ -93,7 +93,7 @@ plan:
         done: false
       - text: "Implement damage visualization: invader opacity based on remaining HP"
         done: false
-      - text: "Implement HUD overlay: frame, total frames, wave, invaders remaining"
+      - text: "Implement HUD overlay: frame, total frames, wave, invaders remaining, score"
         done: false
   - phase: "Playback & Seek"
     tasks:
