@@ -229,7 +229,7 @@ async function doGenerate() {
         const seed = `${username}-${new Date().toISOString().slice(0, 10)}`
         const output = simulate(grid, seed, currentConfig)
         const lastDate = grid.cells.reduce((max, c) => (c.date > max ? c.date : max), '')
-        const scoreboard = computeScoreboard(grid, lastDate, grid.width * 7, 10)
+        // Scoreboard disabled in demo — requires historical data (GH Action or local CLI with token)
 
         const palette = PALETTES[currentTheme] ?? PALETTE_DARK
         // Debug: check for breaches
@@ -237,7 +237,7 @@ async function doGenerate() {
         const lockedMisses = output.events.filter(e => e.type === 'locked_miss').length
         console.log(`[sim] active=${grid.cells.filter(c => c.level > 0).length} frames=${output.totalFrames} hits=${output.events.filter(e => e.type === 'hit').length} fires=${output.events.filter(e => e.type === 'fire_laser').length} emergencyKills=${emergencyKills} lockedMisses=${lockedMisses} gameEnd=${output.events.some(e => e.type === 'game_end')}`)
 
-        currentSvgString = composeSvg({ grid, seed, config: currentConfig, scoreboard, palette })
+        currentSvgString = composeSvg({ grid, seed, config: currentConfig, palette })
         animDuration = output.totalFrames / currentConfig.framesPerSecond
 
         // Insert SVG with animations paused — JS drives the time
