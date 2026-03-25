@@ -146,7 +146,14 @@ export function composeSvg(options: CompositeSvgOptions): string {
   /** Returns class="aX" attribute string. Pass extra classes to merge. */
   function anim(animation: string, extraClasses?: string): string {
     const cls = `a${animId++}`
-    cssRules.push(`.${cls} { animation: ${animation}; }`)
+    // Use longhand properties instead of shorthand so animation-delay
+    // can be overridden by !important for scrubbing
+    const parts = animation.split(' ')
+    const name = parts[0]!
+    const duration = parts[1] ?? '0s'
+    const timing = parts[2] ?? 'linear'
+    const iteration = parts[3] ?? 'infinite'
+    cssRules.push(`.${cls} { animation-name: ${name}; animation-duration: ${duration}; animation-timing-function: ${timing}; animation-iteration-count: ${iteration}; animation-fill-mode: both; }`)
     return extraClasses ? `class="${extraClasses} ${cls}"` : `class="${cls}"`
   }
 
