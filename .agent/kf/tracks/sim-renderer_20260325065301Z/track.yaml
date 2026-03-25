@@ -1,129 +1,116 @@
 id: sim-renderer_20260325065301Z
-title: "Simulation Renderer — Visual validation tool"
+title: "Simulation Renderer — Hitbox debug view & validation baseline"
 type: feature
 status: pending
 created: 2026-03-25
 updated: 2026-03-25
 spec:
   summary: |
-    Build a canvas-based browser renderer that peeks the SimOutput at any
-    frame. Dev tool for human visual acceptance. The renderer does NOT run
-    the simulation — it reads pre-computed state via SimOutput.peek(frame).
-    Exposes seekToFrame() API for Playwright in the CSS generation track.
+    Canvas-based hitbox renderer that draws exact AABB geometry from
+    SimOutput.peek(frame). Flat colored rectangles only — no sprites,
+    no effects, no polish. Serves as the ground truth for automated
+    pixel-diff validation against the CSS/SVG renderer.
   context: |
     simulate(grid, seed, config) produces a SimOutput with:
-      - peek(frame) → GameState (reconstructed from events + LRU cache)
+      - peek(frame) → GameState
       - getInflections(entityId) → InflectionPoint[]
       - getAllInflections() → Map<string, EntityTimeline>
       - totalFrames, finalScore, events[]
 
-    This renderer calls SimOutput.peek(frame) and draws the GameState on
-    a canvas. Because state is pre-computed:
-    - Seeking to any frame is instant (LRU cache + anchor snapshots)
-    - Playing forward and backward is trivial
-    - Every frame renders identically every time (deterministic)
+    This renderer draws the exact physics geometry:
+      - Invaders as filled rects at their AABB position (config.invaderSize)
+      - Lasers as filled rects at their AABB position (config.laserWidth)
+      - Ship as a filled rect at (ship.x, config.shipY)
+      - Grid cells as filled rects at grid positions
+
+    The CSS/SVG track will reproduce this IDENTICAL view using CSS
+    keyframe animations. Playwright pixel-diffs both outputs at every
+    inflection frame. If hitbox rects align pixel-for-pixel, the
+    positioning math is proven correct. Visual polish (sprites, effects,
+    glow) is added in a later track on top of the validated positions.
 
     Two purposes:
-    1. HUMAN VALIDATION: developer watches, tunes SimConfig physics params,
-       accepts the game visually. One-time per major change.
-    2. PLAYWRIGHT API: exposes window.simController.seekToFrame(n) so
-       automated tests (CSS generation track) can capture screenshots.
-
-    Dev tool only — rough visuals. Simple shapes, not final sprites.
+    1. HUMAN VALIDATION: developer confirms game flow looks correct
+    2. PLAYWRIGHT BASELINE: canvas screenshots become the ground truth
+       for automated CSS/SVG visual regression tests
   codebase_analysis: |
     Current API (src/simulator/simulate.ts):
       simulate(grid: Grid, seed: string, config: SimConfig) → SimOutput
 
     SimOutput.peek(frame) returns GameState with:
-      - frame, score, totalInvaders
       - formations[] (each with invaders[], offset, direction, speed)
-      - ship (position, targetX)
-      - lasers[] (position, speed, active)
-      - effects[]
-      - gridCells[] (cell, status, detachProgress)
+      - ship (position)
+      - lasers[] (position, active)
+      - gridCells[] (cell, status)
+      - frame, score, totalInvaders
 
-    SimConfig physics params (all tunable via UI):
-      laserSpeed, laserWidth, invaderSize, shipSpeed, shipY,
-      formationBaseSpeed, formationMaxSpeed, formationRowDrop,
-      hitChance, cellSize, cellGap, playArea, gridArea, waveConfig
+    SimConfig provides all dimensions needed for drawing:
+      - invaderSize, laserWidth, cellSize, cellGap
+      - playArea, gridArea, shipY
 
     No separate engine or choreographer — simulate() is the single entry point.
-    No ShipScript as public input — ship actions are solved internally.
   acceptance_criteria:
-    - Canvas renderer calls SimOutput.peek(frame) — does NOT run simulation itself
+    - Draws entities as flat colored AABB rects (no sprites, no gradients, no effects)
+    - Invader rects sized exactly config.invaderSize, centered on world position
+    - Laser rects sized exactly config.laserWidth, centered on position
+    - Ship rect at (ship.position.x, config.shipY)
+    - Grid cells as rects at gridArea positions using cellSize and cellGap
+    - Distinct flat colors per entity type (grid=green shades, invader=red, laser=yellow, ship=blue)
+    - Destroyed invaders not drawn
+    - Canvas renderer calls SimOutput.peek(frame) only — no simulation logic
     - seekToFrame(n) renders any frame instantly
-    - Forward AND backward seeking works (just peek different frame numbers)
-    - Same frame always renders identical canvas (deterministic peek + deterministic draw)
-    - Grid cells drawn as colored rects matching GitHub contribution levels
-    - Formations visible with zigzag movement
-    - Damaged invaders show reduced opacity per remaining HP
-    - Ship visible at config.shipY
-    - Lasers visible traveling upward
-    - Explosions visible on destroy events
-    - Wave transitions visible (clear → next wave spawns)
-    - Playback controls: play, pause, step +1/-1/+10/-10, speed slider, restart
-    - Frame scrubber (range slider) for direct frame access
-    - HUD: frame number, total frames, wave number, invaders remaining, score
-    - SimConfig physics tuning panel (sliders for laserSpeed, shipSpeed, formationBaseSpeed, hitChance, etc.) — re-runs simulate() on change
+    - Same frame always produces identical canvas (deterministic)
+    - Playback controls (play, pause, step, scrubber, speed)
+    - HUD overlay (frame, score, wave, invaders remaining)
+    - SimConfig tuning panel — re-runs simulate() on change
     - Seed input field — re-runs simulate() on change
-    - Fixture selector or JSON paste for different Grid inputs
     - window.simController API exposed for Playwright
-    - Runs via vite dev server (imports src/ directly)
+    - Runs via vite dev server
   out_of_scope: |
-    Final sprites. CSS/SVG generation. GitHub Action.
+    Sprites, particle effects, explosions, glow, screen shake.
+    Visual polish (separate track). CSS/SVG generation (separate track).
     Automated Playwright tests (CSS track provides those).
   technical_notes: |
     Directory structure:
       dev/
         sim-viewer/
           index.html        — page with canvas + controls
-          renderer.ts       — draws GameState to canvas
+          renderer.ts       — draws GameState as AABB rects to canvas
           playback.ts       — frame stepping, play/pause, speed
           main.ts           — calls simulate(), wires controls, exposes API
 
-    Key principle: the renderer is stateless. It receives a GameState
-    from peek() and draws it. No internal game state, no event processing,
-    no simulation logic. Just: GameState → canvas pixels.
+    Drawing rules (hitbox mode):
+      Each entity drawn as a simple filled rect at its exact AABB bounds.
+      Colors are flat, no alpha blending except destroyed=hidden.
 
-    Entry point:
-      const output = simulate(grid, seed, config)
-      // output.peek(frame) → GameState → render to canvas
+      Grid cells:   fillRect at (gridArea.x + cell.x * stride, gridArea.y + cell.y * stride, cellSize, cellSize)
+                    color: level 0=#1a1a2e, 1=#0e4429, 2=#006d32, 3=#26a641, 4=#39d353
+      Invaders:     fillRect centered on (worldX, worldY), size=invaderSize
+                    color: #ff4444 (alive), not drawn (destroyed)
+      Lasers:       fillRect centered on (pos.x, pos.y), size=laserWidth × laserWidth
+                    color: #ffff00
+      Ship:         fillRect centered on (ship.x, shipY), size=invaderSize (same as invaders for simplicity)
+                    color: #4488ff
+
+    These exact colors and sizes must be replicated in the CSS/SVG
+    renderer so pixel-diff validation works.
 
     window.simController API:
       seekToFrame(n)        — output.peek(n) then render
       play() / pause()      — toggle requestAnimationFrame loop
-      step(delta)           — seek to currentFrame + delta
+      step(delta)           — currentFrame + delta
       setSpeed(mult)        — playback speed multiplier
       restart()             — seekToFrame(0)
       getFrame()            — current frame number
       getTotalFrames()      — output.totalFrames
-      getState()            — current GameState (for Playwright assertions)
+      getState()            — current GameState
       rerun(config, seed)   — re-run simulate() with new params
-
-    Canvas drawing (simple shapes):
-      Grid: rounded rects, green shades (0=empty, 1-4=intensity)
-      Invaders: colored squares, opacity = currentHP / maxHP
-      Ship: triangle at config.shipY
-      Lasers: thin bright lines (width from config.laserWidth)
-      Explosions: expanding circle with fade
-      Wave labels: "WAVE N" text during spawn transitions
-
-    Physics tuning panel:
-      Sliders for all SimConfig numeric fields. Changing any value
-      re-runs simulate() with the new config and resets playback to
-      frame 0. This lets developers quickly iterate on game feel
-      (e.g., faster lasers, slower formations, higher hit chance).
-
-    Backward play: just decrement frame counter and peek.
-    No special logic needed — SimOutput.peek() handles any frame.
 plan:
   - phase: "Canvas Renderer"
     tasks:
       - text: "Create dev/sim-viewer/ with HTML page, canvas, and controls layout"
         done: false
-      - text: "Implement GameState → canvas drawing: grid cells, formations, ship, lasers, effects"
-        done: false
-      - text: "Implement damage visualization: invader opacity based on remaining HP"
+      - text: "Implement AABB rect drawing for all entity types (grid, invaders, lasers, ship)"
         done: false
       - text: "Implement HUD overlay: frame, total frames, wave, invaders remaining, score"
         done: false
@@ -131,9 +118,7 @@ plan:
     tasks:
       - text: "Implement playback controller: play/pause via requestAnimationFrame, configurable speed"
         done: false
-      - text: "Implement frame stepping: +1, -1, +10, -10 buttons"
-        done: false
-      - text: "Implement frame scrubber: range input for direct frame access"
+      - text: "Implement frame stepping: +1, -1, +10, -10 buttons and frame scrubber"
         done: false
       - text: "Expose window.simController API with seekToFrame, play, pause, step, getState, rerun"
         done: false
@@ -141,12 +126,10 @@ plan:
     tasks:
       - text: "Wire up: call simulate(grid, seed, config) and pass SimOutput to renderer"
         done: false
-      - text: "Add seed input field and fixture selector dropdown for different Grid inputs"
+      - text: "Add seed input field and fixture selector for different Grid inputs"
         done: false
-      - text: "Add SimConfig physics tuning panel (sliders for speeds, sizes, hitChance)"
+      - text: "Add SimConfig tuning panel (sliders for speeds, sizes, hitChance)"
         done: false
-      - text: "Visually validate game flow: wave spawn, zigzag, combat, wave clear, game end"
-        done: false
-      - text: "Verify seekToFrame determinism: same frame always produces identical canvas"
+      - text: "Visually validate game flow and seekToFrame determinism"
         done: false
 extra: {}

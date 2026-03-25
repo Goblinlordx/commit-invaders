@@ -1,0 +1,105 @@
+id: visual-polish_20260325095800Z
+title: "Visual Polish — Sprites, Effects & Final Art"
+type: feature
+status: pending
+created: 2026-03-25
+updated: 2026-03-25
+spec:
+  summary: |
+    Replace hitbox rects with pixel-art sprites, add visual effects
+    (explosions, glow, trails), and polish the final SVG animation.
+    Built on top of the validated hitbox positioning layer.
+  context: |
+    At this point, the CSS/SVG renderer produces a hitbox view that is
+    pixel-diff validated against the canvas renderer. The positioning
+    math is proven correct. This track replaces the flat colored rects
+    with actual game art without changing the underlying animation
+    positions or timing.
+
+    The hitbox validation tests remain as regression tests — they can
+    run in "hitbox mode" to ensure positioning isn't broken by visual
+    changes.
+
+    Visual elements to add:
+    - Invader sprites (3+ variants based on contribution level)
+    - Ship sprite
+    - Laser sprite with glow trail
+    - Explosion/destroy animation
+    - Wave spawn transition (cells detach from grid, transform into invaders)
+    - Wave clear celebration
+    - Score/HUD overlay in final SVG
+    - Light/dark color palettes via prefers-color-scheme
+    - Reduced-motion static fallback
+  acceptance_criteria:
+    - Invader sprites replace invader rects (SVG symbols, 3+ variants by level)
+    - Ship sprite replaces ship rect
+    - Laser sprite with optional glow/trail effect
+    - Explosion animation on invader destroy (CSS keyframe)
+    - Wave spawn animation (grid cells detach and transform)
+    - Light palette and dark palette via prefers-color-scheme
+    - Reduced-motion fallback (static SVG with final score)
+    - All sprites positioned at the same AABB centers as hitbox rects
+    - Hitbox regression tests still pass in hitbox mode
+    - Final SVG looks good at standard GitHub README width (~830px)
+    - SVG file size under 100KB for a full-year animation
+    - No JavaScript in SVG (GitHub strips it)
+  out_of_scope: |
+    Changing animation timing or positions (those are locked by hitbox validation).
+    GitHub Action packaging (separate track).
+  technical_notes: |
+    Approach: the compositor gains a "render mode" flag:
+      - hitbox: flat colored rects (for validation)
+      - styled: sprites + effects (for production)
+
+    Both modes use the same CSS keyframe animations — only the visual
+    elements differ. This ensures positioning stays correct.
+
+    Sprite design: SVG <symbol> elements defined once in <defs>, referenced
+    via <use>. Keeps file size small even with many invaders.
+
+    Light/dark: CSS custom properties for all colors, switched via
+    @media (prefers-color-scheme: dark) { :root { --bg: ...; } }
+
+    Reduced motion: @media (prefers-reduced-motion: reduce) {
+      /* pause all animations, show final score state */
+    }
+plan:
+  - phase: "Sprite Design"
+    tasks:
+      - text: "Design 3+ invader sprite variants as SVG symbols (by contribution level)"
+        done: false
+      - text: "Design ship sprite as SVG symbol"
+        done: false
+      - text: "Design laser sprite with glow trail"
+        done: false
+      - text: "Design explosion animation frames as SVG"
+        done: false
+  - phase: "Compositor Styled Mode"
+    tasks:
+      - text: "Add render mode flag to compositor (hitbox vs styled)"
+        done: false
+      - text: "Replace invader rects with sprite <use> references"
+        done: false
+      - text: "Replace ship and laser rects with sprite references"
+        done: false
+      - text: "Add explosion CSS keyframe animation on destroy events"
+        done: false
+      - text: "Add wave spawn transition animation (cells detach from grid)"
+        done: false
+  - phase: "Palettes & Accessibility"
+    tasks:
+      - text: "Implement light/dark color palettes via prefers-color-scheme"
+        done: false
+      - text: "Implement reduced-motion static SVG fallback"
+        done: false
+      - text: "Verify SVG file size under 100KB for full-year grid"
+        done: false
+  - phase: "Regression & Polish"
+    tasks:
+      - text: "Verify hitbox mode Playwright tests still pass"
+        done: false
+      - text: "Visual review of styled mode at standard GitHub README width"
+        done: false
+      - text: "Fine-tune sprite sizes, colors, and effect timing"
+        done: false
+extra: {}

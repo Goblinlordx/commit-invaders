@@ -1,134 +1,141 @@
 id: css-generation_20260325065302Z
-title: "Inflection Extraction, CSS Generation & Automated Visual Validation"
+title: "CSS/SVG Hitbox Renderer & Automated Visual Validation"
 type: feature
 status: pending
 created: 2026-03-25
 updated: 2026-03-25
 spec:
   summary: |
-    Query SimOutput inflection timelines, generate data-driven CSS keyframes,
-    compose final animated SVG with sprites and palettes, and validate with
-    Playwright visual regression comparing CSS SVG against simulation renderer.
+    Map SimOutput inflection timelines to CSS keyframe animations, compose
+    an SVG that renders the SAME hitbox view as the canvas renderer (flat
+    colored AABB rects), and validate pixel-for-pixel alignment via
+    Playwright screenshot comparison.
   context: |
     Pipeline: SimOutput.getInflections() → CSS keyframes → SVG
 
-    No inflection extraction step — inflection points are already computed
-    by simulate() and stored in SimOutput.entityTimelines.
-    This track just maps them to CSS percentages and emits keyframes.
+    This track produces a HITBOX-ONLY SVG — same flat colored rects as
+    the canvas sim-renderer. No sprites, no effects, no polish. The goal
+    is to prove the CSS animation positioning matches the simulation's
+    physics exactly.
 
-    Data-driven CSS: ~15 shared @keyframes templates parameterized by CSS
-    custom properties, plus ~1 formation keyframe per wave. Total ~25 rules
-    vs Platane/snk's ~370. Formations animate as <g> groups.
+    Validation strategy:
+    1. Canvas renderer (sim-renderer track) draws AABB hitbox rects
+    2. This track's SVG draws the SAME rects using CSS keyframe animations
+    3. Playwright screenshots both at identical frames
+    4. Pixel diff must be near-zero — both renderers derive from the same
+       SimOutput, just different rendering paths (canvas vs CSS/SVG)
 
-    Validation:
-    1. Human already accepted simulation renderer output (Track 2)
-    2. Playwright captures simulation renderer at key frames via seekToFrame()
-    3. Playwright freezes CSS SVG at equivalent time via negative animation-delay
-    4. Pixel diff comparison at inflection points — automated, runs in CI
+    If the hitbox rects align, the positioning math is correct. A later
+    visual polish track replaces rects with sprites/effects without
+    changing the underlying positioning layer.
+
+    Inflection points are pre-computed by simulate() and stored in
+    SimOutput.entityTimelines. This track maps frame numbers to CSS
+    animation percentages — no extraction logic needed.
   codebase_analysis: |
-    Builds on SimOutput from simulate() and sim renderer dev tool.
-    Inflection points come pre-computed from the simulation — no extraction needed.
+    Builds on SimOutput from simulate() and sim-renderer hitbox view.
+    Inflection points come pre-computed — just query and transform.
     CSS seek via negative animation-delay is a well-known technique.
+
+    Canvas renderer uses these exact drawing rules (must match):
+      Grid cells:  rect at grid positions, cellSize, green shades by level
+      Invaders:    rect centered on world position, config.invaderSize, #ff4444
+      Lasers:      rect centered on position, config.laserWidth, #ffff00
+      Ship:        rect centered on (ship.x, shipY), #4488ff
   acceptance_criteria:
-    - Reads inflection points from SimOutput.getInflections() (pre-computed by engine)
+    - SVG renders flat colored AABB rects matching canvas renderer exactly
+    - Same entity colors as canvas (grid greens, invader #ff4444, laser #ffff00, ship #4488ff)
+    - Same entity sizes as canvas (invaderSize, laserWidth, cellSize from config)
+    - Reads inflection points from SimOutput.getInflections()
     - Maps inflection frame numbers to CSS animation percentages
-    - Shared @keyframes for detach, transform, explode, laser (defined once)
-    - Per-wave formation @keyframes from inflection points
-    - Per-element CSS custom properties as style attributes
+    - Per-entity CSS keyframes from inflection timelines
     - Formation movement via <g> group animation
-    - Total keyframe rules under 30 for 10-wave game
-    - 3+ invader sprite variants as SVG symbols
-    - Ship, laser, explosion sprites
-    - Light/dark palettes via prefers-color-scheme
-    - Valid SVG compositor output
     - CSS SVG seekable via negative animation-delay technique
-    - Playwright tests pass: sim renderer vs CSS SVG at inflection frames
-    - Pixel diff under 5% threshold
-    - Seamless loop (frame 0 = final frame)
+    - Playwright pixel-diff: canvas screenshot vs SVG screenshot at inflection frames
+    - Pixel diff under 1% threshold (hitbox rects should match near-perfectly)
     - GitHub-safe SVG (no JS, no external resources)
   out_of_scope: |
-    GitHub Action (Track 4). GIF output.
+    Sprites, visual effects, explosions, glow (visual polish track).
+    Light/dark palettes (visual polish track).
+    GitHub Action packaging. GIF output.
   technical_notes: |
     Directory structure:
       src/
         animation/
-          keyframe-emitter.ts — shared @keyframes CSS from SimOutput inflections
-          data-emitter.ts     — per-element CSS variable style attributes
           timeline.ts         — frame-to-CSS-percentage mapping
+          keyframe-emitter.ts — CSS @keyframes from SimOutput inflections
+          data-emitter.ts     — per-element CSS variable style attributes
         renderer/
-          sprites.ts          — SVG symbol definitions
-          palette.ts          — CSS custom property color schemes
-          grid.ts             — contribution grid SVG layout
-          compositor.ts       — assembles complete SVG
+          compositor.ts       — assembles hitbox SVG (rects only)
       dev/
         css-validator/
-          index.html          — side-by-side sim canvas vs CSS SVG
+          index.html          — side-by-side canvas vs CSS SVG
           controller.ts       — synchronized frame/time seeking
       tests/
         visual/
-          simulation-vs-css.spec.ts  — Playwright regression tests
+          hitbox-alignment.spec.ts  — Playwright regression tests
 
-    Inflection points:
-      Pre-computed by simulate() (SimOutput.getInflections()).
-      This track just maps frame numbers to CSS percentages via timeline.ts.
-      No extraction logic needed — just query and transform.
+    SVG structure (hitbox mode):
+      <svg>
+        <style> /* CSS keyframes + entity animations */ </style>
+        <g class="grid"> <rect .../> per cell </g>
+        <g class="formation-0"> <rect .../> per invader </g>
+        ...
+        <rect class="ship" .../>
+        <rect class="laser-0" .../>
+        ...
+      </svg>
+
+    Each entity is a plain <rect> with:
+      - x, y, width, height matching the canvas AABB dimensions
+      - fill matching the canvas color
+      - CSS animation driving position from inflection keyframes
 
     CSS seek for Playwright:
       .seek-mode svg * {
         animation-play-state: paused !important;
         animation-delay: calc(-1 * var(--seek-time)) !important;
       }
-      Playwright sets --seek-time to freeze SVG at any point.
 
     Playwright test flow:
-      1. Load css-validator page
-      2. Get inflection frames from simulation
-      3. For each frame: seekToFrame on sim, seekToTime on CSS
-      4. Screenshot both, pixel-diff compare
-      5. Assert threshold < 5%
+      1. Load css-validator page (side-by-side view)
+      2. Get inflection frames from SimOutput
+      3. For each frame: seekToFrame on canvas, seekToTime on CSS SVG
+      4. Screenshot both viewports
+      5. Pixel-diff, assert < 1% threshold
 plan:
   - phase: "Timeline Mapping & CSS Keyframe Generation"
     tasks:
-      - text: "Write tests for timeline mapper: SimOutput inflection frames to CSS percentages"
+      - text: "Write tests for timeline mapper: inflection frames to CSS animation percentages"
         done: false
-      - text: "Implement timeline mapper: queries SimOutput.getInflections(), maps to CSS percentages"
+      - text: "Implement timeline mapper from SimOutput.getInflections()"
         done: false
-      - text: "Write tests for shared keyframe templates (detach, transform, explode, laser)"
+      - text: "Write tests for entity keyframe generation (position keyframes from inflection points)"
         done: false
-      - text: "Implement shared keyframe template emitter"
-        done: false
-      - text: "Write tests for per-wave formation keyframes from inflection points"
-        done: false
-      - text: "Implement per-wave formation keyframe generator"
+      - text: "Implement keyframe emitter for all entity types (invaders, ship, lasers, formations)"
         done: false
       - text: "Write tests for per-element data emitter (CSS variable style attributes)"
         done: false
       - text: "Implement data emitter"
         done: false
-  - phase: "Sprites, Palette & SVG Compositor"
+  - phase: "Hitbox SVG Compositor"
     tasks:
-      - text: "Design 3+ invader sprite variants as SVG symbols"
+      - text: "Write tests for SVG compositor output (valid structure, correct rects)"
         done: false
-      - text: "Implement ship, laser, explosion sprites"
+      - text: "Implement SVG compositor: assembles rects with CSS animations"
         done: false
-      - text: "Implement light/dark palettes with prefers-color-scheme"
+      - text: "Verify SVG uses identical colors and sizes as canvas renderer"
         done: false
-      - text: "Write tests for SVG compositor (valid structure)"
-        done: false
-      - text: "Implement SVG compositor"
-        done: false
-  - phase: "Playwright Visual Validation"
+  - phase: "Playwright Pixel-Diff Validation"
     tasks:
       - text: "Add Playwright, configure playwright.config.ts"
         done: false
-      - text: "Build dev/css-validator: side-by-side sim canvas + CSS SVG with sync seeking"
+      - text: "Build dev/css-validator: side-by-side canvas + CSS SVG with sync seeking"
         done: false
       - text: "Implement CSS seek controller (negative animation-delay technique)"
         done: false
-      - text: "Write Playwright test: screenshot sim + CSS at all inflection frames, pixel diff"
+      - text: "Write Playwright test: pixel-diff canvas vs SVG at all inflection frames"
         done: false
-      - text: "Write Playwright test: seamless loop (frame 0 matches final frame)"
-        done: false
-      - text: "Verify all tests pass headless in CI"
+      - text: "Assert pixel diff under 1% at every inflection frame"
         done: false
 extra: {}
