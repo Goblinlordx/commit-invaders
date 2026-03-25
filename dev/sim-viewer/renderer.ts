@@ -242,12 +242,18 @@ export function renderFrame(
     ctx.restore()
   }
 
-  // Ending: score display — "N COMMITS DESTROYED" with wiggle
-  if (phase === 'ending_score') {
+  // Ending: score display — "N COMMITS" with wiggle
+  if (phase === 'ending_score' || phase === 'ending_score_out') {
     const gameAreaH = config.playArea.width + RENDER_MARGIN * 2
     const centerX = screen.width / 2
     const centerY = gameAreaH / 2
-    const alpha = state.wavePhaseProgress
+    // Fade in during first 20% of ending_score, hold, then fade out during ending_score_out
+    let alpha = 1
+    if (phase === 'ending_score' && state.wavePhaseProgress < 0.15) {
+      alpha = state.wavePhaseProgress / 0.15
+    } else if (phase === 'ending_score_out') {
+      alpha = 1 - state.wavePhaseProgress
+    }
 
     ctx.save()
     ctx.globalAlpha = alpha
@@ -271,11 +277,13 @@ export function renderFrame(
   }
 
   // Ending: scoreboard display
-  const showScoreboard = phase === 'ending_hold' || phase === 'ending_blackout'
+  const showScoreboard = phase === 'ending_board_in' || phase === 'ending_hold' || phase === 'ending_blackout'
   if (showScoreboard && scoreboardData) {
     const gameAreaH = config.playArea.width + RENDER_MARGIN * 2
     const centerX = screen.width / 2
-    const scoreAlpha = phase === 'ending_blackout' ? 1 - state.wavePhaseProgress : 1
+    let scoreAlpha = 1
+    if (phase === 'ending_board_in') scoreAlpha = state.wavePhaseProgress
+    else if (phase === 'ending_blackout') scoreAlpha = 1 - state.wavePhaseProgress
 
     ctx.save()
     ctx.globalAlpha = scoreAlpha
@@ -287,21 +295,21 @@ export function renderFrame(
     const fontSize = Math.max(9, Math.floor(h * 0.09))
     const rowHeight = Math.floor(h * 0.11)
 
-    // Title (static)
-    const titleY = Math.floor(h * 0.08)
+    // Title (static, more top space)
+    const titleY = Math.floor(h * 0.12)
     ctx.font = `bold ${titleSize}px monospace`
     ctx.textAlign = 'center'
     ctx.textBaseline = 'middle'
     ctx.fillStyle = '#39d353'
     ctx.fillText('HIGH SCORES', centerX, titleY)
 
-    // "New High Score!" indicator
-    let tableStartY = Math.floor(h * 0.18)
+    // "New High Score!" indicator (more spacing)
+    let tableStartY = Math.floor(h * 0.28)
     if (scoreboardData.isNewHighScore) {
       ctx.font = `bold ${nhsSize}px monospace`
       ctx.fillStyle = '#ffff00'
       ctx.textAlign = 'center'
-      const nhsY = Math.floor(h * 0.17)
+      const nhsY = Math.floor(h * 0.22)
       const nhsText = '★ NEW HIGH SCORE! ★'
       const nhsCharW = nhsSize * 0.62
       const nhsStartX = centerX - (nhsText.length * nhsCharW) / 2
@@ -309,7 +317,7 @@ export function renderFrame(
         const wiggle = Math.sin((state.frame * 0.12 + i * 0.6) % (Math.PI * 2)) * 2
         ctx.fillText(nhsText[i]!, nhsStartX + i * nhsCharW, nhsY + wiggle)
       }
-      tableStartY = Math.floor(h * 0.26)
+      tableStartY = Math.floor(h * 0.35)
     }
 
     // Scoreboard table — 2 columns of 5, compact width
@@ -378,7 +386,7 @@ export function renderFrame(
     // Status bar alpha during ending phases
     let statusAlpha = 1
     if (phase === 'ending_fadeout') statusAlpha = 1 - state.wavePhaseProgress
-    else if (phase === 'ending_score' || phase === 'ending_hold') statusAlpha = 0
+    else if (phase === 'ending_score' || phase === 'ending_score_out' || phase === 'ending_board_in' || phase === 'ending_hold') statusAlpha = 0
     else if (phase === 'ending_blackout') statusAlpha = 0
     else if (phase === 'ending_reset') statusAlpha = state.wavePhaseProgress
 

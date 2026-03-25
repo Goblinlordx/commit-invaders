@@ -317,7 +317,7 @@ function simulateCore(
   let solveCooldown = 0
 
   // Ending sequence state
-  let endingPhase: 'none' | 'fadeout' | 'score' | 'hold' | 'blackout' | 'reset' | 'done' = 'none'
+  let endingPhase: 'none' | 'fadeout' | 'score' | 'score_out' | 'board_in' | 'hold' | 'blackout' | 'reset' | 'done' = 'none'
   let endingPhaseStart = 0
   let endingPhaseFramesLeft = 0
 
@@ -357,7 +357,8 @@ function simulateCore(
     }
     // Ending phases
     const endingPhaseMap: Record<string, import('../types.js').WavePhase> = {
-      fadeout: 'ending_fadeout', score: 'ending_score', hold: 'ending_hold',
+      fadeout: 'ending_fadeout', score: 'ending_score', score_out: 'ending_score_out',
+      board_in: 'ending_board_in', hold: 'ending_hold',
       blackout: 'ending_blackout', reset: 'ending_reset',
     }
     if (endingPhase !== 'none' && endingPhase !== 'done') {
@@ -374,6 +375,8 @@ function simulateCore(
       const durations: Record<string, number> = {
         fadeout: config.waveConfig.endingFadeoutDuration,
         score: config.waveConfig.endingScoreDuration,
+        score_out: config.waveConfig.endingScoreOutDuration,
+        board_in: config.waveConfig.endingBoardInDuration,
         hold: config.waveConfig.endingHoldDuration,
         blackout: config.waveConfig.endingBlackoutDuration,
         reset: config.waveConfig.endingResetDuration,
@@ -829,7 +832,9 @@ function simulateCore(
       if (endingPhaseFramesLeft <= 0) {
         const transitions: Array<[string, string, number]> = [
           ['fadeout', 'score', wc.endingScoreDuration],
-          ['score', 'hold', wc.endingHoldDuration],
+          ['score', 'score_out', wc.endingScoreOutDuration],
+          ['score_out', 'board_in', wc.endingBoardInDuration],
+          ['board_in', 'hold', wc.endingHoldDuration],
           ['hold', 'blackout', wc.endingBlackoutDuration],
           ['blackout', 'reset', wc.endingResetDuration],
           ['reset', 'done', 0],

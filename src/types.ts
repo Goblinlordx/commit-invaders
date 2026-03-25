@@ -134,11 +134,13 @@ export type WavePhase =
   | 'hatching'
   | 'active'
   | 'clearing'
-  | 'ending_fadeout'   // ship fades out, lasers fly away
-  | 'ending_score'     // score text displayed with wiggle
-  | 'ending_hold'      // score visible, waiting
-  | 'ending_blackout'  // fade to black
-  | 'ending_reset'     // fade back to initial state
+  | 'ending_fadeout'    // ship fades out, lasers fly away
+  | 'ending_score'      // "N COMMITS" fades in + holds
+  | 'ending_score_out'  // score text fades out
+  | 'ending_board_in'   // scoreboard fades in
+  | 'ending_hold'       // scoreboard holds
+  | 'ending_blackout'   // fade to black
+  | 'ending_reset'      // fade back to initial state
 
 // ── Game State (reconstructable snapshot) ──
 
@@ -213,8 +215,10 @@ export interface WaveConfig {
   travelDuration: number // frames for cell position interpolation
   hatchDuration: number // frames for color transition at destination
   endingFadeoutDuration: number // frames for ship fadeout after final wave
-  endingScoreDuration: number // frames for score text fade-in
-  endingHoldDuration: number // frames to hold score display
+  endingScoreDuration: number // frames for score text (fade in + hold)
+  endingScoreOutDuration: number // frames for score text fade out
+  endingBoardInDuration: number // frames for scoreboard fade in
+  endingHoldDuration: number // frames to hold scoreboard display
   endingBlackoutDuration: number // frames to fade to black
   endingResetDuration: number // frames to fade back to initial state
 }

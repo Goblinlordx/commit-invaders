@@ -32,8 +32,12 @@ function defaultConfig(): SimConfig {
       weeksPerWave: 4, startDelay: 60, spawnDelay: 0,
       brightenDuration: 60, pluckDuration: 20, darkenDuration: 60,
       travelDuration: 40, hatchDuration: 20,
-      endingFadeoutDuration: 60, endingScoreDuration: 30,
-      endingHoldDuration: 180, endingBlackoutDuration: 60,
+      endingFadeoutDuration: 60,
+      endingScoreDuration: 180,      // ~3s score display (includes fade in)
+      endingScoreOutDuration: 30,    // score fades out
+      endingBoardInDuration: 30,     // scoreboard fades in
+      endingHoldDuration: 300,       // ~5s scoreboard display
+      endingBlackoutDuration: 60,
       endingResetDuration: 60,
     },
     playArea: { x: 0, y: 0, width: gridW, height: gridH + shipMargin },

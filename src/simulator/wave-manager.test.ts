@@ -37,6 +37,8 @@ const defaultConfig: WaveConfig = {
   hatchDuration: 0,
   endingFadeoutDuration: 0,
   endingScoreDuration: 0,
+  endingScoreOutDuration: 0,
+  endingBoardInDuration: 0,
   endingHoldDuration: 0,
   endingBlackoutDuration: 0,
   endingResetDuration: 0,
