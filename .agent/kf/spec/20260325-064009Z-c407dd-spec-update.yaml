@@ -1,0 +1,64 @@
+date: '2026-03-25'
+author: commit-invaders
+description: Initial product spec for Commit Invaders
+operations:
+- action: added
+  item: product.core.contribution-fetch
+  title: Fetch contribution graph data from GitHub GraphQL API
+  type: product
+  priority: high
+- action: added
+  item: product.core.grid-render
+  title: Render contribution grid as SVG matching GitHub layout
+  type: product
+  priority: high
+- action: added
+  item: product.core.wave-transform
+  title: Animate commits transforming from grid into invader waves
+  type: product
+  priority: high
+- action: added
+  item: product.core.ship-combat
+  title: Player ship fires lasers, destroys descending invaders
+  type: product
+  priority: high
+- action: added
+  item: product.core.animation-loop
+  title: 'Full game loop: grid to waves to combat to victory to reset'
+  type: product
+  priority: high
+- action: added
+  item: product.output.light-dark
+  title: Separate SVGs for light and dark mode
+  type: product
+  priority: medium
+- action: added
+  item: product.output.reduced-motion
+  title: Static fallback for prefers-reduced-motion
+  type: product
+  priority: low
+- action: added
+  item: product.action.cron-generation
+  title: GitHub Action with cron schedule for auto-generation
+  type: product
+  priority: high
+- action: added
+  item: product.config.customization
+  title: User-configurable colors speed and wave grouping
+  type: product
+  priority: medium
+- action: added
+  item: tech.svg.css-only-animation
+  title: All animation via CSS keyframes, no JavaScript
+  type: technical
+  priority: high
+- action: added
+  item: tech.svg.smil-fallback
+  title: SMIL animate for browsers without CSS animation support
+  type: technical
+  priority: medium
+- action: added
+  item: tech.action.output-branch
+  title: SVG output committed to a dedicated branch
+  type: technical
+  priority: high

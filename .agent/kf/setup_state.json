@@ -1,0 +1,30 @@
+{
+  "status": "complete",
+  "primary_branch": "main",
+  "auto_commit": true,
+  "project_type": "greenfield",
+  "current_section": "complete",
+  "current_question": 0,
+  "completed_sections": ["product", "product_guidelines", "tech_stack", "workflow", "style_guides", "spec"],
+  "answers": {
+    "project_name": "Commit Invaders",
+    "languages": ["TypeScript"],
+    "frontend": "None",
+    "backend": "Node.js",
+    "database": "None",
+    "infrastructure": "GitHub Actions",
+    "commit_strategy": "conventional",
+    "tdd": "strict"
+  },
+  "files_created": [
+    "config.yaml",
+    "product.yaml",
+    "product-guidelines.yaml",
+    "tech-stack.yaml",
+    "workflow.yaml",
+    "code_styleguides/typescript.md",
+    "spec.yaml"
+  ],
+  "started_at": "2026-03-25T06:33:31Z",
+  "last_updated": "2026-03-25T06:40:15Z"
+}

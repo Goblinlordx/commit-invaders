@@ -1,0 +1,22 @@
+name: "Commit Invaders"
+description: >
+  A GitHub Action that generates an animated SVG of a Space Invaders-style
+  game where GitHub contribution graph commits transform into descending
+  invader waves and get destroyed by a player ship's lasers.
+
+problem: >
+  GitHub profile animations are dominated by the same snake game (Platane/snk).
+  Developers who want a distinctive, gaming-inspired profile animation have
+  almost no alternatives. There is no Space Invaders-style contribution graph
+  animation with any meaningful adoption.
+
+users:
+  - Developers who want a unique, eye-catching GitHub profile README
+  - Open source contributors who want to showcase their activity creatively
+
+goals:
+  - Generate animated SVG from GitHub contribution graph data
+  - Animate commits transforming from the static grid into Space Invaders-style waves
+  - Support light and dark mode via CSS prefers-color-scheme
+  - Run as a GitHub Action on a cron schedule (every 12 hours)
+  - Produce crisp, performant SVG animations using CSS keyframes (no JavaScript)

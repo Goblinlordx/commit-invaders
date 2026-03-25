@@ -1,0 +1,7 @@
+voice: "Concise and direct — developer-facing CLI/Action tool"
+
+principles:
+  - "Pixel-perfect retro aesthetic — honor the Space Invaders visual language"
+  - "Performance first — SVG must render smoothly in browser, no jank"
+  - "Zero configuration by default — works out of the box with sensible defaults"
+  - "Customizable for power users — colors, speed, wave grouping, sprite styles"

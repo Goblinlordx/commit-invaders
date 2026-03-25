@@ -1,0 +1,8 @@
+tdd:
+  strictness: strict
+commits:
+  strategy: conventional
+review: optional
+verification:
+  checkpoints: track_completion
+  commands: []

@@ -1,0 +1,23 @@
+languages:
+  - TypeScript
+
+frontend: "None — output is static animated SVG files"
+
+backend: "Node.js (GitHub Action runtime; CLI tool for local generation)"
+
+database: "None — stateless, reads contribution data from GitHub GraphQL API"
+
+infrastructure: "GitHub Actions"
+
+dependencies:
+  - "@octokit/graphql — GitHub API client for fetching contribution data"
+  - "@actions/core — GitHub Actions toolkit"
+  - "vitest — test runner"
+  - "typescript — type checking"
+  - "tsup — bundler for the action"
+  - "eslint — linting"
+  - "prettier — formatting"
+
+notes:
+  output_format: "Animated SVG with CSS @keyframes and <animate> elements"
+  constraint: "GitHub strips JavaScript from SVGs in READMEs — all animation must be CSS/SMIL only"
