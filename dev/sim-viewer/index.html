@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Commit Invaders — Sim Viewer</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { background: #0d1117; color: #e6edf3; font-family: monospace; display: flex; flex-direction: column; height: 100vh; }
+    #top-bar { display: flex; gap: 12px; padding: 8px 12px; background: #161b22; align-items: center; flex-wrap: wrap; }
+    #top-bar label { font-size: 12px; color: #8b949e; }
+    #top-bar input, #top-bar select { background: #21262d; color: #e6edf3; border: 1px solid #30363d; padding: 4px 8px; font-family: monospace; font-size: 12px; }
+    #top-bar input[type="text"] { width: 120px; }
+    #canvas-wrap { flex: 1; display: flex; justify-content: center; align-items: center; padding: 8px; }
+    canvas { background: #0d1117; border: 1px solid #30363d; }
+    #controls { display: flex; gap: 8px; padding: 8px 12px; background: #161b22; align-items: center; }
+    #controls button { background: #21262d; color: #e6edf3; border: 1px solid #30363d; padding: 4px 12px; cursor: pointer; font-family: monospace; }
+    #controls button:hover { background: #30363d; }
+    #scrubber { flex: 1; }
+    #hud { padding: 4px 12px; background: #161b22; font-size: 12px; color: #8b949e; display: flex; gap: 16px; }
+    #tuning { padding: 8px 12px; background: #161b22; border-top: 1px solid #30363d; display: flex; gap: 16px; flex-wrap: wrap; }
+    #tuning .param { display: flex; flex-direction: column; gap: 2px; }
+    #tuning .param label { font-size: 10px; color: #8b949e; }
+    #tuning .param input[type="range"] { width: 100px; }
+    #tuning .param .val { font-size: 10px; color: #58a6ff; text-align: center; }
+  </style>
+</head>
+<body>
+  <div id="top-bar">
+    <label>Seed: <input type="text" id="seed-input" value="demo-seed" /></label>
+    <label>Fixture:
+      <select id="fixture-select">
+        <option value="small">Small (2 weeks)</option>
+        <option value="medium" selected>Medium (8 weeks)</option>
+        <option value="full">Full year (52 weeks)</option>
+      </select>
+    </label>
+    <button id="btn-rerun">Re-run</button>
+  </div>
+  <div id="hud">
+    <span>Frame: <b id="hud-frame">0</b> / <b id="hud-total">0</b></span>
+    <span>Score: <b id="hud-score">0</b></span>
+    <span>Wave: <b id="hud-wave">0</b></span>
+    <span>Invaders: <b id="hud-invaders">0</b></span>
+  </div>
+  <div id="canvas-wrap">
+    <canvas id="game-canvas" width="300" height="400"></canvas>
+  </div>
+  <div id="controls">
+    <button id="btn-restart" title="Restart">|&lt;</button>
+    <button id="btn-back10" title="-10">&lt;&lt;</button>
+    <button id="btn-back1" title="-1">&lt;</button>
+    <button id="btn-play" title="Play/Pause">Play</button>
+    <button id="btn-fwd1" title="+1">&gt;</button>
+    <button id="btn-fwd10" title="+10">&gt;&gt;</button>
+    <input type="range" id="scrubber" min="0" max="0" value="0" />
+    <label>Speed: <input type="range" id="speed-slider" min="0.25" max="8" step="0.25" value="1" /></label>
+    <span id="speed-val">1x</span>
+  </div>
+  <div id="tuning">
+    <!-- Populated by main.ts -->
+  </div>
+  <script type="module" src="./main.ts"></script>
+</body>
+</html>

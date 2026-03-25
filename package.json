@@ -13,7 +13,8 @@
     "lint": "eslint 'src/**/*.ts'",
     "format": "prettier --write 'src/**/*.ts'",
     "format:check": "prettier --check 'src/**/*.ts'",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "dev:sim": "vite dev/sim-viewer"
   },
   "keywords": [
     "github",
@@ -30,6 +31,7 @@
     "tsup": "^8.5.1",
     "typescript": "^6.0.2",
     "typescript-eslint": "^8.57.2",
+    "vite": "^8.0.2",
     "vitest": "^4.1.1"
   },
   "dependencies": {
