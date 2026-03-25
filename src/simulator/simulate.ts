@@ -229,29 +229,47 @@ export function simulate(
   seed: string,
   config: SimConfig,
 ): SimOutput {
-  // Guarantee completion: if a run doesn't clear all waves, retry with
-  // increased hit chance. Each retry bumps hitChance toward 1.0.
-  const expectedScore = grid.cells.reduce((sum, c) => sum + c.count, 0)
-  let effectiveHitChance = config.hitChance
-  const maxRetries = 5
+  // Per-wave hit chance overrides. Starts with all waves using config.hitChance.
+  // If a wave fails (breach), only that wave's hitChance is increased on retry.
+  const waveHitChances = new Map<number, number>()
+  const maxRetries = 10
 
-  for (let attempt = 0; attempt <= maxRetries; attempt++) {
-    const hc = attempt === maxRetries ? 1.0 : effectiveHitChance
-    const result = simulateCore(grid, seed, { ...config, hitChance: hc })
-    if (result.finalScore >= expectedScore) return result
+  for (let attempt = 0; attempt < maxRetries; attempt++) {
+    const result = simulateCore(grid, seed, config, waveHitChances)
 
-    // Didn't complete — increase hit chance and retry
-    effectiveHitChance = Math.min(1.0, effectiveHitChance + (1.0 - effectiveHitChance) * 0.5)
+    // Check if game completed (game_end event present)
+    const completed = result.events.some((e) => e.type === 'game_end')
+    if (completed) return result
+
+    // Find which wave breached — it's the active wave that didn't clear
+    const spawnedWaves = result.events
+      .filter((e) => e.type === 'wave_spawn')
+      .map((e) => (e.data as { waveIndex: number }).waveIndex)
+    const clearedWaves = new Set(
+      result.events
+        .filter((e) => e.type === 'wave_clear')
+        .map((e) => (e.data as { waveIndex: number }).waveIndex),
+    )
+    const failedWave = spawnedWaves.find((w) => !clearedWaves.has(w))
+
+    if (failedWave === undefined) return result // shouldn't happen
+
+    // Bump only the failed wave's hit chance
+    const current = waveHitChances.get(failedWave) ?? config.hitChance
+    waveHitChances.set(failedWave, Math.min(1.0, current + (1.0 - current) * 0.5))
   }
 
-  // Should never reach here — 100% hit chance must complete
-  return simulateCore(grid, seed, { ...config, hitChance: 1.0 })
+  // Final fallback — set all waves to 100%
+  const totalWaves = Math.ceil(grid.cells.filter((c) => c.level > 0).length / (config.waveConfig.weeksPerWave * 7))
+  for (let w = 0; w < totalWaves + 1; w++) waveHitChances.set(w, 1.0)
+  return simulateCore(grid, seed, config, waveHitChances)
 }
 
 function simulateCore(
   grid: Grid,
   seed: string,
   config: SimConfig,
+  waveHitChances: Map<number, number> = new Map(),
 ): SimOutput {
   const prng = createPRNG(seed)
   const dt = 1 / config.framesPerSecond
@@ -395,7 +413,12 @@ function simulateCore(
     }
     if (targets.length === 0) return
 
-    const isHit = prng.chance(config.hitChance)
+    // Use per-wave hitChance if overridden, otherwise config default
+    const activeWaveIdx = formations.length > 0
+      ? formations.findLast((f) => f.getState().active)?.getState().waveIndex ?? 0
+      : 0
+    const effectiveHitChance = waveHitChances.get(activeWaveIdx) ?? config.hitChance
+    const isHit = prng.chance(effectiveHitChance)
 
     if (isHit) {
       // Shuffle targets with PRNG
