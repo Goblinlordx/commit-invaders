@@ -259,38 +259,43 @@ export function renderFrame(
       }
     }
 
-    // Scoreboard table
-    const tableTop = scoreboardData.isNewHighScore ? 32 : 24
-    const rowHeight = 10
-    ctx.font = '8px monospace'
+    // Scoreboard table — 2 columns of 5 entries for larger text
+    const tableTop = scoreboardData.isNewHighScore ? 34 : 26
+    const rowHeight = 13
+    const fontSize = 11
+    const colWidth = screen.width * 0.42
+    const colOffsets = [centerX - colWidth / 2 - colWidth * 0.02, centerX + colWidth / 2 + colWidth * 0.02]
     ctx.textBaseline = 'middle'
 
     for (let i = 0; i < scoreboardData.entries.length; i++) {
       const entry = scoreboardData.entries[i]!
-      const y = tableTop + i * rowHeight
+      const col = i < 5 ? 0 : 1
+      const row = i < 5 ? i : i - 5
+      const colX = colOffsets[col]!
+      const y = tableTop + row * rowHeight
       const isCurrent = entry.isCurrent
 
       // Highlight current entry
       if (isCurrent) {
         ctx.fillStyle = 'rgba(57, 211, 83, 0.15)'
-        ctx.fillRect(centerX - 120, y - rowHeight / 2, 240, rowHeight)
+        ctx.fillRect(colX - colWidth / 2 - 4, y - rowHeight / 2, colWidth + 8, rowHeight)
       }
 
       // Rank
       ctx.textAlign = 'left'
       ctx.fillStyle = isCurrent ? '#ffff00' : '#8b949e'
-      ctx.font = isCurrent ? 'bold 8px monospace' : '8px monospace'
-      ctx.fillText(`${String(entry.rank).padStart(2, ' ')}.`, centerX - 110, y)
+      ctx.font = isCurrent ? `bold ${fontSize}px monospace` : `${fontSize}px monospace`
+      ctx.fillText(`${String(entry.rank).padStart(2, ' ')}.`, colX - colWidth / 2, y)
 
       // Date
       ctx.fillStyle = isCurrent ? '#e6edf3' : '#8b949e'
-      ctx.fillText(entry.date, centerX - 90, y)
+      ctx.fillText(entry.date, colX - colWidth / 2 + fontSize * 2.5, y)
 
       // Score
       ctx.textAlign = 'right'
       ctx.fillStyle = isCurrent ? '#39d353' : '#58a6ff'
-      ctx.font = isCurrent ? 'bold 8px monospace' : '8px monospace'
-      ctx.fillText(String(entry.score), centerX + 110, y)
+      ctx.font = isCurrent ? `bold ${fontSize}px monospace` : `${fontSize}px monospace`
+      ctx.fillText(String(entry.score), colX + colWidth / 2, y)
     }
 
     ctx.globalAlpha = 1
