@@ -19,7 +19,7 @@ import { createFormation, type Formation } from './formation.js'
 import { spawnLaser, advanceLasers, checkHits } from './combat.js'
 
 // Internal constants (don't affect visual output)
-const MAX_FRAMES = 30_000 // safety limit — game should complete naturally
+const MAX_FRAMES = 100_000 // absolute safety net — should never be reached
 const ANCHOR_INTERVAL = 100
 const LRU_CAPACITY = 16
 
@@ -140,7 +140,7 @@ function solveHit(
   // Search (extraDelay, laserTicks) space using pre-computed path
   for (let extraDelay = 0; extraDelay < maxDelay; extraDelay++) {
     const fireFrame = currentFrame + extraDelay
-    if (fireFrame >= MAX_FRAMES) return null
+    if (fireFrame >= MAX_FRAMES) return null // safety net
 
     for (let laserTicks = 1; laserTicks < maxLaserTicks; laserTicks++) {
       const totalTicks = extraDelay + laserTicks
@@ -613,6 +613,26 @@ function simulateCore(
         addInflection(`formation-${fState.waveIndex}`, 'formation', { frame, position: { ...fState.offset }, type: 'direction_change' })
       }
       frameEvents.push(...fEvents)
+    }
+
+    // Check for invader breach — any alive invader past the ship
+    let breached = false
+    for (const formation of formations) {
+      const fState = formation.getState()
+      if (!fState.active) continue
+      for (const inv of fState.invaders) {
+        if (inv.destroyed) continue
+        const worldY = inv.position.y + fState.offset.y
+        if (worldY >= config.shipY) {
+          breached = true
+          break
+        }
+      }
+      if (breached) break
+    }
+    if (breached) {
+      // Game over — invader reached the ship. Outer loop will retry.
+      break
     }
 
     // 3. Solver: find solution or execute committed one
