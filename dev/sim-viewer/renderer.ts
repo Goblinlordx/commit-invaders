@@ -40,12 +40,15 @@ function simToScreen(
 
 /**
  * Get the screen dimensions for canvas sizing.
- * 90° CW rotation swaps width and height.
+ * 90° CW rotation swaps width and height. Status bar adds to height.
  */
-export function getScreenSize(config: SimConfig): { width: number; height: number } {
+export function getScreenSize(
+  config: SimConfig,
+  statusBarHeight: number = 0,
+): { width: number; height: number } {
   return {
     width: config.playArea.height,
-    height: config.playArea.width,
+    height: config.playArea.width + statusBarHeight,
   }
 }
 
@@ -53,8 +56,9 @@ export function renderFrame(
   ctx: CanvasRenderingContext2D,
   state: GameState,
   config: SimConfig,
+  statusBarHeight: number = 0,
 ): void {
-  const screen = getScreenSize(config)
+  const screen = getScreenSize(config, statusBarHeight)
 
   // Clear
   ctx.fillStyle = BG_COLOR
@@ -115,4 +119,31 @@ export function renderFrame(
   const shipHalf = config.invaderSize / 2
   ctx.fillStyle = SHIP_COLOR
   ctx.fillRect(shipSx - shipHalf, shipSy - shipHalf, config.invaderSize, config.invaderSize)
+
+  // Status bar (bottom)
+  if (statusBarHeight > 0) {
+    const gameAreaHeight = config.playArea.width // after rotation
+    ctx.fillStyle = '#161b22'
+    ctx.fillRect(0, gameAreaHeight, screen.width, statusBarHeight)
+
+    // Wave indicator (left)
+    ctx.fillStyle = '#8b949e'
+    ctx.font = '11px monospace'
+    ctx.textBaseline = 'middle'
+    const waveText = state.formations.length > 0
+      ? `WAVE ${state.currentWave}/${state.totalWaves}`
+      : 'READY'
+    ctx.fillText(waveText, 8, gameAreaHeight + statusBarHeight / 2)
+
+    // Score counter (right) — commit value
+    ctx.fillStyle = '#39d353'
+    ctx.textAlign = 'right'
+    ctx.font = 'bold 12px monospace'
+    ctx.fillText(
+      `${state.score} COMMITS`,
+      screen.width - 8,
+      gameAreaHeight + statusBarHeight / 2,
+    )
+    ctx.textAlign = 'left' // reset
+  }
 }

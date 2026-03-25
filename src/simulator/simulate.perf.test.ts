@@ -40,6 +40,7 @@ function makeFullYearGrid(seed: string): {
   grid: Grid
   activeCount: number
   totalHP: number
+  totalCommits: number
 } {
   const prng = createPRNG(seed)
   const cells = []
@@ -64,6 +65,9 @@ function makeFullYearGrid(seed: string): {
         count: level === 0 ? 0 : Math.floor(level * 3 + prng.next() * 10),
       })
 
+      const count = level === 0 ? 0 : Math.floor(level * 3 + prng.next() * 10)
+      cells[cells.length - 1]!.count = count
+
       if (level > 0) {
         activeCount++
         totalHP += level <= 2 ? 1 : level === 3 ? 2 : 3
@@ -71,7 +75,8 @@ function makeFullYearGrid(seed: string): {
     }
   }
 
-  return { grid: { width: 52, height: 7, cells }, activeCount, totalHP }
+  const totalCommits = cells.reduce((sum, c) => sum + c.count, 0)
+  return { grid: { width: 52, height: 7, cells }, activeCount, totalHP, totalCommits }
 }
 
 describe('simulate — full year performance', () => {
@@ -91,7 +96,7 @@ describe('simulate — full year performance', () => {
     }> = []
 
     for (const seed of seeds) {
-      const { grid, activeCount } = makeFullYearGrid(seed)
+      const { grid, activeCount, totalCommits } = makeFullYearGrid(seed)
       const start = performance.now()
       const out = simulate(grid, seed, config)
       const ms = performance.now() - start
@@ -111,7 +116,7 @@ describe('simulate — full year performance', () => {
       })
 
       // Every seed MUST complete
-      expect(out.finalScore).toBe(activeCount)
+      expect(out.finalScore).toBe(totalCommits)
     }
 
     const times = results.map((r) => r.ms)
@@ -143,10 +148,10 @@ describe('simulate — full year performance', () => {
   })
 
   it('peek() mid-game is fast', () => {
-    const { grid, activeCount } = makeFullYearGrid('peek-bench')
+    const { grid, totalCommits } = makeFullYearGrid('peek-bench')
     const out = simulate(grid, 'peek-bench', config)
 
-    expect(out.finalScore).toBe(activeCount)
+    expect(out.finalScore).toBe(totalCommits)
 
     const mid = Math.floor(out.totalFrames / 2)
     const start = performance.now()

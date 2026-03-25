@@ -111,7 +111,8 @@ describe('simulate', () => {
 
     it('destroys high-HP invaders', () => {
       const output = simulate(HIGH_HP_GRID, 'hp-seed', makeConfig())
-      expect(output.finalScore).toBe(2)
+      // level 3 (count=3) + level 4 (count=4) = 7
+      expect(output.finalScore).toBe(7)
     })
 
     it('destroys spread-out invaders', () => {
@@ -128,7 +129,7 @@ describe('simulate', () => {
         // level 0 cells are excluded from grid.cells by convention, but
         // if present they don't count
       ])
-      const expectedScore = 4
+      const expectedScore = 1 + 2 + 3 + 4 // sum of cell.count (= level)
       const output = simulate(grid, 'score-seed', makeConfig())
       expect(output.finalScore).toBe(expectedScore)
     })

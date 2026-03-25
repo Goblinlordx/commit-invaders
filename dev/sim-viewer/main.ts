@@ -5,33 +5,41 @@ import { renderFrame, getScreenSize } from './renderer.js'
 
 // ── Default config ──
 
+// ── Layout constants (screen space, exported for renderer) ──
+
+const CELL_SIZE = 11
+const CELL_GAP = 2
+const STRIDE = CELL_SIZE + CELL_GAP
+const PADDING = 8 // ~8% of grid height (91px) on each side
+const STATUS_BAR_HEIGHT = 20
+
+export function getLayoutConstants() {
+  return { CELL_SIZE, CELL_GAP, STRIDE, PADDING, STATUS_BAR_HEIGHT }
+}
+
 function defaultConfig(): SimConfig {
-  // Grid dimensions: 52 weeks × 7 days, cell 11px + 2px gap = stride 13
-  // After 90° rotation: sim width = screen height, sim height = screen width
-  //   sim X axis (oscillation) → screen Y → 7 days × 13 = 91px
-  //   sim Y axis (fire/travel) → screen X → 52 weeks × 13 + ship margin = ~700px
-  const cellSize = 11
-  const cellGap = 2
-  const stride = cellSize + cellGap
-  const gridW = 7 * stride   // 91 — sim X range (screen Y after rotation)
-  const gridH = 52 * stride  // 676 — sim Y range (screen X after rotation)
-  const shipMargin = 24      // space for ship on left (sim bottom)
+  // Grid dimensions: 52 weeks × 7 days
+  // Sim X axis (oscillation) → screen Y: grid height + padding on top/bottom
+  // Sim Y axis (fire/travel) → screen X: grid width + ship margin on left
+  const gridW = 7 * STRIDE + PADDING * 2  // sim X range: grid + vertical padding
+  const gridH = 52 * STRIDE               // sim Y range: grid width (weeks)
+  const shipMargin = 24                    // space for ship on left
 
   return {
     framesPerSecond: 60,
     waveConfig: { weeksPerWave: 4, spawnDelay: 60 },
     playArea: { x: 0, y: 0, width: gridW, height: gridH + shipMargin },
-    gridArea: { x: 0, y: 0, width: gridW, height: gridH },
-    cellSize,
-    cellGap,
+    gridArea: { x: PADDING, y: 0, width: 7 * STRIDE, height: gridH },
+    cellSize: CELL_SIZE,
+    cellGap: CELL_GAP,
     laserSpeed: 240,
     laserWidth: 2,
-    invaderSize: 7,         // smaller than cells (11px) for oscillation room
+    invaderSize: CELL_SIZE - 1, // 10px — 1px less than cell for slight gap
     shipSpeed: 180,
-    shipY: gridH + shipMargin - 4, // near sim bottom → screen left edge
+    shipY: gridH + shipMargin - 4,
     formationBaseSpeed: 60,
     formationMaxSpeed: 240,
-    formationRowDrop: stride, // drop by one row (matches grid stride)
+    formationRowDrop: STRIDE,
     hitChance: 0.85,
   }
 }
@@ -142,7 +150,7 @@ function runSim(): void {
   const seed = seedInput.value || 'demo-seed'
   const grid = makeGrid(weeks, seed + '-grid')
 
-  const screen = getScreenSize(config)
+  const screen = getScreenSize(config, STATUS_BAR_HEIGHT)
   canvas.width = screen.width
   canvas.height = screen.height
 
@@ -158,7 +166,7 @@ function runSim(): void {
 
 function draw(): void {
   const state = output.peek(currentFrame)
-  renderFrame(ctx, state, config)
+  renderFrame(ctx, state, config, STATUS_BAR_HEIGHT)
   updateHud(state)
 }
 

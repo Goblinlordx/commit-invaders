@@ -166,13 +166,14 @@ describe('checkHits', () => {
     expect(result.updatedInvaders[0]!.destroyed).toBe(true)
   })
 
-  it('increments score by 1 on each destroy', () => {
+  it('increments score by cell.count on each destroy', () => {
     const lasers = [makeLaser({ position: { x: 50, y: 50 } })]
     const invaders = [makeInvader({ hp: 1, position: { x: 50, y: 50 } })]
 
     const result = checkHits(lasers, invaders, DEFAULT_LASER_WIDTH, DEFAULT_INVADER_SIZE)
 
-    expect(result.scoreIncrease).toBe(1)
+    // Default cell has count: 5
+    expect(result.scoreIncrease).toBe(5)
   })
 
   it('does not increment score when invader is damaged but not destroyed', () => {
@@ -223,7 +224,7 @@ describe('checkHits', () => {
     expect(result.hits).toHaveLength(1)
     expect(result.updatedLasers).toHaveLength(1)
     expect(result.updatedLasers[0]!.id).toBe('l2')
-    expect(result.scoreIncrease).toBe(1)
+    expect(result.scoreIncrease).toBe(5) // cell.count = 5
   })
 
   it('handles multiple simultaneous destroys', () => {
@@ -240,6 +241,6 @@ describe('checkHits', () => {
 
     expect(result.hits).toHaveLength(2)
     expect(result.updatedLasers).toHaveLength(0)
-    expect(result.scoreIncrease).toBe(2)
+    expect(result.scoreIncrease).toBe(10) // 2 × cell.count(5)
   })
 })

@@ -129,7 +129,7 @@ export function checkHits(
     const damage = damagedInvaders.get(inv.id)
     if (!damage) return inv
 
-    if (damage.destroyed) scoreIncrease++
+    if (damage.destroyed) scoreIncrease += inv.cell.count
 
     return {
       ...inv,
