@@ -1,96 +1,74 @@
 id: inflection-to-css_20260325143203Z
-title: "Inflection Point to CSS Animation Data Pipeline"
+title: Inflection Point to CSS Animation Data Pipeline
 type: feature
 status: pending
 created: 2026-03-25
-updated: 2026-03-25
+updated: '2026-03-25'
 spec:
-  summary: |
-    Map SimOutput inflection timelines to per-entity CSS custom properties
+  summary: 'Map SimOutput inflection timelines to per-entity CSS custom properties
+
     and keyframe data. Produces the final animated SVG from simulation
+
     output. Full-frame pixel-diff validation against canvas renderer.
-  context: |
-    This is the final integration track. SimOutput provides:
-    - events[] — all state change events with frame numbers
-    - entityTimelines — per-entity inflection points (spawn, move, fire, hit, destroy, etc.)
-    - totalFrames — total animation length
-    - config — all physics parameters including framesPerSecond
 
-    The pipeline:
-    1. Query SimOutput.getAllInflections() for all entity timelines
-    2. For each entity, compute CSS custom properties:
-       - --spawn-time, --destroy-time (visibility window)
-       - --start-x, --start-y, --end-x, --end-y (position keyframes)
-       - --duration (animation segment duration)
-       - --delay (animation start offset)
-    3. Map frame numbers to CSS time: frame / framesPerSecond = seconds
-    4. Compose all entities into a single SVG with embedded CSS
-    5. Validate full SVG against canvas renderer via Playwright pixel-diff
-
-    The composed SVG must be GitHub-safe (no JavaScript, no external resources).
+    '
+  context: "This is the final integration track. SimOutput provides:\n- events[] — all state change events with frame numbers\n\
+    - entityTimelines — per-entity inflection points (spawn, move, fire, hit, destroy, etc.)\n- totalFrames — total animation\
+    \ length\n- config — all physics parameters including framesPerSecond\n\nThe pipeline:\n1. Query SimOutput.getAllInflections()\
+    \ for all entity timelines\n2. For each entity, compute CSS custom properties:\n   - --spawn-time, --destroy-time (visibility\
+    \ window)\n   - --start-x, --start-y, --end-x, --end-y (position keyframes)\n   - --duration (animation segment duration)\n\
+    \   - --delay (animation start offset)\n3. Map frame numbers to CSS time: frame / framesPerSecond = seconds\n4. Compose\
+    \ all entities into a single SVG with embedded CSS\n5. Validate full SVG against canvas renderer via Playwright pixel-diff\n\
+    \nThe composed SVG must be GitHub-safe (no JavaScript, no external resources).\n"
   acceptance_criteria:
-    - Inflection timeline to CSS property mapper for all entity types
-    - Frame-to-time conversion using framesPerSecond
-    - Formation oscillation keyframes generated from direction_change inflections
-    - Cell lifecycle keyframes generated from pluck/travel/hatch inflections
-    - Laser keyframes generated from fire inflection + constant velocity
-    - Ship keyframes generated from move_start/move_end inflections
-    - Overlay opacity keyframes generated from wave phase changes
-    - Ending sequence keyframes (score display, scoreboard, blackout, reset)
-    - Full SVG compositor assembling all entities with CSS animations
-    - Playwright full-frame pixel-diff: canvas vs SVG at inflection frames
-    - Pixel diff under 1% at every test frame
-    - SVG output is GitHub-safe (no JS, no external resources)
-    - SVG file size reasonable (under 200KB for full-year animation)
-  out_of_scope: |
-    Visual polish (sprites, effects, palettes). GitHub Action packaging.
-  technical_notes: |
-    Directory: src/animation/
-      timeline-mapper.ts   — inflection frames to CSS time percentages
-      entity-binder.ts     — per-entity CSS custom property computation
-      svg-compositor.ts    — assembles full SVG with embedded CSS
+  - Inflection timeline to CSS property mapper for all entity types
+  - Frame-to-time conversion using framesPerSecond
+  - Formation oscillation keyframes generated from direction_change inflections
+  - Cell lifecycle keyframes generated from pluck/travel/hatch inflections
+  - Laser keyframes generated from fire inflection + constant velocity
+  - Ship keyframes generated from move_start/move_end inflections
+  - Overlay opacity keyframes generated from wave phase changes
+  - Ending sequence keyframes (score display, scoreboard, blackout, reset)
+  - Full SVG compositor assembling all entities with CSS animations
+  - Playwright full-frame pixel-diff: canvas vs SVG at inflection frames
+  - Pixel diff under 1% at every test frame
+  - SVG output is GitHub-safe (no JS, no external resources)
+  - SVG file size reasonable (under 200KB for full-year animation)
+  out_of_scope: 'Visual polish (sprites, effects, palettes). GitHub Action packaging.
 
-    Key mapping: frame → time
-      time_seconds = frame / config.framesPerSecond
-      percentage = frame / totalFrames * 100
-
-    Formation keyframes example:
-      From inflection points: spawn@f0, direction_change@f100, direction_change@f200...
-      @keyframes formation-0 {
-        0% { transform: translate(0, 0); }
-        6.67% { transform: translate(80px, 0); }
-        13.33% { transform: translate(0, 13px); }
-        ...
-      }
-
-    Validation: dev/css-validator/
-      Side-by-side full canvas vs full SVG
-      Playwright scrubs through inflection frames and pixel-diffs
+    '
+  technical_notes: "Directory: src/animation/\n  timeline-mapper.ts   — inflection frames to CSS time percentages\n  entity-binder.ts\
+    \     — per-entity CSS custom property computation\n  svg-compositor.ts    — assembles full SVG with embedded CSS\n\n\
+    Key mapping: frame → time\n  time_seconds = frame / config.framesPerSecond\n  percentage = frame / totalFrames * 100\n\
+    \nFormation keyframes example:\n  From inflection points: spawn@f0, direction_change@f100, direction_change@f200...\n\
+    \  @keyframes formation-0 {\n    0% { transform: translate(0, 0); }\n    6.67% { transform: translate(80px, 0); }\n  \
+    \  13.33% { transform: translate(0, 13px); }\n    ...\n  }\n\nValidation: dev/css-validator/\n  Side-by-side full canvas\
+    \ vs full SVG\n  Playwright scrubs through inflection frames and pixel-diffs\n"
 plan:
-  - phase: "Timeline Mapping"
-    tasks:
-      - text: "Implement frame-to-CSS-time converter (frame → seconds, frame → percentage)"
-        done: false
-      - text: "Implement inflection timeline to CSS keyframe mapper for formations"
-        done: false
-      - text: "Implement mapper for cell lifecycle (pluck, travel, hatch timelines)"
-        done: false
-      - text: "Implement mapper for ship movement, laser trajectories, overlay opacity"
-        done: false
-  - phase: "SVG Composition"
-    tasks:
-      - text: "Implement entity binder: SimOutput → per-entity CSS custom properties"
-        done: false
-      - text: "Implement SVG compositor: assemble all entities with embedded CSS"
-        done: false
-      - text: "Implement ending sequence CSS (score display, scoreboard, blackout, reset)"
-        done: false
-      - text: "Verify SVG is GitHub-safe and under 200KB for full-year grid"
-        done: false
-  - phase: "Full Integration Validation"
-    tasks:
-      - text: "Build dev/css-validator/ with side-by-side canvas + full SVG"
-        done: false
-      - text: "Playwright test: pixel-diff at all inflection frames (under 1% threshold)"
-        done: false
+- phase: Timeline Mapping
+  tasks:
+  - text: Implement frame-to-CSS-time converter (frame → seconds, frame → percentage)
+    done: true
+  - text: Implement inflection timeline to CSS keyframe mapper for formations
+    done: true
+  - text: Implement mapper for cell lifecycle (pluck, travel, hatch timelines)
+    done: true
+  - text: Implement mapper for ship movement, laser trajectories, overlay opacity
+    done: true
+- phase: SVG Composition
+  tasks:
+  - text: 'Implement entity binder: SimOutput → per-entity CSS custom properties'
+    done: true
+  - text: 'Implement SVG compositor: assemble all entities with embedded CSS'
+    done: true
+  - text: Implement ending sequence CSS (score display, scoreboard, blackout, reset)
+    done: true
+  - text: Verify SVG is GitHub-safe and under 200KB for full-year grid
+    done: true
+- phase: Full Integration Validation
+  tasks:
+  - text: Build dev/css-validator/ with side-by-side canvas + full SVG
+    done: true
+  - text: 'Playwright test: pixel-diff at all inflection frames (under 1% threshold)'
+    done: true
 extra: {}
