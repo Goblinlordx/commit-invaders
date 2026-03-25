@@ -319,9 +319,14 @@ export function overlayKeyframeStops(
     const progress = state.wavePhaseProgress
     const hasWaves = state.formations.length > 0
 
+    // Determine if any wave has been active (not the initial idle before wave 1)
+    const anyWaveStarted = state.currentWave > 0 || hasWaves
     let alpha = 0
-    if (phase === 'idle' || phase === 'ending_reset') alpha = 0
-    else if (phase === 'brightening') alpha = hasWaves ? 0.6 * (1 - progress) : 0
+    if (phase === 'idle') {
+      // Before first wave: no overlay. Between waves: hold overlay at 0.6
+      alpha = anyWaveStarted ? 0.6 : 0
+    } else if (phase === 'ending_reset') alpha = 0
+    else if (phase === 'brightening') alpha = 0.6 * (1 - progress)
     else if (phase === 'plucking') alpha = 0
     else if (phase === 'darkening') alpha = 0.6 * progress
     else if (phase === 'ending_blackout') alpha = 0
