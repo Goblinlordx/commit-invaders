@@ -17,6 +17,8 @@ export interface Formation {
   getState(): FormationState
   tick(frame: number): SimEvent[]
   destroyInvader(id: string, frame: number): void
+  /** Predict formation offset after N ticks by cloning and fast-forwarding. */
+  predictOffset(ticksAhead: number): { x: number; y: number; direction: 'left' | 'right' }
 }
 
 export function createFormation(
@@ -103,6 +105,34 @@ export function createFormation(
       })
 
       return events
+    },
+
+    predictOffset(ticksAhead: number): { x: number; y: number; direction: 'left' | 'right' } {
+      // Clone current state and tick forward — uses the EXACT same logic as tick()
+      let offX = state.offset.x
+      let offY = state.offset.y
+      let dir = state.direction
+      const speedPerFrame = state.speed * config.dt
+
+      for (let t = 0; t < ticksAhead; t++) {
+        const dx = dir === 'right' ? speedPerFrame : -speedPerFrame
+        let wouldExceed = false
+        for (const inv of state.invaders) {
+          const ex = inv.position.x + offX + dx
+          if (ex < playArea.x || ex >= playArea.x + playArea.width) {
+            wouldExceed = true
+            break
+          }
+        }
+        if (wouldExceed) {
+          dir = dir === 'right' ? 'left' : 'right'
+          offY += config.rowDrop
+        } else {
+          offX += dx
+        }
+      }
+
+      return { x: offX, y: offY, direction: dir }
     },
 
     destroyInvader(id: string, frame: number): void {

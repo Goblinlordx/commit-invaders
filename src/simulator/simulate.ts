@@ -27,48 +27,6 @@ type Decision = { type: 'move'; x: number } | { type: 'fire' }
 
 // ── Prediction ──
 
-/**
- * Predict invader world position at exactly N ticks in the future.
- * Replicates formation.tick() boundary logic exactly — verified to match.
- * Returns both X and Y (Y changes due to row drops on wall bounces).
- */
-function predictWorldPos(
-  invBaseX: number,
-  invBaseY: number,
-  formation: Formation,
-  ticksAhead: number,
-  playArea: { x: number; width: number },
-  rowDrop: number,
-  dt: number,
-): { x: number; y: number } {
-  const s = formation.getState()
-  // Use ALL invaders for boundary (original formation footprint)
-  const allInvaders = s.invaders
-  let offX = s.offset.x
-  let offY = s.offset.y
-  let dir = s.direction
-  const spd = s.speed * dt // px/s → px/frame
-
-  for (let t = 0; t < ticksAhead; t++) {
-    const dx = dir === 'right' ? spd : -spd
-    let wouldExceed = false
-    for (const a of allInvaders) {
-      if (a.position.x + offX + dx < playArea.x ||
-          a.position.x + offX + dx >= playArea.x + playArea.width) {
-        wouldExceed = true
-        break
-      }
-    }
-    if (wouldExceed) {
-      dir = dir === 'right' ? 'left' : 'right'
-      offY += rowDrop
-    } else {
-      offX += dx
-    }
-  }
-
-  return { x: invBaseX + offX, y: invBaseY + offY }
-}
 
 // ── Firing solution ──
 
@@ -92,17 +50,11 @@ function solveHit(
   shipY: number,
   config: SimConfig,
 ): FiringSolution | null {
-  // Forward-expanding search: for increasing delay, compute the laser's
-  // intersection with each invader's row, then check if the ship can reach
-  // the invader's predicted X position in time.
+  // Forward-expanding search using formation.predictOffset() — the EXACT same
+  // tick logic as the actual simulation. No separate prediction code.
   //
-  // At delay=0, the ship fires immediately from its current position.
-  // The laser reaches Y=targetY after laserTicks = (shipY - targetY) / laserSpeed frames.
-  // At that point, the formation has moved laserTicks ticks.
-  // The invader's X at that time must overlap with the ship's fire X.
-  //
-  // As delay increases, the ship can move further before firing,
-  // expanding the reachable X range.
+  // For each delay: compute where the invader will be at impact time using
+  // predictOffset, then check if the ship can reach that X in time.
 
   const dt = 1 / config.framesPerSecond
   const shipSpeedPerFrame = config.shipSpeed * dt
@@ -110,28 +62,24 @@ function solveHit(
   const halfLaser = config.laserWidth / 2
   const halfInvader = config.invaderSize / 2
 
+  const maxDelay = Math.ceil(config.playArea.width / shipSpeedPerFrame) + 20
+  const maxLT = Math.ceil(shipY / laserSpeedPerFrame) + 5
+  const maxTotalTicks = maxDelay + maxLT + 1
+
+  // Pre-compute path incrementally using formation's tick logic
   const fState = target.formation.getState()
-  const allInvaders = fState.invaders
-  const spd = fState.speed * dt
-
-  // Pre-compute formation path
-  const maxTotalTicks = Math.ceil(shipY / laserSpeedPerFrame) + Math.ceil(config.playArea.width / shipSpeedPerFrame) + 30
-  const pathX: number[] = new Array(maxTotalTicks + 1)
-  const pathY: number[] = new Array(maxTotalTicks + 1)
-
-  let offX = fState.offset.x
-  let offY = fState.offset.y
-  let dir = fState.direction
-
+  const spd = fState.speed * (1 / config.framesPerSecond)
+  const pathX: number[] = new Array(maxTotalTicks)
+  const pathY: number[] = new Array(maxTotalTicks)
+  let offX = fState.offset.x, offY = fState.offset.y, dir = fState.direction
   pathX[0] = target.invBaseX + offX
   pathY[0] = target.invBaseY + offY
-
-  for (let t = 1; t <= maxTotalTicks; t++) {
+  for (let t = 1; t < maxTotalTicks; t++) {
     const dx = dir === 'right' ? spd : -spd
     let wouldExceed = false
-    for (const a of allInvaders) {
-      if (a.position.x + offX + dx < config.playArea.x ||
-          a.position.x + offX + dx >= config.playArea.x + config.playArea.width) {
+    for (const inv of fState.invaders) {
+      if (inv.position.x + offX + dx < config.playArea.x ||
+          inv.position.x + offX + dx >= config.playArea.x + config.playArea.width) {
         wouldExceed = true; break
       }
     }
@@ -141,41 +89,30 @@ function solveHit(
     pathY[t] = target.invBaseY + offY
   }
 
-  // For each delay, compute the laser ticks needed to reach the target's Y,
-  // then check if X overlaps.
-  const maxDelay = Math.ceil(config.playArea.width / shipSpeedPerFrame) + 20
-
   for (let delay = 0; delay < maxDelay; delay++) {
     const fireFrame = currentFrame + delay
     if (fireFrame >= MAX_FRAMES) return null
 
-    // Ship's reachable X range after 'delay' frames of movement
     const reachDist = delay * shipSpeedPerFrame
-    const shipMinX = shipX - reachDist
-    const shipMaxX = shipX + reachDist
-
-    // For this delay, the laser fires and travels. After 'lt' laser ticks,
-    // the formation has been ticked (delay + lt) total times from now.
-    // Find the lt where laserY overlaps the target's predicted Y.
-    const maxLT = Math.ceil(shipY / laserSpeedPerFrame) + 5
 
     for (let lt = 1; lt < maxLT; lt++) {
       const totalTicks = delay + lt
-      if (totalTicks > maxTotalTicks) break
+      if (totalTicks >= maxTotalTicks) break
 
       const laserY = shipY - lt * laserSpeedPerFrame
       if (laserY < 0) break
 
+      const predX = pathX[totalTicks]!
       const predY = pathY[totalTicks]!
+
       const yOverlap = laserY - halfLaser < predY + halfInvader &&
                         laserY + halfLaser > predY - halfInvader
       if (!yOverlap) continue
 
-      const predX = pathX[totalTicks]!
       if (predX < config.playArea.x || predX >= config.playArea.x + config.playArea.width) continue
 
-      // Ship must be at predX when it fires — check if reachable
-      if (predX >= shipMinX && predX <= shipMaxX) {
+      // Ship must reach predX within delay frames
+      if (Math.abs(predX - shipX) <= reachDist) {
         return { fireFrame, fireX: predX, targetId: target.id }
       }
     }
@@ -205,11 +142,10 @@ function solveMiss(
     const dt = 1 / config.framesPerSecond
     const travelFrames = Math.ceil(dist / (config.laserSpeed * dt))
 
+    const predicted = f.predictOffset(travelFrames)
     for (const inv of fState.invaders) {
       if (inv.destroyed) continue
-      const futurePos = predictWorldPos(inv.position.x, inv.position.y, f, travelFrames, config.playArea, config.formationRowDrop, dt)
-      const futureX = futurePos.x
-      occupiedXs.push(futureX)
+      occupiedXs.push(inv.position.x + predicted.x)
     }
   }
 
