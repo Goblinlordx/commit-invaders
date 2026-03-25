@@ -51,7 +51,7 @@ function defaultConfig(): SimConfig {
     shipY: gridH + shipMargin - 4,
     formationBaseSpeed: 60,
     formationMaxSpeed: 240,
-    formationRowDrop: 14,
+    formationRowDrop: 7,
     hitChance: 0.85,
     fireRate: 3, // 3 shots per second
     shipYRange: 30,
