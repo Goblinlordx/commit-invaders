@@ -9,9 +9,11 @@ import type {
   InvaderState,
   EntityTimeline,
   InflectionPoint,
+  Position,
 } from '../types.js'
 
 import { createPRNG } from './prng.js'
+import type { PRNG } from '../types.js'
 import { createWaveManager } from './wave-manager.js'
 import { createFormation, type Formation } from './formation.js'
 import { spawnLaser, advanceLasers, checkHits } from './combat.js'
@@ -19,16 +21,168 @@ import { spawnLaser, advanceLasers, checkHits } from './combat.js'
 const MAX_FRAMES = 10_000
 const ANCHOR_INTERVAL = 100
 const LRU_CAPACITY = 16
+const HIT_CHANCE = 0.85
+const PATH_LOOKAHEAD = 500
+
+// ── Decision recording ──
+
+type Decision = { type: 'move'; x: number } | { type: 'fire' }
+
+// ── Formation path prediction ──
+
+interface PathSnapshot {
+  offsetX: number
+  offsetY: number
+  direction: 'left' | 'right'
+}
 
 /**
- * Simulates the complete game from a Grid and PRNG seed.
- *
- * The solver runs inline: each frame it reads invader world positions,
- * moves the ship toward the current target, and fires when aligned.
- * PRNG controls targeting order, reaction delays, and organic drift.
- *
- * Deterministic: same (Grid, seed, config) → identical SimOutput.
+ * Predict formation offsets for future frames by cloning state and ticking.
+ * Returns an array indexed by frames-from-now.
  */
+function computeFormationPath(
+  formation: Formation,
+  playArea: { x: number; y: number; width: number; height: number },
+  lookahead: number,
+): PathSnapshot[] {
+  const fState = formation.getState()
+  if (!fState.active) return []
+
+  const alive = fState.invaders.filter((i) => !i.destroyed)
+  if (alive.length === 0) return []
+
+  let offX = fState.offset.x
+  let offY = fState.offset.y
+  let dir = fState.direction
+  const spd = fState.speed
+
+  const path: PathSnapshot[] = [
+    { offsetX: offX, offsetY: offY, direction: dir },
+  ]
+
+  for (let t = 0; t < lookahead; t++) {
+    const dx = dir === 'right' ? spd : -spd
+    let wouldExceed = false
+    for (const a of alive) {
+      const ex = a.position.x + offX + dx
+      if (ex < playArea.x || ex >= playArea.x + playArea.width) {
+        wouldExceed = true
+        break
+      }
+    }
+    if (wouldExceed) {
+      dir = dir === 'right' ? 'left' : 'right'
+      offY += 20 // rowDrop
+    } else {
+      offX += dx
+    }
+    path.push({ offsetX: offX, offsetY: offY, direction: dir })
+  }
+
+  return path
+}
+
+// ── Solver ──
+
+interface ShotSolution {
+  fireFrame: number
+  shipX: number
+  targetId: string | null // null = miss
+  isHit: boolean
+}
+
+/**
+ * Solve for the next shot. PRNG determines hit/miss and target.
+ * Searches for the earliest feasible impact time given ship speed.
+ *
+ * Returns null if no solution found (insert delay and retry).
+ */
+function solveNextShot(
+  prng: PRNG,
+  currentTime: number,
+  shipX: number,
+  formations: Formation[],
+  paths: Map<Formation, PathSnapshot[]>,
+  config: SimConfig,
+  aliveInvaders: Array<{ id: string; basePos: Position; formation: Formation }>,
+): ShotSolution | null {
+  const isHit = prng.chance(HIT_CHANCE)
+
+  if (!isHit) {
+    // Miss: fire at a random x position
+    const missX = prng.float(
+      config.playArea.x + 20,
+      config.playArea.x + config.playArea.width - 20,
+    )
+    const moveDist = Math.abs(missX - shipX)
+    const moveFrames = Math.ceil(moveDist / config.shipSpeed)
+    const fireFrame = currentTime + moveFrames + prng.range(0, 2)
+
+    return {
+      fireFrame,
+      shipX: missX,
+      targetId: null,
+      isHit: false,
+    }
+  }
+
+  // Hit: pick a target
+  if (aliveInvaders.length === 0) return null
+
+  const targetIdx = prng.range(0, aliveInvaders.length - 1)
+  const target = aliveInvaders[targetIdx]!
+  const path = paths.get(target.formation)
+  if (!path || path.length === 0) return null
+
+  const fState = target.formation.getState()
+
+  // Search for earliest feasible impact time
+  const minTravel = Math.ceil(
+    (config.shipY - (target.basePos.y + fState.offset.y)) / config.laserSpeed,
+  )
+
+  for (
+    let futureOffset = minTravel;
+    futureOffset < path.length;
+    futureOffset++
+  ) {
+    const impactTime = currentTime + futureOffset
+    if (impactTime >= MAX_FRAMES) break
+
+    const snapshot = path[futureOffset]
+    if (!snapshot) break
+
+    const invWorldX = target.basePos.x + snapshot.offsetX
+    const invWorldY = target.basePos.y + snapshot.offsetY
+
+    // Laser travel time from ship to invader at impact
+    const dist = config.shipY - invWorldY
+    if (dist <= 0) continue
+    const travelFrames = Math.ceil(dist / config.laserSpeed)
+
+    const fireFrame = impactTime - travelFrames
+    if (fireFrame < currentTime) continue
+
+    // Ship feasibility: can it reach invWorldX by fireFrame?
+    const moveDist = Math.abs(invWorldX - shipX)
+    const availableFrames = fireFrame - currentTime
+    if (moveDist > availableFrames * config.shipSpeed) continue
+
+    // Feasible!
+    return {
+      fireFrame,
+      shipX: invWorldX,
+      targetId: target.id,
+      isHit: true,
+    }
+  }
+
+  // No feasible solution for this target — caller should retry or delay
+  return null
+}
+
+// ── Main simulate function ──
+
 export function simulate(
   grid: Grid,
   seed: string,
@@ -44,11 +198,7 @@ export function simulate(
   const allEvents: SimEvent[] = []
   const entityTimelines = new Map<string, EntityTimeline>()
   const anchorSnapshots = new Map<number, GameState>()
-  // Record solver decisions for replay
-  const frameDecisions: Map<
-    number,
-    Array<{ type: 'move'; x: number } | { type: 'fire' }>
-  > = new Map()
+  const frameDecisions = new Map<number, Decision[]>()
 
   const simWM = createWaveManager(grid, config.waveConfig)
   const formations: Formation[] = []
@@ -63,10 +213,13 @@ export function simulate(
   }
 
   // Solver state
-  const targetQueues: Map<number, string[]> = new Map()
-  let targetInvaderId: string | null = null
-  let shotsRemaining = 0
-  let cooldown = 0
+  let solverTime = 0
+  let solverShipX = config.playArea.width / 2
+  let pathsDirty = true
+  const formationPaths = new Map<Formation, PathSnapshot[]>()
+
+  // Track invaders with shots already in flight (avoid double-targeting same frame)
+  const recentlyTargeted = new Set<string>()
 
   function addInflection(
     entityId: string,
@@ -101,65 +254,139 @@ export function simulate(
     }
   }
 
-  function getInvaderWorldPos(
-    invaderId: string,
-  ): { x: number; y: number } | null {
+  function recomputePaths(): void {
+    formationPaths.clear()
+    for (const f of formations) {
+      if (f.getState().active) {
+        formationPaths.set(
+          f,
+          computeFormationPath(f, config.playArea, PATH_LOOKAHEAD),
+        )
+      }
+    }
+    pathsDirty = false
+  }
+
+  function getAliveInvaders(): Array<{
+    id: string
+    basePos: Position
+    formation: Formation
+    hp: number
+  }> {
+    const result: Array<{
+      id: string
+      basePos: Position
+      formation: Formation
+      hp: number
+    }> = []
     for (const f of formations) {
       const fState = f.getState()
       if (!fState.active) continue
-      const inv = fState.invaders.find(
-        (i) => i.id === invaderId && !i.destroyed,
-      )
-      if (inv) {
-        return {
-          x: inv.position.x + fState.offset.x,
-          y: inv.position.y + fState.offset.y,
+      for (const inv of fState.invaders) {
+        if (!inv.destroyed) {
+          result.push({
+            id: inv.id,
+            basePos: inv.position,
+            formation: f,
+            hp: inv.hp,
+          })
         }
       }
     }
-    return null
+    return result
   }
 
-  function pickNextTarget(): boolean {
-    for (const [waveIdx, queue] of targetQueues) {
-      const formation = formations.find(
-        (f) => f.getState().waveIndex === waveIdx,
-      )
-      if (!formation || !formation.getState().active) {
-        targetQueues.delete(waveIdx)
-        continue
-      }
-
-      const fState = formation.getState()
-      while (queue.length > 0) {
-        const inv = fState.invaders.find((i) => i.id === queue[0])
-        if (inv && !inv.destroyed) break
-        queue.shift()
-      }
-
-      if (queue.length === 0) {
-        targetQueues.delete(waveIdx)
-        continue
-      }
-
-      const invId = queue.shift()!
-      const inv = fState.invaders.find((i) => i.id === invId)!
-      targetInvaderId = invId
-      shotsRemaining = inv.hp
-      cooldown = prng.range(2, 6)
-      return true
+  /**
+   * Run the solver ahead: plan actions until we've scheduled shots
+   * for all alive invaders, or we can't solve further.
+   */
+  function planAhead(currentFrame: number): void {
+    if (solverTime < currentFrame) {
+      solverTime = currentFrame
     }
 
-    targetInvaderId = null
-    return false
+    // Plan up to a batch of shots
+    const maxSolveAttempts = 50
+    let attempts = 0
+
+    while (attempts < maxSolveAttempts) {
+      attempts++
+
+      if (pathsDirty) recomputePaths()
+
+      const alive = getAliveInvaders()
+      if (alive.length === 0) break
+
+      // Add reaction delay
+      const delay = prng.range(2, 6)
+      solverTime += delay
+
+      const solution = solveNextShot(
+        prng,
+        solverTime,
+        solverShipX,
+        formations,
+        formationPaths,
+        config,
+        alive,
+      )
+
+      if (!solution) {
+        // Try other targets before giving up
+        let found = false
+        for (let retry = 0; retry < Math.min(alive.length, 5); retry++) {
+          const alt = solveNextShot(
+            prng,
+            solverTime,
+            solverShipX,
+            formations,
+            formationPaths,
+            config,
+            alive,
+          )
+          if (alt) {
+            recordSolution(alt)
+            found = true
+            break
+          }
+        }
+
+        if (!found) {
+          // Insert delay and retry
+          solverTime += prng.range(5, 15)
+          pathsDirty = true // paths may have shifted
+          continue
+        }
+      } else {
+        recordSolution(solution)
+      }
+    }
   }
+
+  function recordSolution(sol: ShotSolution): void {
+    // Record move
+    let decisions = frameDecisions.get(sol.fireFrame)
+    if (!decisions) {
+      decisions = []
+      frameDecisions.set(sol.fireFrame, decisions)
+    }
+    decisions.push({ type: 'move', x: sol.shipX })
+    decisions.push({ type: 'fire' })
+
+    solverShipX = sol.shipX
+    solverTime = sol.fireFrame + prng.range(1, 3)
+
+    if (sol.isHit && sol.targetId) {
+      recentlyTargeted.add(sol.targetId)
+    }
+  }
+
+  // ── Forward simulation loop ──
 
   let totalFrames = 0
 
   for (let frame = 0; frame < MAX_FRAMES; frame++) {
     const frameEvents: SimEvent[] = []
-    const decisions: Array<{ type: 'move'; x: number } | { type: 'fire' }> =
-      []
 
     // 1. Wave spawning
     const wave = simWM.trySpawnNext(frame)
@@ -212,14 +439,7 @@ export function simulate(
         })
       }
 
-      // PRNG-shuffled target queue
-      const ids = invaders.map((inv) => inv.id)
-      for (let i = ids.length - 1; i > 0; i--) {
-        const j = prng.range(0, i)
-        ;[ids[i], ids[j]] = [ids[j]!, ids[i]!]
-      }
-      targetQueues.set(wave.waveIndex, ids)
-      cooldown = Math.max(cooldown, prng.range(3, 8))
+      pathsDirty = true
     }
 
     // 2. Advance formations
@@ -239,128 +459,56 @@ export function simulate(
       frameEvents.push(...fEvents)
     }
 
-    // 3. Solver: drive ship and fire with lead compensation
-    if (cooldown > 0) {
-      cooldown--
-    } else {
-      if (!targetInvaderId || !getInvaderWorldPos(targetInvaderId)) {
-        pickNextTarget()
-      }
+    // 3. Run solver if we need more planned actions
+    const hasAlive = formations.some((f) => {
+      const s = f.getState()
+      return s.active && s.invaders.some((i) => !i.destroyed)
+    })
+    if (hasAlive && frame >= solverTime - 10) {
+      pathsDirty = true
+      planAhead(frame)
+    }
 
-      if (targetInvaderId && cooldown <= 0) {
-        const targetPos = getInvaderWorldPos(targetInvaderId)
-        if (targetPos) {
-          // Compute lead: where will the invader be when the laser arrives?
-          const dist = config.shipY - targetPos.y
-          const travelFrames =
-            dist > 0 ? Math.ceil(dist / config.laserSpeed) : 1
+    // 4. Execute decisions for this frame
+    const decisions = frameDecisions.get(frame)
+    if (decisions) {
+      for (const d of decisions) {
+        if (d.type === 'move') {
+          ship.position.x = d.x
 
-          // Find the formation this invader belongs to
-          let leadX = targetPos.x
-          for (const f of formations) {
-            const fState = f.getState()
-            if (!fState.active) continue
-            const inv = fState.invaders.find(
-              (i) => i.id === targetInvaderId && !i.destroyed,
-            )
-            if (!inv) continue
-
-            // Simulate formation movement forward to predict offset
-            let offX = fState.offset.x
-            let offY = fState.offset.y
-            let dir = fState.direction
-            const spd = fState.speed
-            const alive = fState.invaders.filter((i) => !i.destroyed)
-
-            for (let t = 0; t < travelFrames; t++) {
-              const dx = dir === 'right' ? spd : -spd
-              let wouldExceed = false
-              for (const a of alive) {
-                const ex = a.position.x + offX + dx
-                if (
-                  ex < config.playArea.x ||
-                  ex >= config.playArea.x + config.playArea.width
-                ) {
-                  wouldExceed = true
-                  break
-                }
-              }
-              if (wouldExceed) {
-                dir = dir === 'right' ? 'left' : 'right'
-                offY += config.formationRowDrop
-              } else {
-                offX += dx
-              }
-            }
-
-            leadX = inv.position.x + offX
-            break
-          }
-
-          const dx = leadX - ship.position.x
-          if (Math.abs(dx) <= config.shipSpeed + 1) {
-            // Aligned with lead position — snap and fire
-            ship.position.x = leadX
-            decisions.push({ type: 'move', x: leadX })
-
-            addInflection('ship', 'ship', {
-              frame,
-              position: { ...ship.position },
-              type: 'move_end',
-            })
-
-            const laserId = `laser-${laserCounter++}`
-            const laser = spawnLaser(
-              laserId,
-              ship.position,
-              config.laserSpeed,
-            )
-            lasers.push(laser)
-            decisions.push({ type: 'fire' })
-
-            frameEvents.push({
-              frame,
-              type: 'fire_laser',
-              entityId: laserId,
-              position: { ...ship.position },
-            })
-            addInflection(laserId, 'laser', {
-              frame,
-              position: { ...ship.position },
-              type: 'fire',
-            })
-
-            shotsRemaining--
-            if (shotsRemaining <= 0) {
-              targetInvaderId = null
-            }
-            cooldown = prng.range(1, 3)
-          } else {
-            // Move toward lead position
-            ship.position.x +=
-              dx > 0 ? config.shipSpeed : -config.shipSpeed
-            decisions.push({ type: 'move', x: ship.position.x })
-
-            addInflection('ship', 'ship', {
-              frame,
-              position: { ...ship.position },
-              type: 'move_start',
-            })
-          }
+          addInflection('ship', 'ship', {
+            frame,
+            position: { ...ship.position },
+            type: 'move_start',
+          })
         } else {
-          targetInvaderId = null
+          const laserId = `laser-${laserCounter++}`
+          const laser = spawnLaser(
+            laserId,
+            ship.position,
+            config.laserSpeed,
+          )
+          lasers.push(laser)
+
+          frameEvents.push({
+            frame,
+            type: 'fire_laser',
+            entityId: laserId,
+            position: { ...ship.position },
+          })
+          addInflection(laserId, 'laser', {
+            frame,
+            position: { ...ship.position },
+            type: 'fire',
+          })
         }
       }
     }
 
-    if (decisions.length > 0) {
-      frameDecisions.set(frame, decisions)
-    }
-
-    // 4. Advance lasers
+    // 5. Advance lasers
     lasers = advanceLasers(lasers, config.playArea)
 
-    // 5. Hit detection
+    // 6. Hit detection
     for (const formation of formations) {
       const fState = formation.getState()
       if (!fState.active) continue
@@ -416,9 +564,9 @@ export function simulate(
             type: 'destroy',
           })
 
-          if (targetInvaderId === hit.invaderId) {
-            targetInvaderId = null
-          }
+          // Kill changes formation speed → invalidate paths
+          recentlyTargeted.delete(hit.invaderId)
+          pathsDirty = true
         }
       }
 
@@ -426,7 +574,12 @@ export function simulate(
       lasers = hitResult.updatedLasers
     }
 
-    // 6. Wave clears
+    // Clear recently targeted set periodically so invaders can be re-targeted
+    if (frame % 50 === 0) {
+      recentlyTargeted.clear()
+    }
+
+    // 7. Wave clears
     for (const formation of formations) {
       const fState = formation.getState()
       if (fState.clearedAtFrame === frame) {
@@ -453,23 +606,6 @@ export function simulate(
     }
 
     totalFrames = frame + 1
-
-    // Re-queue alive invaders if target queues are empty but invaders remain
-    if (!targetInvaderId && targetQueues.size === 0) {
-      for (const f of formations) {
-        const fState = f.getState()
-        if (!fState.active) continue
-        const alive = fState.invaders.filter((i) => !i.destroyed)
-        if (alive.length > 0) {
-          const ids = alive.map((i) => i.id)
-          for (let i = ids.length - 1; i > 0; i--) {
-            const j = prng.range(0, i)
-            ;[ids[i], ids[j]] = [ids[j]!, ids[i]!]
-          }
-          targetQueues.set(fState.waveIndex, ids)
-        }
-      }
-    }
 
     const allSpawned = formations.length === simWM.totalWaves
     const allCleared =
@@ -557,8 +693,6 @@ export function simulate(
 
 // ── Replay for peek() ──
 
-type Decision = { type: 'move'; x: number } | { type: 'fire' }
-
 function replayToFrame(
   grid: Grid,
   config: SimConfig,
@@ -611,7 +745,6 @@ function replayToFrame(
       if (f.getState().active) f.tick(frame)
     }
 
-    // Replay decisions
     const decisions = frameDecisions.get(frame)
     if (decisions) {
       for (const d of decisions) {
