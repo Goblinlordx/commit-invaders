@@ -591,6 +591,14 @@ export function simulate(
     // 3. Solver: find solution or execute committed one
     if (solveCooldown > 0) {
       solveCooldown--
+      // Organic Y drift during cooldown (ship advances/retreats along fire axis)
+      if (config.shipYRange > 0 && prng.chance(0.15)) {
+        const minY = config.shipY - config.shipYRange
+        const targetY = prng.float(minY, config.shipY)
+        const yStep = config.shipSpeed * dt * 0.5 // drift at half speed
+        const dy = targetY - ship.position.y
+        ship.position.y += Math.sign(dy) * Math.min(Math.abs(dy), yStep)
+      }
     } else if (!solution) {
       findSolution(frame)
     }
@@ -610,7 +618,9 @@ export function simulate(
         addInflection(laserId, 'laser', { frame, position: { ...ship.position }, type: 'fire' })
 
         solution = null
-        solveCooldown = prng.range(1, 2)
+        // Fire rate limit: minimum frames between shots = fps / fireRate
+        const minCooldown = Math.ceil(config.framesPerSecond / config.fireRate)
+        solveCooldown = minCooldown + prng.range(0, Math.max(1, Math.floor(minCooldown * 0.2)))
       } else {
         // Move toward fire position
         const dx = sol.fireX - ship.position.x

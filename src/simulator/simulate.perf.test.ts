@@ -29,6 +29,8 @@ function makeConfig(): SimConfig {
     formationMaxSpeed: 4,
     formationRowDrop: 20,
     hitChance: 0.85,
+    fireRate: 1000,
+    shipYRange: 0,
   }
 }
 

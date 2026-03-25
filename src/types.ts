@@ -224,6 +224,8 @@ export interface SimConfig {
   formationMaxSpeed: number // px/s
   formationRowDrop: number
   hitChance: number // 0-1, probability each shot is a hit vs miss
+  fireRate: number // shots per second — minimum time between shots = 1/fireRate
+  shipYRange: number // px the ship can move along fire axis from shipY (0 = fixed)
 }
 
 // ── PRNG ──

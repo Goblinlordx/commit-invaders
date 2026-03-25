@@ -154,7 +154,7 @@ export function renderFrame(
   // Ship
   const { sx: shipSx, sy: shipSy } = simToScreen(
     state.ship.position.x,
-    config.shipY,
+    state.ship.position.y,
     config,
   )
   const shipHalf = config.invaderSize / 2

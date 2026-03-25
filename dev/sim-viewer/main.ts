@@ -45,6 +45,8 @@ function defaultConfig(): SimConfig {
     formationMaxSpeed: 240,
     formationRowDrop: STRIDE,
     hitChance: 0.85,
+    fireRate: 3, // 3 shots per second
+    shipYRange: 30, // ship can drift 30px along fire axis
   }
 }
 
@@ -123,6 +125,8 @@ const TUNING_PARAMS: TuningParam[] = [
   { key: 'formationMaxSpeed', label: 'Form. Max', min: 30, max: 600, step: 10 },
   { key: 'formationRowDrop', label: 'Row Drop', min: 5, max: 50, step: 1 },
   { key: 'hitChance', label: 'Hit Chance', min: 0.1, max: 1.0, step: 0.05 },
+  { key: 'fireRate', label: 'Fire Rate', min: 1, max: 20, step: 1 },
+  { key: 'shipYRange', label: 'Ship Y Range', min: 0, max: 100, step: 5 },
   { key: 'framesPerSecond', label: 'Sim FPS', min: 10, max: 120, step: 5 },
 ]
 
