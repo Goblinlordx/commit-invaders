@@ -186,7 +186,7 @@ describe('Formation', () => {
       expect(reversed).toBe(true)
     })
 
-    it('ignores destroyed invaders for boundary calculation', () => {
+    it('uses original formation footprint for boundary even after kills', () => {
       const invaders = [
         makeInvader('inv-0', 50, 20),
         makeInvader('inv-1', 380, 20),
@@ -198,18 +198,32 @@ describe('Formation', () => {
         defaultFormationConfig,
       )
 
-      // Destroy the rightmost invader
-      formation.destroyInvader('inv-1', 0)
-
-      // Now only inv-0 at x=50 remains — should take longer to hit right boundary
-      let stepsToReverse = 0
+      // Record steps to reverse with full formation
+      let stepsFullFormation = 0
       for (let frame = 1; frame <= 500; frame++) {
         formation.tick(frame)
-        stepsToReverse++
+        stepsFullFormation++
         if (formation.getState().direction === 'left') break
       }
-      // With only invader at x=50, it should take many more steps
-      expect(stepsToReverse).toBeGreaterThan(10)
+
+      // Reset by creating new formation, destroy rightmost
+      const formation2 = createFormation(
+        [makeInvader('inv-0', 50, 20), makeInvader('inv-1', 380, 20)],
+        0,
+        defaultPlayArea,
+        defaultFormationConfig,
+      )
+      formation2.destroyInvader('inv-1', 0)
+
+      let stepsAfterKill = 0
+      for (let frame = 1; frame <= 500; frame++) {
+        formation2.tick(frame)
+        stepsAfterKill++
+        if (formation2.getState().direction === 'left') break
+      }
+      // Same boundary — same steps to reverse (speed may differ but boundary same)
+      // Both should reverse at roughly the same point (boundary = inv-1 at x=380)
+      expect(stepsAfterKill).toBeLessThanOrEqual(stepsFullFormation + 5)
     })
   })
 

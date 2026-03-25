@@ -89,6 +89,7 @@ function solveHit(
   target: { id: string; invBaseX: number; invBaseY: number; formation: Formation },
   currentFrame: number,
   shipX: number,
+  shipY: number,
   config: SimConfig,
 ): FiringSolution | null {
   // Search over extraDelay (frames the ship has to move before firing).
@@ -105,7 +106,7 @@ function solveHit(
 
   // Bounds derived from per-frame speeds
   const maxDelay = Math.ceil(config.playArea.width / shipSpeedPerFrame) + 20
-  const maxLaserTicks = Math.ceil(config.shipY / laserSpeedPerFrame) + 5
+  const maxLaserTicks = Math.ceil(shipY / laserSpeedPerFrame) + 5
 
   const fState = target.formation.getState()
   // Use ALL invaders for boundary prediction (matches formation.ts — original footprint)
@@ -148,7 +149,7 @@ function solveHit(
       const totalTicks = extraDelay + laserTicks
       if (totalTicks >= pathLen) break
 
-      const laserY = config.shipY - laserTicks * laserSpeedPerFrame
+      const laserY = shipY - laserTicks * laserSpeedPerFrame
       if (laserY < 0) break
 
       const predX = pathX[totalTicks]!
@@ -499,7 +500,7 @@ function simulateCore(
       }
 
       for (const t of targets) {
-        const sol = solveHit(t, frame, ship.position.x, config)
+        const sol = solveHit(t, frame, ship.position.x, ship.position.y, config)
         if (sol) {
           solution = sol
           const fs = t.formation.getState()
