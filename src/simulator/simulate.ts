@@ -92,31 +92,32 @@ function solveHit(
   shipY: number,
   config: SimConfig,
 ): FiringSolution | null {
-  // Search over extraDelay (frames the ship has to move before firing).
-  // For each delay, predict invader position at (delay + travelFrames) ticks
-  // ahead. The laser Y and invader Y must intersect — find the tick count
-  // where the laser (traveling from shipY at laserSpeed) reaches the invader.
+  // Forward-expanding search: for increasing delay, compute the laser's
+  // intersection with each invader's row, then check if the ship can reach
+  // the invader's predicted X position in time.
+  //
+  // At delay=0, the ship fires immediately from its current position.
+  // The laser reaches Y=targetY after laserTicks = (shipY - targetY) / laserSpeed frames.
+  // At that point, the formation has moved laserTicks ticks.
+  // The invader's X at that time must overlap with the ship's fire X.
+  //
+  // As delay increases, the ship can move further before firing,
+  // expanding the reachable X range.
 
-  // Per-frame speeds (px/s * dt = px/frame)
   const dt = 1 / config.framesPerSecond
   const shipSpeedPerFrame = config.shipSpeed * dt
   const laserSpeedPerFrame = config.laserSpeed * dt
   const halfLaser = config.laserWidth / 2
   const halfInvader = config.invaderSize / 2
 
-  // Bounds derived from per-frame speeds
-  const maxDelay = Math.ceil(config.playArea.width / shipSpeedPerFrame) + 20
-  const maxLaserTicks = Math.ceil(shipY / laserSpeedPerFrame) + 5
-
   const fState = target.formation.getState()
-  // Use ALL invaders for boundary prediction (matches formation.ts — original footprint)
   const allInvaders = fState.invaders
-  const spd = fState.speed * dt // px/s → px/frame
+  const spd = fState.speed * dt
 
-  // Pre-compute the formation path once for (maxDelay + maxLaserTicks) ticks.
-  const pathLen = maxDelay + maxLaserTicks + 1
-  const pathX: number[] = new Array(pathLen)
-  const pathY: number[] = new Array(pathLen)
+  // Pre-compute formation path
+  const maxTotalTicks = Math.ceil(shipY / laserSpeedPerFrame) + Math.ceil(config.playArea.width / shipSpeedPerFrame) + 30
+  const pathX: number[] = new Array(maxTotalTicks + 1)
+  const pathY: number[] = new Array(maxTotalTicks + 1)
 
   let offX = fState.offset.x
   let offY = fState.offset.y
@@ -125,7 +126,7 @@ function solveHit(
   pathX[0] = target.invBaseX + offX
   pathY[0] = target.invBaseY + offY
 
-  for (let t = 1; t < pathLen; t++) {
+  for (let t = 1; t <= maxTotalTicks; t++) {
     const dx = dir === 'right' ? spd : -spd
     let wouldExceed = false
     for (const a of allInvaders) {
@@ -140,35 +141,43 @@ function solveHit(
     pathY[t] = target.invBaseY + offY
   }
 
-  // Search (extraDelay, laserTicks) space using pre-computed path
-  for (let extraDelay = 0; extraDelay < maxDelay; extraDelay++) {
-    const fireFrame = currentFrame + extraDelay
-    if (fireFrame >= MAX_FRAMES) return null // safety net
+  // For each delay, compute the laser ticks needed to reach the target's Y,
+  // then check if X overlaps.
+  const maxDelay = Math.ceil(config.playArea.width / shipSpeedPerFrame) + 20
 
-    for (let laserTicks = 1; laserTicks < maxLaserTicks; laserTicks++) {
-      const totalTicks = extraDelay + laserTicks
-      if (totalTicks >= pathLen) break
+  for (let delay = 0; delay < maxDelay; delay++) {
+    const fireFrame = currentFrame + delay
+    if (fireFrame >= MAX_FRAMES) return null
 
-      const laserY = shipY - laserTicks * laserSpeedPerFrame
+    // Ship's reachable X range after 'delay' frames of movement
+    const reachDist = delay * shipSpeedPerFrame
+    const shipMinX = shipX - reachDist
+    const shipMaxX = shipX + reachDist
+
+    // For this delay, the laser fires and travels. After 'lt' laser ticks,
+    // the formation has been ticked (delay + lt) total times from now.
+    // Find the lt where laserY overlaps the target's predicted Y.
+    const maxLT = Math.ceil(shipY / laserSpeedPerFrame) + 5
+
+    for (let lt = 1; lt < maxLT; lt++) {
+      const totalTicks = delay + lt
+      if (totalTicks > maxTotalTicks) break
+
+      const laserY = shipY - lt * laserSpeedPerFrame
       if (laserY < 0) break
 
-      const predX = pathX[totalTicks]!
       const predY = pathY[totalTicks]!
-
-      const yOverlap =
-        laserY - halfLaser < predY + halfInvader &&
-        laserY + halfLaser > predY - halfInvader
-
+      const yOverlap = laserY - halfLaser < predY + halfInvader &&
+                        laserY + halfLaser > predY - halfInvader
       if (!yOverlap) continue
 
+      const predX = pathX[totalTicks]!
       if (predX < config.playArea.x || predX >= config.playArea.x + config.playArea.width) continue
 
-      const moveDist = Math.abs(predX - shipX)
-      if (moveDist > extraDelay * shipSpeedPerFrame) {
-        continue // ship can't reach this X yet — try more laser ticks (invader may bounce back)
+      // Ship must be at predX when it fires — check if reachable
+      if (predX >= shipMinX && predX <= shipMaxX) {
+        return { fireFrame, fireX: predX, targetId: target.id }
       }
-
-      return { fireFrame, fireX: predX, targetId: target.id }
     }
   }
 
@@ -336,9 +345,7 @@ function simulateCore(
   // Solver: committed firing solution
   let solution: FiringSolution | null = null
   let solveCooldown = 0
-  let solveSpeed = 0 // formation speed when solution was computed
-  let solveAliveCount = 0 // alive invader count when solved (boundary changes when invaders die)
-  const lockedTargets = new Set<string>() // invader IDs with lasers in flight targeting them
+  const lockedTargets = new Set<string>() // invaders with lasers in flight targeting them
   const laserTargetMap = new Map<string, string>() // laserId → targetId
 
   // Ending sequence state
@@ -501,15 +508,12 @@ function simulateCore(
         ;[targets[i], targets[j]] = [targets[j]!, targets[i]!]
       }
 
-      // Filter out invaders already locked by in-flight lasers
+      // Skip invaders already targeted by in-flight lasers
       const available = targets.filter((t) => !lockedTargets.has(t.id))
       for (const t of (available.length > 0 ? available : targets)) {
         const sol = solveHit(t, frame, ship.position.x, ship.position.y, config)
         if (sol) {
           solution = sol
-          const fs = t.formation.getState()
-          solveSpeed = fs.speed
-          solveAliveCount = fs.invaders.filter(i => !i.destroyed).length
           return
         }
       }
@@ -789,19 +793,15 @@ function simulateCore(
     } else if (!solution) {
       findSolution(frame)
     } else if (solution.targetId) {
-      // Re-validate: invalidate if any invader died (changes bounce boundaries + speed)
-      let valid = false
+      // Re-validate: invalidate only if target was destroyed
+      let targetAlive = false
       for (const f of formations) {
         const fs = f.getState()
         if (!fs.active) continue
         const inv = fs.invaders.find((i) => i.id === solution!.targetId)
-        if (inv && !inv.destroyed) {
-          const currentAlive = fs.invaders.filter(i => !i.destroyed).length
-          valid = currentAlive === solveAliveCount
-          break
-        }
+        if (inv && !inv.destroyed) { targetAlive = true; break }
       }
-      if (!valid) {
+      if (!targetAlive) {
         solution = null
         findSolution(frame)
       }
@@ -816,14 +816,12 @@ function simulateCore(
         addInflection('ship', 'ship', { frame, position: { ...ship.position }, type: 'move_end' })
 
         const laserId = `laser-${laserCounter++}`
-        const laser = spawnLaser(laserId, ship.position, config.laserSpeed)
-        // Tag laser with intended target for guaranteed hit detection
+        const newLaser = spawnLaser(laserId, ship.position, config.laserSpeed)
         if (sol.targetId) {
-          ;(laser as any)._targetId = sol.targetId
           lockedTargets.add(sol.targetId)
           laserTargetMap.set(laserId, sol.targetId)
         }
-        lasers.push(laser)
+        lasers.push(newLaser)
         frameEvents.push({ frame, type: 'fire_laser', entityId: laserId, position: { ...ship.position } })
         addInflection(laserId, 'laser', { frame, position: { ...ship.position }, type: 'fire' })
 
@@ -843,14 +841,14 @@ function simulateCore(
       }
     }
 
-    // 4. Advance lasers (clean up target locks for despawned lasers)
+    // 4. Advance lasers + clean up target locks for despawned lasers
     const prevLaserIds = new Set(lasers.map(l => l.id))
     lasers = advanceLasers(lasers, config.playArea, dt)
     const newLaserIds = new Set(lasers.map(l => l.id))
     for (const id of prevLaserIds) {
       if (!newLaserIds.has(id)) {
-        const targetId = laserTargetMap.get(id)
-        if (targetId) { lockedTargets.delete(targetId); laserTargetMap.delete(id) }
+        const tid = laserTargetMap.get(id)
+        if (tid) { lockedTargets.delete(tid); laserTargetMap.delete(id) }
       }
     }
 
@@ -863,21 +861,6 @@ function simulateCore(
         ...inv,
         position: { x: inv.position.x + fState.offset.x, y: inv.position.y + fState.offset.y },
       }))
-
-      // Guaranteed hit: if a tagged laser has passed the target's Y position,
-      // force the hit by snapping both X and Y to overlap. This handles prediction
-      // drift from 160+ frame laser travel times where formation state changes.
-      for (const laser of lasers) {
-        if (!laser.active) continue
-        const targetId = (laser as any)._targetId as string | undefined
-        if (!targetId) continue
-        const targetInv = worldInvaders.find((i) => i.id === targetId && !i.destroyed)
-        if (!targetInv) continue
-        // Guaranteed hit: snap laser onto target regardless of position.
-        // The solver determined this should be a hit; enforce it.
-        laser.position.x = targetInv.position.x
-        laser.position.y = targetInv.position.y
-      }
 
       const hitResult = checkHits(lasers, worldInvaders, config.laserWidth, config.invaderSize)
       for (const hit of hitResult.hits) {
@@ -895,7 +878,6 @@ function simulateCore(
           frameEvents.push({ frame, type: 'destroy', entityId: hit.invaderId, position: { ...invader.position } })
           addInflection(hit.invaderId, 'invader', { frame, position: { ...invader.position }, type: 'destroy' })
           lockedTargets.delete(hit.invaderId)
-
           // Invalidate solution if target was destroyed by another laser
           if ((solution as FiringSolution | null)?.targetId === hit.invaderId) { solution = null }
         }

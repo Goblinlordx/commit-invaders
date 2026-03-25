@@ -379,23 +379,27 @@ export function composeSvg(options: CompositeSvgOptions): string {
 
   // ── Explosions (pooled, outside formation groups) ──
   // ── Explosions (individual, absolute positions) ──
+  // Each explosion is a <g> translated to the destroy position, with
+  // opacity + scale animated via CSS. Using transform on <g> is reliable
+  // across browsers (unlike animating x/y/width on <use>).
   if (styled) {
     const s = config.invaderSize
+    const half = s / 2
     for (let i = 0; i < explosionData.length; i++) {
       const ev = explosionData[i]!
       const kfName = `exp-${i}`
-      const s1 = s, s2 = s * 1.8, s3 = s * 2.5
       const mid = (ev.startPct + ev.endPct) / 2
       cssRules.push(`@keyframes ${kfName} {
-  0.00% { opacity: 0; }
-  ${Math.max(0, ev.startPct - 0.01).toFixed(2)}% { opacity: 0; }
-  ${ev.startPct.toFixed(2)}% { opacity: 1; x: ${(ev.cx - s1 / 2).toFixed(1)}px; y: ${(ev.cy - s1 / 2).toFixed(1)}px; width: ${s1.toFixed(1)}px; height: ${s1.toFixed(1)}px; }
-  ${mid.toFixed(2)}% { opacity: 0.7; x: ${(ev.cx - s2 / 2).toFixed(1)}px; y: ${(ev.cy - s2 / 2).toFixed(1)}px; width: ${s2.toFixed(1)}px; height: ${s2.toFixed(1)}px; }
-  ${ev.endPct.toFixed(2)}% { opacity: 0; x: ${(ev.cx - s3 / 2).toFixed(1)}px; y: ${(ev.cy - s3 / 2).toFixed(1)}px; width: ${s3.toFixed(1)}px; height: ${s3.toFixed(1)}px; }
+  0.00% { opacity: 0; transform: translate(${ev.cx.toFixed(1)}px, ${ev.cy.toFixed(1)}px) scale(1); }
+  ${Math.max(0, ev.startPct - 0.01).toFixed(2)}% { opacity: 0; transform: translate(${ev.cx.toFixed(1)}px, ${ev.cy.toFixed(1)}px) scale(1); }
+  ${ev.startPct.toFixed(2)}% { opacity: 1; transform: translate(${ev.cx.toFixed(1)}px, ${ev.cy.toFixed(1)}px) scale(1); }
+  ${mid.toFixed(2)}% { opacity: 0.7; transform: translate(${ev.cx.toFixed(1)}px, ${ev.cy.toFixed(1)}px) scale(1.8); }
+  ${ev.endPct.toFixed(2)}% { opacity: 0; transform: translate(${ev.cx.toFixed(1)}px, ${ev.cy.toFixed(1)}px) scale(2.5); }
+  ${Math.min(100, ev.endPct + 0.01).toFixed(2)}% { opacity: 0; }
   100.00% { opacity: 0; }
 }`)
       elements.push(
-        `<use href="#sprite-explosion" x="${ev.cx - s / 2}" y="${ev.cy - s / 2}" width="${s}" height="${s}" ` +
+        `<use href="#sprite-explosion" x="${-half}" y="${-half}" width="${s}" height="${s}" ` +
         `opacity="0" style="animation: ${kfName} ${dur}s linear infinite" />`
       )
     }

@@ -112,8 +112,7 @@ export function createFormation(
       inv.destroyed = true
       inv.destroyedAtFrame = frame
 
-      recalcSpeed()
-
+      // Speed stays constant — prediction accuracy depends on it
       // Check if all destroyed
       if (aliveInvaders().length === 0) {
         state.active = false
