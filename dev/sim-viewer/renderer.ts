@@ -19,14 +19,26 @@ export const HATCH_COLOR = '#e05555' // transitioning to invader red
 export const OVERLAY_COLOR = 'rgba(13, 17, 23, 0.6)'
 export const RENDER_MARGIN = 10 // px padding around play area for centered entities at edges
 
-/** Format large numbers compactly: 999 → "999", 1234 → "1.234k", 1234567 → "1.235M" */
+/**
+ * Format numbers to max 4 chars + suffix: "999", "1.23k", "12.3k", "123k", "1.23M", etc.
+ * Consistent width: always ≤5 chars before suffix.
+ */
 function formatScore(n: number): string {
-  if (n >= 1e15) return (n / 1e15).toFixed(3).replace(/\.?0+$/, '') + 'Q??'
-  if (n >= 1e12) return (n / 1e12).toFixed(3).replace(/\.?0+$/, '') + 'T'
-  if (n >= 1e9) return (n / 1e9).toFixed(3).replace(/\.?0+$/, '') + 'B'
-  if (n >= 1e6) return (n / 1e6).toFixed(3).replace(/\.?0+$/, '') + 'M'
-  if (n >= 1e4) return (n / 1e3).toFixed(2).replace(/\.?0+$/, '') + 'k'
-  if (n >= 1e3) return (n / 1e3).toFixed(3).replace(/\.?0+$/, '') + 'k'
+  const tiers: Array<[number, string]> = [
+    [1e15, 'Q??'],
+    [1e12, 'T'],
+    [1e9, 'B'],
+    [1e6, 'M'],
+    [1e3, 'k'],
+  ]
+  for (const [threshold, suffix] of tiers) {
+    if (n >= threshold) {
+      const v = n / threshold
+      if (v >= 100) return Math.floor(v) + suffix       // 123k
+      if (v >= 10) return v.toFixed(1) + suffix          // 12.3k
+      return v.toFixed(2) + suffix                       // 1.23k
+    }
+  }
   return String(n)
 }
 
