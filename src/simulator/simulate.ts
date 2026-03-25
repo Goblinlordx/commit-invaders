@@ -259,9 +259,24 @@ export function simulate(
     waveHitChances.set(failedWave, Math.min(1.0, current + (1.0 - current) * 0.5))
   }
 
-  // Final fallback — set all waves to 100%
+  // Final fallback — set all waves to 100% and try seed variants
   const totalWaves = Math.ceil(grid.cells.filter((c) => c.level > 0).length / (config.waveConfig.weeksPerWave * 7))
   for (let w = 0; w < totalWaves + 1; w++) waveHitChances.set(w, 1.0)
+
+  // Try with 100% hitChance first using original seed
+  const finalResult = simulateCore(grid, seed, config, waveHitChances)
+  if (finalResult.events.some((e) => e.type === 'game_end')) return finalResult
+
+  // Seed salt loop — different seeds produce different PRNG sequences
+  // which change ship positions, fire timing, and formation paths
+  for (let salt = 1; salt <= 20; salt++) {
+    waveHitChances.clear()
+    const saltedSeed = `${salt}-${seed}`
+    const saltResult = simulateCore(grid, saltedSeed, config, waveHitChances)
+    if (saltResult.events.some((e) => e.type === 'game_end')) return saltResult
+  }
+
+  // Absolute last resort — return whatever we got
   return simulateCore(grid, seed, config, waveHitChances)
 }
 
