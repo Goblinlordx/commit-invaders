@@ -31,11 +31,14 @@ function makeConfig(overrides: Partial<SimConfig> = {}): SimConfig {
     cellSize: 11,
     cellGap: 2,
     laserSpeed: 4,
+    laserWidth: 2,
+    invaderSize: 11,
     shipSpeed: 3,
     shipY: 380,
     formationBaseSpeed: 1,
     formationMaxSpeed: 4,
     formationRowDrop: 20,
+    hitChance: 0.85,
     ...overrides,
   }
 }

@@ -5,6 +5,7 @@ import type {
   BoundingBox,
 } from '../types.js'
 
+// Default hitbox sizes — consumers should pass these from SimConfig
 export const DEFAULT_LASER_WIDTH = 2
 export const DEFAULT_INVADER_SIZE = 11
 

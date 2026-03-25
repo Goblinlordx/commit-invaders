@@ -178,11 +178,14 @@ export interface SimConfig {
   cellSize: number
   cellGap: number
   laserSpeed: number
+  laserWidth: number
+  invaderSize: number
   shipSpeed: number
   shipY: number
   formationBaseSpeed: number
   formationMaxSpeed: number
   formationRowDrop: number
+  hitChance: number // 0-1, probability each shot is a hit vs miss
 }
 
 // ── PRNG ──

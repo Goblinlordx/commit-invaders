@@ -17,11 +17,10 @@ import { createWaveManager } from './wave-manager.js'
 import { createFormation, type Formation } from './formation.js'
 import { spawnLaser, advanceLasers, checkHits } from './combat.js'
 
-const MAX_FRAMES = 30_000
+// Internal constants (don't affect visual output)
+const MAX_FRAMES = 30_000 // safety limit — game should complete naturally
 const ANCHOR_INTERVAL = 100
 const LRU_CAPACITY = 16
-const HIT_CHANCE = 0.85
-const INVADER_SIZE = 11
 
 type Decision = { type: 'move'; x: number } | { type: 'fire' }
 
@@ -119,8 +118,8 @@ function solveHit(
 
       // Check AABB overlap: laser center at (fireX, laserY) size 2x2
       // vs invader center at (predicted.x, predicted.y) size 11x11
-      const halfLaser = 1 // DEFAULT_LASER_WIDTH / 2
-      const halfInvader = INVADER_SIZE / 2
+      const halfLaser = config.laserWidth / 2
+      const halfInvader = config.invaderSize / 2
 
       const yOverlap =
         laserY - halfLaser < predicted.y + halfInvader &&
@@ -181,7 +180,7 @@ function solveMiss(
       config.playArea.x + 10,
       config.playArea.x + config.playArea.width - 10,
     )
-    if (occupiedXs.every((ox) => Math.abs(ox - candidate) > INVADER_SIZE + 2)) {
+    if (occupiedXs.every((ox) => Math.abs(ox - candidate) > config.invaderSize + 2)) {
       const moveDist = Math.abs(candidate - shipX)
       const moveFrames = Math.ceil(moveDist / config.shipSpeed)
       return {
@@ -283,7 +282,7 @@ export function simulate(
     }
     if (targets.length === 0) return
 
-    const isHit = prng.chance(HIT_CHANCE)
+    const isHit = prng.chance(config.hitChance)
 
     if (isHit) {
       // Shuffle targets with PRNG
@@ -401,7 +400,7 @@ export function simulate(
         position: { x: inv.position.x + fState.offset.x, y: inv.position.y + fState.offset.y },
       }))
 
-      const hitResult = checkHits(lasers, worldInvaders)
+      const hitResult = checkHits(lasers, worldInvaders, config.laserWidth, config.invaderSize)
       for (const hit of hitResult.hits) {
         const invader = worldInvaders.find((i) => i.id === hit.invaderId)!
         const updated = hitResult.updatedInvaders.find((i) => i.id === hit.invaderId)!
@@ -509,7 +508,7 @@ function replayToFrame(grid: Grid, config: SimConfig, frameDecisions: Map<number
     for (const f of formations) {
       const s = f.getState(); if (!s.active) continue
       const wi = s.invaders.map(inv => ({ ...inv, position: { x: inv.position.x + s.offset.x, y: inv.position.y + s.offset.y } }))
-      const hr = checkHits(lasers, wi)
+      const hr = checkHits(lasers, wi, config.laserWidth, config.invaderSize)
       for (const h of hr.hits) { const u = hr.updatedInvaders.find(i => i.id === h.invaderId)!; const o = s.invaders.find(i => i.id === h.invaderId)!; o.hp = u.hp; if (u.destroyed) f.destroyInvader(h.invaderId, frame) }
       score += hr.scoreIncrease; lasers = hr.updatedLasers
     }
