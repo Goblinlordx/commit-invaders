@@ -58,7 +58,7 @@ const scrubber = $('#scrubber') as HTMLInputElement
 const playPause = $('#play-pause') as HTMLButtonElement
 const timeDisplay = $('#time-display') as HTMLElement
 const generateBtn = $('#generate-btn') as HTMLButtonElement
-const usernameInput = $('#username') as HTMLInputElement
+const usernameInput = $('#gh-user') as HTMLInputElement
 const statsRow = $('#stats-row') as HTMLElement
 const actionsRow = $('#actions-row') as HTMLElement
 const debugPanel = $('#debug-panel') as HTMLElement
@@ -175,10 +175,12 @@ function getScrubStyle(): HTMLStyleElement | null {
 }
 
 function seekTo(timeSec: number) {
+  if (!animDuration || !isFinite(timeSec)) return
+  const clamped = Math.max(0, Math.min(animDuration - 0.001, timeSec))
   const s = getScrubStyle()
   if (!s) return
-  s.textContent = `* { animation-play-state: paused !important; animation-delay: -${timeSec.toFixed(3)}s !important; }`
-  updateTimeDisplay(timeSec)
+  s.textContent = `* { animation-play-state: paused !important; animation-delay: -${clamped.toFixed(3)}s !important; }`
+  updateTimeDisplay(clamped)
 }
 
 function clearScrub() {
