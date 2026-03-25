@@ -299,11 +299,14 @@ function simulateCore(
   }
 
   /** Compute invader formation position from cell coordinates. */
-  function invaderPosition(cellX: number, cellY: number, minCol: number): Position {
+  function invaderPosition(cellX: number, cellY: number, minCol: number, totalCols: number): Position {
     const col = cellX - minCol
     const staggerX = (cellY % 2) * config.formationRowStagger
+    // Center the formation horizontally in the play area
+    const formationWidth = totalCols * formationStride
+    const centerOffset = (config.playArea.width - formationWidth) / 2
     return {
-      x: config.gridArea.x + col * formationStride + staggerX,
+      x: centerOffset + col * formationStride + staggerX,
       y: config.gridArea.y + cellY * formationStride,
     }
   }
@@ -530,10 +533,12 @@ function simulateCore(
         if (lifecycleTotal === 0) {
           // No lifecycle — instant spawn (backward compatible)
           const minCol = wave.cells.reduce((m, w) => Math.min(m, w.cell.x), Infinity)
+          const maxCol = wave.cells.reduce((m, w) => Math.max(m, w.cell.x), -Infinity)
+          const totalCols = maxCol - minCol + 1
           const invaders: InvaderState[] = wave.cells.map((w, i) => ({
             id: `inv-w${wave.waveIndex}-${i}`,
             cell: w.cell, hp: w.hp, maxHp: w.hp,
-            position: invaderPosition(w.cell.x, w.cell.y, minCol),
+            position: invaderPosition(w.cell.x, w.cell.y, minCol, totalCols),
             destroyed: false, destroyedAtFrame: null,
           }))
           totalInvaders += invaders.length
@@ -567,12 +572,13 @@ function simulateCore(
 
           // Build cell list with formation target positions
           // Formation positions use a sequential layout (col 0..N, row from cell.y)
+          // Layout: wide grid — more columns (oscillation axis) than rows (depth)
+          const maxCols = Math.ceil(Math.sqrt(selectedIndices.length * 2))
           const cells: Array<{ cellIndex: number; targetPos: Position }> = selectedIndices.map((ci, i) => {
             const cell = grid.cells[ci]!
-            // Layout invaders in a grid: columns by index, rows by cell.y
-            const col = Math.floor(i / 7)
-            const row = i % 7
-            const targetPos = invaderPosition(col, row, 0)
+            const row = Math.floor(i / maxCols)
+            const col = i % maxCols
+            const targetPos = invaderPosition(col, row, 0, maxCols)
             gridCellStates[ci]!.targetPosition = { ...targetPos }
             return { cellIndex: ci, targetPos }
           })
@@ -953,9 +959,12 @@ function replayToFrame(grid: Grid, config: SimConfig, frameDecisions: Map<number
   const replayDt = 1 / config.framesPerSecond
   const fc = { baseSpeed: config.formationBaseSpeed, maxSpeed: config.formationMaxSpeed, rowDrop: config.formationRowDrop, dt: replayDt }
   const replayFormStride = config.cellSize + config.cellGap + config.formationSpread
-  function replayInvPos(cellX: number, cellY: number, minCol: number): Position {
+  function replayInvPos(cellX: number, cellY: number, minCol: number, totalCols: number): Position {
+    const col = cellX - minCol
+    const formationWidth = totalCols * replayFormStride
+    const centerOffset = (config.playArea.width - formationWidth) / 2
     return {
-      x: config.gridArea.x + (cellX - minCol) * replayFormStride + (cellY % 2) * config.formationRowStagger,
+      x: centerOffset + col * replayFormStride + (cellY % 2) * config.formationRowStagger,
       y: config.gridArea.y + cellY * replayFormStride,
     }
   }
@@ -967,9 +976,11 @@ function replayToFrame(grid: Grid, config: SimConfig, frameDecisions: Map<number
     const wave = wm.trySpawnNext(frame)
     if (wave) {
       const mc = wave.cells.reduce((m, wc) => Math.min(m, wc.cell.x), Infinity)
+      const mxc = wave.cells.reduce((m, wc) => Math.max(m, wc.cell.x), -Infinity)
+      const tc = mxc - mc + 1
       const invaders: InvaderState[] = wave.cells.map((wc, i) => ({
         id: `inv-w${wave.waveIndex}-${i}`, cell: wc.cell, hp: wc.hp, maxHp: wc.hp,
-        position: replayInvPos(wc.cell.x, wc.cell.y, mc),
+        position: replayInvPos(wc.cell.x, wc.cell.y, mc, tc),
         destroyed: false, destroyedAtFrame: null,
       }))
       totalInvaders += invaders.length
