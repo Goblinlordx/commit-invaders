@@ -161,6 +161,23 @@ export function renderFrame(
   ctx.fillStyle = SHIP_COLOR
   ctx.fillRect(shipSx - shipHalf, shipSy - shipHalf, config.invaderSize, config.invaderSize)
 
+  // Wave label overlay (center, during transition phases)
+  const showWaveLabel = phase === 'brightening' || phase === 'plucking' || phase === 'darkening' || phase === 'traveling' || phase === 'hatching'
+  if (showWaveLabel) {
+    const gameAreaH = config.playArea.width
+    ctx.save()
+    ctx.fillStyle = '#e6edf3'
+    ctx.font = 'bold 16px monospace'
+    ctx.textAlign = 'center'
+    ctx.textBaseline = 'middle'
+    ctx.fillText(
+      `WAVE ${state.currentWave + 1}`,
+      screen.width / 2,
+      gameAreaH / 2,
+    )
+    ctx.restore()
+  }
+
   // Status bar (bottom)
   if (statusBarHeight > 0) {
     const gameAreaHeight = config.playArea.width // after rotation

@@ -297,6 +297,15 @@ function simulateCore(
   const anchorSnapshots = new Map<number, GameState>()
   const frameDecisions = new Map<number, Decision[]>()
 
+  // Per-frame lifecycle data (lightweight — just phase + cell status indices)
+  // Stored every frame so peek() can overlay accurate lifecycle state onto replayed GameState
+  interface FrameLifecycle {
+    wavePhase: import('../types.js').WavePhase
+    wavePhaseProgress: number
+    cellStatuses: Array<{ status: import('../types.js').CellStatus; detachProgress: number; targetPosition: Position | null }>
+  }
+  const frameLifecycleData: FrameLifecycle[] = []
+
   const simWM = createWaveManager(grid, config.waveConfig)
   const formations: Formation[] = []
 
@@ -753,6 +762,17 @@ function simulateCore(
 
     allEvents.push(...frameEvents)
     if (frame % ANCHOR_INTERVAL === 0) anchorSnapshots.set(frame, buildGameState(frame, frameEvents))
+
+    // Record lightweight lifecycle data every frame for peek() accuracy
+    frameLifecycleData[frame] = {
+      wavePhase: getWavePhase(),
+      wavePhaseProgress: getWavePhaseProgress(),
+      cellStatuses: gridCellStates.map((cs) => ({
+        status: cs.status,
+        detachProgress: cs.detachProgress,
+        targetPosition: cs.targetPosition ? { ...cs.targetPosition } : null,
+      })),
+    }
     totalFrames = frame + 1
 
     const allSpawned = formations.length === simWM.totalWaves
@@ -781,9 +801,30 @@ function simulateCore(
 
   function peek(targetFrame: number): GameState {
     if (targetFrame < 0 || targetFrame >= totalFrames) throw new Error(`Frame ${targetFrame} out of range [0, ${totalFrames})`)
-    const c = lruGet(targetFrame); if (c) return c
-    const a = anchorSnapshots.get(targetFrame); if (a) { lruSet(targetFrame, a); return a }
-    const s = replayToFrame(grid, config, frameDecisions, targetFrame); lruSet(targetFrame, s); return s
+
+    // Check LRU cache first
+    const c = lruGet(targetFrame)
+    if (c) return c
+
+    // Anchor snapshots already have lifecycle data baked in
+    const a = anchorSnapshots.get(targetFrame)
+    if (a) { lruSet(targetFrame, a); return a }
+
+    // Replay produces correct physics state but lacks lifecycle data.
+    // Overlay the recorded per-frame lifecycle data onto the replayed state.
+    const s = replayToFrame(grid, config, frameDecisions, targetFrame)
+    const lifecycle = frameLifecycleData[targetFrame]
+    if (lifecycle) {
+      s.wavePhase = lifecycle.wavePhase
+      s.wavePhaseProgress = lifecycle.wavePhaseProgress
+      for (let i = 0; i < s.gridCells.length && i < lifecycle.cellStatuses.length; i++) {
+        s.gridCells[i]!.status = lifecycle.cellStatuses[i]!.status
+        s.gridCells[i]!.detachProgress = lifecycle.cellStatuses[i]!.detachProgress
+        s.gridCells[i]!.targetPosition = lifecycle.cellStatuses[i]!.targetPosition
+      }
+    }
+    lruSet(targetFrame, s)
+    return s
   }
 
   return {
