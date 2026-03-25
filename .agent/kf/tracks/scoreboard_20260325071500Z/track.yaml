@@ -1,0 +1,151 @@
+id: scoreboard_20260325071500Z
+title: "High Score Board — Aggregate window rankings"
+type: feature
+status: pending
+created: 2026-03-25
+updated: 2026-03-25
+spec:
+  summary: |
+    After the game animation completes, display a retro arcade-style high
+    score board. Scores are computed by sliding a window across the full
+    contribution history and finding the top 10 most active periods. The
+    current render's score always appears on the board.
+  context: |
+    Classic arcade games end with a high score screen. This track adds that
+    by analyzing the FULL contribution history (not just the displayed year)
+    to find the most active periods.
+
+    The "window" matches the animation's time span (e.g., if the animation
+    covers 10 weeks, the sliding window is 10 weeks). The window slides
+    across the entire contribution history, computing the total active
+    commits (score) for each position. The top 10 windows become the
+    high score entries.
+
+    Each entry shows:
+      Rank | Score | Date (last day of that window)
+
+    The current render's score is always shown, highlighted — it might be
+    #1, or it might be #8, depending on how active the displayed period was
+    compared to the user's history. This adds a fun "how does this period
+    rank?" element.
+
+    This is a post-animation overlay — it appears after the victory screen
+    and before the animation loops back to the start.
+  codebase_analysis: |
+    Requires contribution data beyond the displayed year. The GitHub GraphQL
+    API returns up to 1 year of data per query, but supports a `from`/`to`
+    parameter on contributionsCollection to fetch historical years. We may
+    need multiple API calls to cover the full history.
+
+    Alternatively, we can compute the scoreboard from just the current year's
+    data (52 weeks) using the sliding window. This is simpler and avoids
+    extra API calls. The window slides across the 52-week contribution
+    graph, finding the densest periods.
+
+    The scoreboard is rendered as part of the SVG animation — it fades in
+    after the victory screen, displays for a few seconds, then fades out
+    before the loop restarts.
+  acceptance_criteria:
+    - Sliding window computes aggregate commit count across contribution history
+    - Window size matches animation wave span (configurable, e.g. 10 weeks)
+    - Top 10 highest-scoring windows identified with scores and end dates
+    - Current render's score and date always present on the board (highlighted)
+    - Ties broken by most recent date
+    - Scoreboard rendered in retro arcade pixel-art style
+    - Scoreboard appears after victory screen, before loop restart
+    - Fade-in/fade-out transition integrated with animation loop
+    - Score entries show rank, score, and date (last day of window)
+    - Current render entry visually highlighted (different color, blinking, arrow)
+    - Works with single-year data (52-week sliding window)
+    - Optional: multi-year data via additional API calls for deeper history
+    - All scoring logic unit tested
+  out_of_scope: |
+    Persistent storage of scores across runs (each generation recomputes).
+    Leaderboards across different users.
+    Gamification beyond the score display.
+  technical_notes: |
+    Directory structure:
+      src/
+        scoring/
+          window.ts           — sliding window aggregate computation
+          rankings.ts         — top-N ranking with current render insertion
+        renderer/
+          scoreboard.ts       — SVG scoreboard overlay (sprites, layout, animation)
+
+    Sliding window algorithm:
+      Given: cells[] with {weekIndex, level, count}
+      Window size W (in weeks, matches animation wave span)
+      For each position P from 0 to (maxWeek - W):
+        score = sum of count for all cells where weekIndex in [P, P+W)
+        date = last day in week (P+W-1)
+      Sort by score descending, take top 10
+      Insert current render's score if not already in top 10 (displacing #10)
+
+    Scoreboard SVG rendering:
+      Retro arcade style — pixel font, dark background, neon colors
+      Layout:
+        HIGH SCORES
+        ──────────────────
+        1ST   1,247   MAR 15
+        2ND   1,103   JUN 22
+        3RD     982   SEP 01  ← YOU
+        ...
+        10TH    412   JAN 08
+
+      The "← YOU" or arrow indicator highlights the current render.
+      If current render is #1, extra celebration effect.
+
+    Animation integration:
+      - After game_end event, victory flash plays (~2 seconds)
+      - Scoreboard fades in (CSS keyframe, ~0.5s)
+      - Displays for ~4 seconds
+      - Fades out (~0.5s)
+      - Grid refills, animation loops
+
+    CSS approach:
+      Scoreboard is a <g class="scoreboard"> with opacity animation:
+        @keyframes scoreboard-show {
+          0%, 85% { opacity: 0 }     // hidden during game
+          87%     { opacity: 1 }     // fade in after victory
+          97%     { opacity: 1 }     // hold
+          99%     { opacity: 0 }     // fade out before loop
+          100%    { opacity: 0 }
+        }
+
+      Text rendered as SVG <text> elements with a pixel/monospace font
+      (web-safe: "Courier New" or embedded as SVG path data for true
+      pixel art lettering).
+plan:
+  - phase: "Scoring Engine"
+    tasks:
+      - text: "Write tests for sliding window: correct aggregate scores for known contribution data"
+        done: false
+      - text: "Write tests for edge cases: sparse history, all-zero weeks, window larger than history"
+        done: false
+      - text: "Implement sliding window aggregate computation"
+        done: false
+      - text: "Write tests for ranking: top 10 selection, tie-breaking by date, current render insertion"
+        done: false
+      - text: "Implement ranking: sort, top-N, current render guaranteed on board"
+        done: false
+  - phase: "Scoreboard Renderer"
+    tasks:
+      - text: "Design scoreboard SVG layout: retro arcade style, rank/score/date columns"
+        done: false
+      - text: "Implement scoreboard SVG generator: text elements, highlight for current render"
+        done: false
+      - text: "Implement fade-in/fade-out CSS keyframes for scoreboard overlay timing"
+        done: false
+  - phase: "Integration"
+    tasks:
+      - text: "Integrate scoring computation into simulation pipeline (after game completes)"
+        done: false
+      - text: "Integrate scoreboard SVG into compositor (as overlay group after play-area)"
+        done: false
+      - text: "Adjust animation timing: victory → scoreboard → fade → loop restart"
+        done: false
+      - text: "Verify scoreboard appears correctly in sim renderer and CSS SVG"
+        done: false
+      - text: "Add Playwright test for scoreboard visibility and content at correct frames"
+        done: false
+extra: {}
