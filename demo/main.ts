@@ -1,16 +1,14 @@
-import type { Grid, SimConfig, SimOutput, ContributionLevel } from '../src/types.js'
+import type { Grid, SimConfig, ContributionLevel } from '../src/types.js'
 import { composeSvg } from '../src/animation/svg-compositor.js'
 import { simulate } from '../src/simulator/simulate.js'
-import { computeScoreboard, type ScoreboardResult } from '../src/scoreboard.js'
+import { computeScoreboard } from '../src/scoreboard.js'
 import { createPRNG } from '../src/simulator/prng.js'
-import { renderFrame, getScreenSize } from '../dev/sim-viewer/renderer.js'
 
 // ── Layout constants ──
 const CELL_SIZE = 11
 const CELL_GAP = 2
 const STRIDE = CELL_SIZE + CELL_GAP
 const PADDING = 20
-const STATUS_BAR_HEIGHT = 20
 
 function defaultConfig(): SimConfig {
   const gridW = 7 * STRIDE + PADDING * 2
@@ -38,25 +36,11 @@ function defaultConfig(): SimConfig {
 // ── State ──
 let currentConfig = defaultConfig()
 let currentSvgString = ''
-let currentOutput: SimOutput | null = null
-let currentGrid: Grid | null = null
-let currentScoreboard: ScoreboardResult | null = null
-let totalFrames = 0
-let mode: 'svg' | 'canvas' = 'svg' // SVG for playback, canvas for scrubbing
-let isPlaying = true
-let playRaf = 0
-let playStartTime = 0
-let playStartFrame = 0
-let currentFrame = 0
 
 // ── DOM refs ──
 const $ = (sel: string) => document.querySelector(sel)!
-const canvas = $('#preview-canvas') as HTMLCanvasElement
-const ctx = canvas.getContext('2d')!
 const previewContainer = $('#preview-container') as HTMLElement
 const previewFrame = $('#preview-frame') as HTMLElement
-const scrubber = $('#scrubber') as HTMLInputElement
-const playPause = $('#play-pause') as HTMLButtonElement
 const timeDisplay = $('#time-display') as HTMLElement
 const generateBtn = $('#generate-btn') as HTMLButtonElement
 const usernameInput = $('#username') as HTMLInputElement
@@ -88,97 +72,12 @@ function makeFixtureGrid(weeks: number, seed: string): Grid {
   return { width: weeks, height: 7, cells }
 }
 
-// ── Mode switching ──
-function showSvgMode() {
-  mode = 'svg'
-  canvas.classList.remove('active')
-  previewContainer.classList.remove('hidden')
-  previewContainer.innerHTML = currentSvgString
-}
-
-function showCanvasMode() {
-  mode = 'canvas'
-  canvas.classList.add('active')
-  previewContainer.classList.add('hidden')
-  renderCanvasFrame()
-}
-
-function renderCanvasFrame() {
-  if (!currentOutput || !currentGrid) return
-  const state = currentOutput.peek(currentFrame)
-  const screen = getScreenSize(currentConfig, STATUS_BAR_HEIGHT)
-  canvas.width = screen.width
-  canvas.height = screen.height
-  renderFrame(ctx, state, currentConfig, currentGrid, currentScoreboard, STATUS_BAR_HEIGHT)
-}
-
-// ── Playback ──
-function startPlaying() {
-  isPlaying = true
-  playPause.textContent = '⏸'
-
-  if (mode === 'canvas') {
-    // Canvas mode: frame-by-frame playback
-    playStartTime = performance.now()
-    playStartFrame = currentFrame
-    cancelAnimationFrame(playRaf)
-    const tick = () => {
-      if (!isPlaying || !currentOutput) return
-      const elapsed = (performance.now() - playStartTime) / 1000
-      currentFrame = (playStartFrame + Math.floor(elapsed * currentConfig.framesPerSecond)) % totalFrames
-      renderCanvasFrame()
-      scrubber.value = String(Math.floor((currentFrame / totalFrames) * 1000))
-      updateTimeDisplay()
-      playRaf = requestAnimationFrame(tick)
-    }
-    playRaf = requestAnimationFrame(tick)
-  } else {
-    // SVG mode: animation plays naturally, just track time for scrubber
-    playStartTime = performance.now()
-    playStartFrame = currentFrame
-    cancelAnimationFrame(playRaf)
-    const tick = () => {
-      if (!isPlaying) return
-      const elapsed = (performance.now() - playStartTime) / 1000
-      currentFrame = (playStartFrame + Math.floor(elapsed * currentConfig.framesPerSecond)) % totalFrames
-      scrubber.value = String(Math.floor((currentFrame / totalFrames) * 1000))
-      updateTimeDisplay()
-      playRaf = requestAnimationFrame(tick)
-    }
-    playRaf = requestAnimationFrame(tick)
-  }
-}
-
-function pausePlayback() {
-  isPlaying = false
-  playPause.textContent = '▶'
-  cancelAnimationFrame(playRaf)
-  // Switch to canvas mode for frame-accurate scrubbing
-  if (mode === 'svg') showCanvasMode()
-}
-
-function seekToFrame(frame: number) {
-  currentFrame = Math.max(0, Math.min(totalFrames - 1, frame))
-  if (mode === 'canvas') renderCanvasFrame()
-  updateTimeDisplay()
-}
-
-function updateTimeDisplay() {
-  const fps = currentConfig.framesPerSecond
-  const cur = currentFrame / fps
-  const total = totalFrames / fps
-  const fmt = (s: number) => `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, '0')}`
-  timeDisplay.textContent = `${fmt(cur)} / ${fmt(total)}`
-}
-
 // ── Generation ──
 function doGenerate() {
   const username = usernameInput.value.trim() || 'demo'
   generateBtn.disabled = true
   generateBtn.textContent = '...'
-  previewContainer.classList.remove('hidden')
   previewContainer.innerHTML = '<p class="preview-placeholder" style="color: var(--accent); font-family: var(--font-display); font-size: 0.7rem;">Generating...</p>'
-  canvas.classList.remove('active')
 
   requestAnimationFrame(() => {
     setTimeout(() => {
@@ -189,35 +88,22 @@ function doGenerate() {
         const lastDate = grid.cells.reduce((max, c) => (c.date > max ? c.date : max), '')
         const scoreboard = computeScoreboard(grid, lastDate, grid.width * 7, 10)
 
-        currentOutput = output
-        currentGrid = grid
-        currentScoreboard = scoreboard
-        totalFrames = output.totalFrames
-        currentFrame = 0
-
-        // Generate SVG
         currentSvgString = composeSvg({ grid, seed, config: currentConfig, scoreboard })
-
-        // Show SVG for animated playback
-        showSvgMode()
+        previewContainer.innerHTML = currentSvgString
 
         // Stats
         const activeCells = grid.cells.filter(c => c.level > 0).length
         const totalCommits = grid.cells.reduce((sum, c) => sum + c.count, 0)
         const waveCount = output.events.filter(e => e.type === 'wave_spawn').length
-        const dur = totalFrames / currentConfig.framesPerSecond
+        const dur = output.totalFrames / currentConfig.framesPerSecond
         $('#stat-cells')!.textContent = `${activeCells} cells`
         $('#stat-commits')!.textContent = `${totalCommits} commits`
         $('#stat-waves')!.textContent = `${waveCount} waves`
         $('#stat-duration')!.textContent = `${dur.toFixed(1)}s`
         $('#stat-size')!.textContent = `${(currentSvgString.length / 1024).toFixed(1)} KB`
+        timeDisplay.textContent = `Duration: ${Math.floor(dur / 60)}:${String(Math.floor(dur % 60)).padStart(2, '0')}`
         statsRow.style.display = 'flex'
         actionsRow.style.display = 'flex'
-
-        scrubber.value = '0'
-        updateTimeDisplay()
-        isPlaying = true
-        startPlaying()
       } catch (e) {
         previewContainer.innerHTML = `<p class="preview-placeholder" style="color:#ff4444">Error: ${(e as Error).message}</p>`
       }
@@ -291,21 +177,6 @@ function setNestedValue(obj: any, path: string, val: number) {
 // ── Event Listeners ──
 generateBtn.addEventListener('click', doGenerate)
 usernameInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') doGenerate() })
-
-playPause.addEventListener('click', () => {
-  if (isPlaying) pausePlayback()
-  else {
-    // Resume: switch back to SVG mode for smooth animation
-    if (mode === 'canvas') showSvgMode()
-    startPlaying()
-  }
-})
-
-scrubber.addEventListener('input', () => {
-  if (isPlaying) pausePlayback()
-  const frame = Math.floor((parseInt(scrubber.value) / 1000) * totalFrames)
-  seekToFrame(frame)
-})
 
 document.querySelectorAll('.btn-theme').forEach(btn => {
   btn.addEventListener('click', () => setTheme((btn as HTMLElement).dataset.theme!))
