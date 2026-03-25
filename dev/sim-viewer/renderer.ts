@@ -13,6 +13,8 @@ export const INVADER_COLOR = '#ff4444'
 export const LASER_COLOR = '#ffff00'
 export const SHIP_COLOR = '#4488ff'
 export const BG_COLOR = '#0d1117'
+export const PLUCK_COLOR = '#d29922' // amber/gold for plucked cells
+export const HATCH_COLOR = '#e05555' // transitioning to invader red
 export const OVERLAY_COLOR = 'rgba(13, 17, 23, 0.6)'
 
 /**
@@ -65,22 +67,61 @@ export function renderFrame(
   ctx.fillRect(0, 0, screen.width, screen.height)
 
   // Grid cells (background) — rendered directly in screen space
-  // Weeks go left→right (screen X), days go top→bottom (screen Y)
-  // Grid fills the background; the ship margin is on the left
   const stride = config.cellSize + config.cellGap
-  const gridScreenOffsetX = screen.width - config.gridArea.height // push grid to right side, leaving ship margin on left
+  const gridScreenOffsetX = screen.width - config.gridArea.height
+  const gridScreenOffsetY = (config.playArea.width - config.gridArea.width) / 2 // center vertically
+
   for (const gc of state.gridCells) {
-    const color = GRID_COLORS[gc.cell.level] ?? GRID_COLORS[0]!
-    const screenX = gridScreenOffsetX + gc.cell.x * stride // week → screen X
-    const screenY = gc.cell.y * stride                      // day → screen Y
+    const status = gc.status
+    let color: string
+
+    if (status === 'plucked' || status === 'traveling' || status === 'hatching') {
+      color = PLUCK_COLOR
+    } else if (status === 'transformed' || status === 'destroyed') {
+      color = GRID_COLORS[0]! // dimmed/empty
+    } else {
+      color = GRID_COLORS[gc.cell.level] ?? GRID_COLORS[0]!
+    }
+
+    // Position: grid pos or interpolated if traveling
+    let screenX = gridScreenOffsetX + gc.cell.x * stride
+    let screenY = gridScreenOffsetY + gc.cell.y * stride
+
+    if (status === 'traveling' && gc.targetPosition) {
+      // Interpolate from grid position to formation target position
+      const { sx: targetSx, sy: targetSy } = simToScreen(gc.targetPosition.x, gc.targetPosition.y, config)
+      const gridSx = screenX
+      const gridSy = screenY
+      const t = gc.detachProgress
+      screenX = gridSx + (targetSx - gridSx) * t
+      screenY = gridSy + (targetSy - gridSy) * t
+    }
+
+    if (status === 'hatching') {
+      // Draw at target position
+      if (gc.targetPosition) {
+        const { sx, sy } = simToScreen(gc.targetPosition.x, gc.targetPosition.y, config)
+        screenX = sx
+        screenY = sy
+      }
+      color = HATCH_COLOR
+    }
+
     ctx.fillStyle = color
     ctx.fillRect(screenX, screenY, config.cellSize, config.cellSize)
   }
 
-  // Darken overlay once game has started (any wave has spawned)
-  // This keeps the grid visible but dimmed so invaders/lasers stand out
-  if (state.formations.length > 0) {
-    ctx.fillStyle = OVERLAY_COLOR
+  // Phase-based overlay opacity
+  const phase = state.wavePhase
+  let overlayAlpha = 0
+  if (phase === 'idle') overlayAlpha = 0
+  else if (phase === 'brightening') overlayAlpha = 0.6 * (1 - state.wavePhaseProgress)
+  else if (phase === 'plucking') overlayAlpha = 0
+  else if (phase === 'darkening') overlayAlpha = 0.6 * state.wavePhaseProgress
+  else overlayAlpha = 0.6 // traveling, hatching, active, clearing
+
+  if (overlayAlpha > 0.01) {
+    ctx.fillStyle = `rgba(13, 17, 23, ${overlayAlpha})`
     ctx.fillRect(0, 0, screen.width, screen.height)
   }
 

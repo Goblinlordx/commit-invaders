@@ -9,6 +9,7 @@ import type {
   InvaderState,
   EntityTimeline,
   InflectionPoint,
+  Position,
 } from '../types.js'
 
 import { createPRNG } from './prng.js'
@@ -258,6 +259,37 @@ export function simulate(
   let solution: FiringSolution | null = null
   let solveCooldown = 0
 
+  // ── Wave lifecycle state machine ──
+  type LifecyclePhase = 'idle' | 'brightening' | 'plucking' | 'darkening' | 'traveling' | 'hatching'
+  let lifecyclePhase: LifecyclePhase = 'idle'
+  let lifecycleFramesLeft = 0
+  let pendingWave: ReturnType<typeof simWM.trySpawnNext> = null
+  let lifecycleCells: Array<{ cellIndex: number; targetPos: Position }> = []
+  // Mutable grid cell states (track status changes through lifecycle)
+  const gridCellStates: Array<{ status: import('../types.js').CellStatus; detachProgress: number; targetPosition: Position | null }> =
+    grid.cells.map(() => ({ status: 'in_grid' as const, detachProgress: 0, targetPosition: null }))
+
+  function getWavePhase(): import('../types.js').WavePhase {
+    if (lifecyclePhase !== 'idle') return lifecyclePhase
+    if (formations.some((f) => f.getState().active)) return 'active'
+    return 'idle'
+  }
+
+  function getWavePhaseProgress(): number {
+    if (lifecyclePhase === 'idle') return 0
+    const wc = config.waveConfig
+    const durations: Record<string, number> = {
+      brightening: wc.brightenDuration,
+      plucking: wc.pluckDuration,
+      darkening: wc.darkenDuration,
+      traveling: wc.travelDuration,
+      hatching: wc.hatchDuration,
+    }
+    const total = durations[lifecyclePhase] ?? 1
+    if (total === 0) return 1
+    return 1 - lifecycleFramesLeft / total
+  }
+
   function addInflection(
     entityId: string,
     entityType: EntityTimeline['entityType'],
@@ -283,15 +315,20 @@ export function simulate(
   function buildGameState(frame: number, frameEvents: SimEvent[]): GameState {
     return {
       frame, score, totalInvaders,
-      gridCells: grid.cells.map((c) => ({ cell: c, status: 'in_grid' as const, detachProgress: 0, targetPosition: null })),
+      gridCells: grid.cells.map((c, i) => ({
+        cell: c,
+        status: gridCellStates[i]!.status,
+        detachProgress: gridCellStates[i]!.detachProgress,
+        targetPosition: gridCellStates[i]!.targetPosition ? { ...gridCellStates[i]!.targetPosition! } : null,
+      })),
       formations: formations.map(cloneFormationState),
       ship: { ...ship, position: { ...ship.position } },
       lasers: lasers.map((l) => ({ ...l, position: { ...l.position } })),
       effects: [],
       currentWave: formations.length,
       totalWaves: simWM.totalWaves,
-      wavePhase: 'active' as const,
-      wavePhaseProgress: 0,
+      wavePhase: getWavePhase(),
+      wavePhaseProgress: getWavePhaseProgress(),
       events: frameEvents,
     }
   }
@@ -357,28 +394,185 @@ export function simulate(
   for (let frame = 0; frame < MAX_FRAMES; frame++) {
     const frameEvents: SimEvent[] = []
 
-    // 1. Wave spawning
-    const wave = simWM.trySpawnNext(frame)
-    if (wave) {
-      // Position invaders relative to wave's first column so they fit in the grid area
-      const minCol = wave.cells.reduce((m, wc) => Math.min(m, wc.cell.x), Infinity)
-      const invaders: InvaderState[] = wave.cells.map((wc, i) => ({
-        id: `inv-w${wave.waveIndex}-${i}`,
-        cell: wc.cell, hp: wc.hp, maxHp: wc.hp,
-        position: {
-          x: config.gridArea.x + (wc.cell.x - minCol) * (config.cellSize + config.cellGap),
-          y: config.gridArea.y + wc.cell.y * (config.cellSize + config.cellGap),
-        },
-        destroyed: false, destroyedAtFrame: null,
-      }))
-      totalInvaders += invaders.length
-      formations.push(createFormation(invaders, wave.waveIndex, config.playArea, formationConfig))
+    // 1. Wave lifecycle state machine
+    const wc = config.waveConfig
+    const lifecycleTotal = wc.brightenDuration + wc.pluckDuration + wc.darkenDuration + wc.travelDuration + wc.hatchDuration
 
-      const fid = `formation-${wave.waveIndex}`
-      frameEvents.push({ frame, type: 'wave_spawn', entityId: fid, position: { x: 0, y: 0 }, data: { waveIndex: wave.waveIndex, invaderCount: invaders.length } })
-      addInflection(fid, 'formation', { frame, position: { x: 0, y: 0 }, type: 'spawn' })
-      for (const inv of invaders) {
-        addInflection(inv.id, 'invader', { frame, position: { ...inv.position }, type: 'spawn' })
+    if (lifecyclePhase === 'idle' && !pendingWave) {
+      const wave = simWM.trySpawnNext(frame)
+      if (wave) {
+        if (lifecycleTotal === 0) {
+          // No lifecycle — instant spawn (backward compatible)
+          const minCol = wave.cells.reduce((m, w) => Math.min(m, w.cell.x), Infinity)
+          const invaders: InvaderState[] = wave.cells.map((w, i) => ({
+            id: `inv-w${wave.waveIndex}-${i}`,
+            cell: w.cell, hp: w.hp, maxHp: w.hp,
+            position: {
+              x: config.gridArea.x + (w.cell.x - minCol) * (config.cellSize + config.cellGap),
+              y: config.gridArea.y + w.cell.y * (config.cellSize + config.cellGap),
+            },
+            destroyed: false, destroyedAtFrame: null,
+          }))
+          totalInvaders += invaders.length
+          formations.push(createFormation(invaders, wave.waveIndex, config.playArea, formationConfig))
+
+          const fid = `formation-${wave.waveIndex}`
+          frameEvents.push({ frame, type: 'wave_spawn', entityId: fid, position: { x: 0, y: 0 }, data: { waveIndex: wave.waveIndex, invaderCount: invaders.length } })
+          addInflection(fid, 'formation', { frame, position: { x: 0, y: 0 }, type: 'spawn' })
+          for (const inv of invaders) {
+            addInflection(inv.id, 'invader', { frame, position: { ...inv.position }, type: 'spawn' })
+          }
+        } else {
+          // Start lifecycle — compute target positions and begin brightening
+          pendingWave = wave
+          const minCol = wave.cells.reduce((m, w) => Math.min(m, w.cell.x), Infinity)
+          const stride = config.cellSize + config.cellGap
+          lifecycleCells = wave.cells.map((w, i) => {
+            // Find matching grid cell index
+            const cellIndex = grid.cells.findIndex((c) => c.x === w.cell.x && c.y === w.cell.y)
+            const targetPos: Position = {
+              x: config.gridArea.x + (w.cell.x - minCol) * stride,
+              y: config.gridArea.y + w.cell.y * stride,
+            }
+            if (cellIndex >= 0) {
+              gridCellStates[cellIndex]!.targetPosition = { ...targetPos }
+            }
+            return { cellIndex, targetPos }
+          })
+
+          lifecyclePhase = wc.brightenDuration > 0 ? 'brightening' : 'plucking'
+          lifecycleFramesLeft = wc.brightenDuration > 0 ? wc.brightenDuration : wc.pluckDuration
+          frameEvents.push({ frame, type: 'wave_phase_change', entityId: 'lifecycle', position: { x: 0, y: 0 }, data: { phase: lifecyclePhase } })
+          addInflection('lifecycle', 'cell', { frame, position: { x: 0, y: 0 }, type: 'phase_change' })
+        }
+      }
+    }
+
+    // Advance lifecycle phases
+    if (lifecyclePhase !== 'idle' && pendingWave) {
+      lifecycleFramesLeft--
+
+      if (lifecyclePhase === 'traveling') {
+        // Interpolate cell positions
+        const totalTravel = wc.travelDuration
+        const progress = totalTravel > 0 ? 1 - lifecycleFramesLeft / totalTravel : 1
+        for (const lc of lifecycleCells) {
+          if (lc.cellIndex >= 0) {
+            gridCellStates[lc.cellIndex]!.detachProgress = progress
+          }
+        }
+      }
+
+      if (lifecycleFramesLeft <= 0) {
+        // Transition to next phase
+        const transitions: Array<{ from: LifecyclePhase; to: LifecyclePhase; duration: number; onEnter?: () => void }> = [
+          {
+            from: 'brightening', to: 'plucking', duration: wc.pluckDuration,
+            onEnter: () => {
+              // Mark cells as plucked
+              for (const lc of lifecycleCells) {
+                if (lc.cellIndex >= 0) {
+                  gridCellStates[lc.cellIndex]!.status = 'plucked'
+                  const cell = grid.cells[lc.cellIndex]!
+                  const cellId = `cell-${cell.x}-${cell.y}`
+                  frameEvents.push({ frame, type: 'cell_pluck', entityId: cellId, position: { x: cell.x, y: cell.y } })
+                  addInflection(cellId, 'cell', { frame, position: { x: cell.x, y: cell.y }, type: 'pluck' })
+                }
+              }
+            },
+          },
+          {
+            from: 'plucking', to: 'darkening', duration: wc.darkenDuration,
+          },
+          {
+            from: 'darkening', to: 'traveling', duration: wc.travelDuration,
+            onEnter: () => {
+              for (const lc of lifecycleCells) {
+                if (lc.cellIndex >= 0) {
+                  gridCellStates[lc.cellIndex]!.status = 'traveling'
+                  gridCellStates[lc.cellIndex]!.detachProgress = 0
+                  const cell = grid.cells[lc.cellIndex]!
+                  const cellId = `cell-${cell.x}-${cell.y}`
+                  frameEvents.push({ frame, type: 'cell_travel_start', entityId: cellId, position: { x: cell.x, y: cell.y }, data: { targetX: lc.targetPos.x, targetY: lc.targetPos.y } })
+                  addInflection(cellId, 'cell', { frame, position: { x: cell.x, y: cell.y }, type: 'travel_start' })
+                }
+              }
+            },
+          },
+          {
+            from: 'traveling', to: 'hatching', duration: wc.hatchDuration,
+            onEnter: () => {
+              for (const lc of lifecycleCells) {
+                if (lc.cellIndex >= 0) {
+                  gridCellStates[lc.cellIndex]!.status = 'hatching'
+                  gridCellStates[lc.cellIndex]!.detachProgress = 1
+                  const cell = grid.cells[lc.cellIndex]!
+                  const cellId = `cell-${cell.x}-${cell.y}`
+                  addInflection(cellId, 'cell', { frame, position: lc.targetPos, type: 'travel_end' })
+                  frameEvents.push({ frame, type: 'cell_hatch_start', entityId: cellId, position: lc.targetPos })
+                  addInflection(cellId, 'cell', { frame, position: lc.targetPos, type: 'hatch_start' })
+                }
+              }
+            },
+          },
+          {
+            from: 'hatching', to: 'idle', duration: 0,
+            onEnter: () => {
+              // Hatch complete → create formation
+              const wave = pendingWave!
+              const minCol = wave.cells.reduce((m, w) => Math.min(m, w.cell.x), Infinity)
+              const invaders: InvaderState[] = wave.cells.map((w, i) => ({
+                id: `inv-w${wave.waveIndex}-${i}`,
+                cell: w.cell, hp: w.hp, maxHp: w.hp,
+                position: lifecycleCells[i]!.targetPos,
+                destroyed: false, destroyedAtFrame: null,
+              }))
+              totalInvaders += invaders.length
+              formations.push(createFormation(invaders, wave.waveIndex, config.playArea, formationConfig))
+
+              const fid = `formation-${wave.waveIndex}`
+              frameEvents.push({ frame, type: 'wave_spawn', entityId: fid, position: { x: 0, y: 0 }, data: { waveIndex: wave.waveIndex, invaderCount: invaders.length } })
+              addInflection(fid, 'formation', { frame, position: { x: 0, y: 0 }, type: 'spawn' })
+              for (const inv of invaders) {
+                addInflection(inv.id, 'invader', { frame, position: { ...inv.position }, type: 'spawn' })
+              }
+
+              // Mark cells as transformed
+              for (const lc of lifecycleCells) {
+                if (lc.cellIndex >= 0) {
+                  gridCellStates[lc.cellIndex]!.status = 'transformed'
+                  const cell = grid.cells[lc.cellIndex]!
+                  const cellId = `cell-${cell.x}-${cell.y}`
+                  frameEvents.push({ frame, type: 'cell_hatch_complete', entityId: cellId, position: lc.targetPos })
+                  addInflection(cellId, 'cell', { frame, position: lc.targetPos, type: 'hatch_complete' })
+                }
+              }
+
+              pendingWave = null
+              lifecycleCells = []
+            },
+          },
+        ]
+
+        const transition = transitions.find((t) => t.from === lifecyclePhase)
+        if (transition) {
+          // Skip phases with 0 duration
+          let next = transition
+          while (next && next.duration === 0 && next.to !== 'idle') {
+            next.onEnter?.()
+            const following = transitions.find((t) => t.from === next!.to)
+            if (!following) { lifecyclePhase = next.to; break }
+            next = following
+          }
+          if (next) {
+            next.onEnter?.()
+            lifecyclePhase = next.to
+            lifecycleFramesLeft = next.duration
+            if (next.to !== 'idle') {
+              frameEvents.push({ frame, type: 'wave_phase_change', entityId: 'lifecycle', position: { x: 0, y: 0 }, data: { phase: next.to } })
+            }
+          }
+        }
       }
     }
 

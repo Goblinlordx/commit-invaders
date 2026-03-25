@@ -10,7 +10,7 @@ import { renderFrame, getScreenSize } from './renderer.js'
 const CELL_SIZE = 11
 const CELL_GAP = 2
 const STRIDE = CELL_SIZE + CELL_GAP
-const PADDING = 8 // ~8% of grid height (91px) on each side
+const PADDING = 20 // extra space around grid for invader oscillation
 const STATUS_BAR_HEIGHT = 20
 
 export function getLayoutConstants() {
@@ -27,13 +27,17 @@ function defaultConfig(): SimConfig {
 
   return {
     framesPerSecond: 60,
-    waveConfig: { weeksPerWave: 4, spawnDelay: 60 },
+    waveConfig: {
+      weeksPerWave: 4, spawnDelay: 60,
+      brightenDuration: 30, pluckDuration: 20, darkenDuration: 20,
+      travelDuration: 40, hatchDuration: 20,
+    },
     playArea: { x: 0, y: 0, width: gridW, height: gridH + shipMargin },
     gridArea: { x: PADDING, y: 0, width: 7 * STRIDE, height: gridH },
     cellSize: CELL_SIZE,
     cellGap: CELL_GAP,
     laserSpeed: 240,
-    laserWidth: 2,
+    laserWidth: 4,
     invaderSize: CELL_SIZE - 1, // 10px — 1px less than cell for slight gap
     shipSpeed: 180,
     shipY: gridH + shipMargin - 4,
@@ -112,7 +116,9 @@ interface TuningParam {
 
 const TUNING_PARAMS: TuningParam[] = [
   { key: 'laserSpeed', label: 'Laser Speed', min: 30, max: 600, step: 10 },
+  { key: 'laserWidth', label: 'Laser Size', min: 1, max: 10, step: 1 },
   { key: 'shipSpeed', label: 'Ship Speed', min: 30, max: 600, step: 10 },
+  { key: 'invaderSize', label: 'Invader Size', min: 3, max: 15, step: 1 },
   { key: 'formationBaseSpeed', label: 'Form. Speed', min: 10, max: 300, step: 5 },
   { key: 'formationMaxSpeed', label: 'Form. Max', min: 30, max: 600, step: 10 },
   { key: 'formationRowDrop', label: 'Row Drop', min: 5, max: 50, step: 1 },
