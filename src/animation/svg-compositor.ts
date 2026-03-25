@@ -105,7 +105,7 @@ function simToScreen(simX: number, simY: number, config: SimConfig): { sx: numbe
 }
 
 import type { RenderMode } from './sprites.js'
-import { spriteDefs, invaderSpriteId, explosionKeyframes } from './sprites.js'
+import { spriteDefs, invaderSpriteId, explosionKeyframes, explosionCss } from './sprites.js'
 
 export interface CompositeSvgOptions {
   grid: Grid
@@ -137,7 +137,10 @@ export function composeSvg(options: CompositeSvgOptions): string {
 
   // ── Shared keyframes ──
   cssRules.push(sharedKeyframes())
-  if (styled) cssRules.push(explosionKeyframes())
+  if (styled) {
+    cssRules.push(explosionKeyframes())
+    cssRules.push(explosionCss())
+  }
 
   // ── Sprite defs (styled mode only) ──
   const defsBlock = styled ? spriteDefs(config.invaderSize, config.laserWidth) : ''
@@ -298,6 +301,7 @@ export function composeSvg(options: CompositeSvgOptions): string {
   }
 
   // ── Formations + Invaders ──
+  const explosionData: { startPct: number; endPct: number; cx: number; cy: number }[] = []
   const waveSpawns = output.events.filter((e) => e.type === 'wave_spawn')
   for (const ws of waveSpawns) {
     const waveIdx = (ws.data as { waveIndex: number }).waveIndex
@@ -339,23 +343,25 @@ export function composeSvg(options: CompositeSvgOptions): string {
           `<use href="#${spriteId}" x="${sx - half}" y="${sy - half}" width="${config.invaderSize}" height="${config.invaderSize}" ` +
           `opacity="0" style="animation: ${invKfName} ${dur}s linear infinite" />`
         )
-        // Explosion at destroy frame
+        // Collect explosion data for pooling (placed outside formation group)
         if (destroyIp) {
-          const explKfName = `exp-${inv.id.replace(/[^a-z0-9]/g, '-')}`
-          const explStartPct = frameToPercent(destroyIp.frame, output.totalFrames)
-          const explEndPct = Math.min(100, explStartPct + (0.3 / dur) * 100) // 0.3s duration
-          cssRules.push(`@keyframes ${explKfName} {
-  0.00% { opacity: 0; transform: scale(1); }
-  ${Math.max(0, explStartPct - 0.01).toFixed(2)}% { opacity: 0; transform: scale(1); }
-  ${explStartPct.toFixed(2)}% { opacity: 1; transform: scale(1); }
-  ${((explStartPct + explEndPct) / 2).toFixed(2)}% { opacity: 0.7; transform: scale(1.8); }
-  ${explEndPct.toFixed(2)}% { opacity: 0; transform: scale(2.5); }
-  100.00% { opacity: 0; }
-}`)
-          invaderElements.push(
-            `<use href="#sprite-explosion" x="${sx - half}" y="${sy - half}" width="${config.invaderSize}" height="${config.invaderSize}" ` +
-            `opacity="0" style="animation: ${explKfName} ${dur}s linear infinite" />`
-          )
+          const destroyState = output.peek(destroyIp.frame)
+          const destroyFormation = destroyState.formations.find((f) => f.waveIndex === waveIdx)
+          const destroyInv = destroyFormation?.invaders.find((i) => i.id === inv.id)
+          if (destroyInv) {
+            const { sx: dsx, sy: dsy } = simToScreen(
+              destroyInv.position.x + (destroyFormation?.offset.x ?? 0),
+              destroyInv.position.y + (destroyFormation?.offset.y ?? 0),
+              config,
+            )
+            const startPct = frameToPercent(destroyIp.frame, output.totalFrames)
+            explosionData.push({
+              startPct,
+              endPct: Math.min(100, startPct + (0.3 / dur) * 100),
+              cx: dsx,
+              cy: dsy,
+            })
+          }
         }
       } else {
         invaderElements.push(
@@ -371,29 +377,109 @@ export function composeSvg(options: CompositeSvgOptions): string {
     )
   }
 
-  // ── Lasers (despawn on hit or out-of-bounds) ──
-  const laserData = laserTimings(output, config)
-  for (const ld of laserData) {
-    const spawnPct = (ld.spawnTime / dur) * 100
-    const despawnPct = (ld.despawnTime / dur) * 100
-    const laserKfName = `lsr-${ld.laserId.replace(/[^a-z0-9]/g, '-')}`
+  // ── Explosions (pooled, outside formation groups) ──
+  if (styled && explosionData.length > 0) {
+    const explEvents = [...explosionData].sort((a, b) => a.startPct - b.startPct)
 
-    const laserExtra = new Map<number, string>()
-    laserExtra.set(spawnPct, `transform: translateX(0);`)
-    laserExtra.set(Math.min(100, despawnPct), `transform: translateX(${ld.despawnDistance.toFixed(1)}px);`)
-    cssRules.push(visibilityKeyframes(laserKfName, [[spawnPct, Math.min(100, despawnPct)]], laserExtra))
+    // Greedy pool assignment
+    const poolSlots: typeof explEvents[number][][] = []
+    const slotEndTimes: number[] = []
+    for (const ev of explEvents) {
+      let assigned = false
+      for (let s = 0; s < poolSlots.length; s++) {
+        if (slotEndTimes[s]! < ev.startPct) {
+          poolSlots[s]!.push(ev)
+          slotEndTimes[s] = ev.endPct
+          assigned = true
+          break
+        }
+      }
+      if (!assigned) {
+        poolSlots.push([ev])
+        slotEndTimes.push(ev.endPct)
+      }
+    }
+
+    // Build one element + keyframe per pool slot
+    const s = config.invaderSize
+    for (let slot = 0; slot < poolSlots.length; slot++) {
+      const events = poolSlots[slot]!
+      const kfName = `exp-pool-${slot}`
+      const stops: string[] = [`  0.00% { opacity: 0; }`]
+      for (const ev of events) {
+        const s1 = s, s2 = s * 1.8, s3 = s * 2.5
+        const mid = (ev.startPct + ev.endPct) / 2
+        stops.push(`  ${Math.max(0, ev.startPct - 0.01).toFixed(2)}% { opacity: 0; }`)
+        stops.push(`  ${ev.startPct.toFixed(2)}% { opacity: 1; x: ${(ev.cx - s1 / 2).toFixed(1)}px; y: ${(ev.cy - s1 / 2).toFixed(1)}px; width: ${s1.toFixed(1)}px; height: ${s1.toFixed(1)}px; }`)
+        stops.push(`  ${mid.toFixed(2)}% { opacity: 0.7; x: ${(ev.cx - s2 / 2).toFixed(1)}px; y: ${(ev.cy - s2 / 2).toFixed(1)}px; width: ${s2.toFixed(1)}px; height: ${s2.toFixed(1)}px; }`)
+        stops.push(`  ${ev.endPct.toFixed(2)}% { opacity: 0; x: ${(ev.cx - s3 / 2).toFixed(1)}px; y: ${(ev.cy - s3 / 2).toFixed(1)}px; width: ${s3.toFixed(1)}px; height: ${s3.toFixed(1)}px; }`)
+      }
+      stops.push(`  100.00% { opacity: 0; }`)
+      cssRules.push(`@keyframes ${kfName} {\n${stops.join('\n')}\n}`)
+      elements.push(
+        `<use href="#sprite-explosion" x="0" y="0" width="${s}" height="${s}" ` +
+        `opacity="0" style="animation: ${kfName} ${dur}s linear infinite" />`
+      )
+    }
+  }
+
+  // ── Lasers (pooled) ──
+  const laserData = laserTimings(output, config)
+  {
+    interface LaserEvent { spawnPct: number; despawnPct: number; screenX: number; screenY: number; despawnDistance: number }
+    const laserEvents: LaserEvent[] = laserData.map((ld) => ({
+      spawnPct: (ld.spawnTime / dur) * 100,
+      despawnPct: Math.min(100, (ld.despawnTime / dur) * 100),
+      screenX: ld.screenX,
+      screenY: ld.screenY,
+      despawnDistance: ld.despawnDistance,
+    }))
+    laserEvents.sort((a, b) => a.spawnPct - b.spawnPct)
+
+    // Greedy pool assignment
+    const laserSlots: LaserEvent[][] = []
+    const laserSlotEndTimes: number[] = []
+    for (const ev of laserEvents) {
+      let assigned = false
+      for (let s = 0; s < laserSlots.length; s++) {
+        if (laserSlotEndTimes[s]! < ev.spawnPct) {
+          laserSlots[s]!.push(ev)
+          laserSlotEndTimes[s] = ev.despawnPct
+          assigned = true
+          break
+        }
+      }
+      if (!assigned) {
+        laserSlots.push([ev])
+        laserSlotEndTimes.push(ev.despawnPct)
+      }
+    }
 
     const half = config.laserWidth / 2
-    if (styled) {
-      elements.push(
-        `<use href="#sprite-laser" x="${ld.screenX - half}" y="${ld.screenY - half}" width="${config.laserWidth}" height="${config.laserWidth}" ` +
-        `opacity="0" style="animation: ${laserKfName} ${dur}s linear infinite" />`
-      )
-    } else {
-      elements.push(
-        `<rect x="${ld.screenX - half}" y="${ld.screenY - half}" width="${config.laserWidth}" height="${config.laserWidth}" ` +
-        `fill="${LASER_COLOR}" opacity="0" style="animation: ${laserKfName} ${dur}s linear infinite" />`
-      )
+    for (let slot = 0; slot < laserSlots.length; slot++) {
+      const events = laserSlots[slot]!
+      const kfName = `lsr-pool-${slot}`
+      const stops: string[] = [`  0.00% { opacity: 0; }`]
+      for (const ev of events) {
+        stops.push(`  ${Math.max(0, ev.spawnPct - 0.01).toFixed(2)}% { opacity: 0; transform: translate(${ev.screenX.toFixed(1)}px, ${ev.screenY.toFixed(1)}px); }`)
+        stops.push(`  ${ev.spawnPct.toFixed(2)}% { opacity: 1; transform: translate(${ev.screenX.toFixed(1)}px, ${ev.screenY.toFixed(1)}px); }`)
+        stops.push(`  ${ev.despawnPct.toFixed(2)}% { opacity: 1; transform: translate(${(ev.screenX + ev.despawnDistance).toFixed(1)}px, ${ev.screenY.toFixed(1)}px); }`)
+        stops.push(`  ${Math.min(100, ev.despawnPct + 0.01).toFixed(2)}% { opacity: 0; }`)
+      }
+      stops.push(`  100.00% { opacity: 0; }`)
+      cssRules.push(`@keyframes ${kfName} {\n${stops.join('\n')}\n}`)
+
+      if (styled) {
+        elements.push(
+          `<use href="#sprite-laser" x="${-half}" y="${-half}" width="${config.laserWidth}" height="${config.laserWidth}" ` +
+          `opacity="0" style="animation: ${kfName} ${dur}s linear infinite" />`
+        )
+      } else {
+        elements.push(
+          `<rect x="${-half}" y="${-half}" width="${config.laserWidth}" height="${config.laserWidth}" ` +
+          `fill="${LASER_COLOR}" opacity="0" style="animation: ${kfName} ${dur}s linear infinite" />`
+        )
+      }
     }
   }
 
