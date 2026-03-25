@@ -243,7 +243,7 @@ export function simulate(
   /** Compute invader formation position from cell coordinates. */
   function invaderPosition(cellX: number, cellY: number, minCol: number): Position {
     const col = cellX - minCol
-    const staggerX = cellY * config.formationRowStagger
+    const staggerX = (cellY % 2) * config.formationRowStagger
     return {
       x: config.gridArea.x + col * formationStride + staggerX,
       y: config.gridArea.y + cellY * formationStride,
@@ -735,7 +735,7 @@ function replayToFrame(grid: Grid, config: SimConfig, frameDecisions: Map<number
   const replayFormStride = config.cellSize + config.cellGap + config.formationSpread
   function replayInvPos(cellX: number, cellY: number, minCol: number): Position {
     return {
-      x: config.gridArea.x + (cellX - minCol) * replayFormStride + cellY * config.formationRowStagger,
+      x: config.gridArea.x + (cellX - minCol) * replayFormStride + (cellY % 2) * config.formationRowStagger,
       y: config.gridArea.y + cellY * replayFormStride,
     }
   }
