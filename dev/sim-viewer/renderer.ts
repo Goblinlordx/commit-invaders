@@ -13,30 +13,40 @@ export const INVADER_COLOR = '#ff4444'
 export const LASER_COLOR = '#ffff00'
 export const SHIP_COLOR = '#4488ff'
 export const BG_COLOR = '#0d1117'
-export const OVERLAY_COLOR = 'rgba(13, 17, 23, 0.6)' // darken during active waves
+export const OVERLAY_COLOR = 'rgba(13, 17, 23, 0.6)'
 
 /**
- * Map sim coordinates to screen coordinates.
+ * Map sim coordinates to screen coordinates (90° CW rotation).
  *
- * The simulation runs vertically: ship at bottom (high Y), fires upward
- * (decreasing Y), formations zigzag on X. The renderer rotates 90° CW
- * to produce a horizontal layout:
+ * Sim space:
+ *   X: 0→playArea.width  (formation zigzag axis)
+ *   Y: 0→playArea.height (laser travel axis, 0=top/far, shipY=bottom/near)
  *
- *   sim Y (up→down = 0→shipY)  →  screen X (left→right = shipX→width)
- *   sim X (left→right)         →  screen Y (top→bottom)
- *
- * Ship ends up on the LEFT, firing RIGHT. Formations oscillate vertically.
+ * Screen space (horizontal layout):
+ *   screenX: 0→playArea.height (left=ship, right=far end)
+ *     ship at left: simY=shipY → screenX near 0
+ *     far end at right: simY=0 → screenX near playArea.height
+ *   screenY: 0→playArea.width (top→bottom = sim X axis)
  */
 function simToScreen(
   simX: number,
   simY: number,
   config: SimConfig,
 ): { sx: number; sy: number } {
-  // Map sim Y to screen X: sim Y=0 (top/far) → screen right, sim Y=shipY → screen left
-  const sx = config.playArea.width - simY
-  // Map sim X to screen Y directly
+  const sx = config.playArea.height - simY
   const sy = simX
   return { sx, sy }
+}
+
+/**
+ * Get the screen dimensions for canvas sizing.
+ * 90° CW rotation swaps width and height.
+ */
+export function getScreenSize(config: SimConfig): { width: number; height: number } {
+  return {
+    width: config.playArea.height,
+    height: config.playArea.width,
+  }
 }
 
 export function renderFrame(
@@ -44,24 +54,26 @@ export function renderFrame(
   state: GameState,
   config: SimConfig,
 ): void {
-  // Screen dimensions: wide (sim height becomes width) × tall (sim width becomes height)
-  const screenW = config.playArea.height // sim's vertical range → screen width
-  const screenH = config.playArea.width  // sim's horizontal range → screen height
+  const screen = getScreenSize(config)
 
   // Clear
   ctx.fillStyle = BG_COLOR
-  ctx.fillRect(0, 0, screenW, screenH)
+  ctx.fillRect(0, 0, screen.width, screen.height)
 
-  // Grid cells (background — always visible)
+  // Grid cells (background)
+  // Grid uses sim coordinates for cell positions, then maps to screen
   const stride = config.cellSize + config.cellGap
   for (const gc of state.gridCells) {
     const color = GRID_COLORS[gc.cell.level] ?? GRID_COLORS[0]!
-    // Grid uses its own coordinate system (not sim coords)
-    // Place grid in the left portion of the screen
-    const gx = config.gridArea.y + gc.cell.x * stride // weeks → screen X (left to right)
-    const gy = config.gridArea.x + gc.cell.y * stride  // days → screen Y (top to bottom)
+    // Cell sim position: (gridArea.x + col*stride, gridArea.y + row*stride)
+    // But for horizontal layout, we want weeks on X axis:
+    //   screenX for week = map sim gridArea.y position to screen X
+    //   screenY for day = map sim gridArea.x position to screen Y
+    const cellSimX = config.gridArea.x + gc.cell.y * stride
+    const cellSimY = config.gridArea.y + gc.cell.x * stride
+    const { sx, sy } = simToScreen(cellSimX, cellSimY, config)
     ctx.fillStyle = color
-    ctx.fillRect(gx, gy, config.cellSize, config.cellSize)
+    ctx.fillRect(sx, sy, config.cellSize, config.cellSize)
   }
 
   // Darken overlay during active waves
@@ -70,10 +82,10 @@ export function renderFrame(
   )
   if (hasActiveWave) {
     ctx.fillStyle = OVERLAY_COLOR
-    ctx.fillRect(0, 0, screenW, screenH)
+    ctx.fillRect(0, 0, screen.width, screen.height)
   }
 
-  // Formations (invaders) — rotated from sim coords
+  // Formations (invaders)
   for (const formation of state.formations) {
     if (!formation.active && formation.clearedAtFrame !== null) continue
 
@@ -90,17 +102,16 @@ export function renderFrame(
     }
   }
 
-  // Lasers — rotated
+  // Lasers
   const laserHalf = config.laserWidth / 2
   ctx.fillStyle = LASER_COLOR
   for (const laser of state.lasers) {
     if (!laser.active) continue
     const { sx, sy } = simToScreen(laser.position.x, laser.position.y, config)
-    // Laser is a horizontal line in screen space (travels rightward)
     ctx.fillRect(sx - laserHalf, sy - laserHalf, config.laserWidth, config.laserWidth)
   }
 
-  // Ship — rotated (on left edge of screen)
+  // Ship
   const { sx: shipSx, sy: shipSy } = simToScreen(
     state.ship.position.x,
     config.shipY,
@@ -109,15 +120,4 @@ export function renderFrame(
   const shipHalf = config.invaderSize / 2
   ctx.fillStyle = SHIP_COLOR
   ctx.fillRect(shipSx - shipHalf, shipSy - shipHalf, config.invaderSize, config.invaderSize)
-}
-
-/**
- * Get the screen dimensions for canvas sizing.
- * Since we rotate 90° CW, width and height swap.
- */
-export function getScreenSize(config: SimConfig): { width: number; height: number } {
-  return {
-    width: config.playArea.height,  // sim vertical → screen horizontal
-    height: config.playArea.width,  // sim horizontal → screen vertical
-  }
 }
