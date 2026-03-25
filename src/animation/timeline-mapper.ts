@@ -61,13 +61,26 @@ export function formationKeyframes(
   }
 
   for (const ip of timeline) {
-    if (ip.type === 'spawn' || ip.type === 'direction_change' || ip.type === 'wave_clear') {
+    if (ip.type === 'spawn' || ip.type === 'wave_clear') {
       const screen = offsetToScreen(ip.position)
       points.push({
         percent: frameToPercent(ip.frame, total),
         x: screen.x,
         y: screen.y,
       })
+    } else if (ip.type === 'direction_change') {
+      // The position already includes the row drop. Insert two stops:
+      // 1. Pre-drop: at the edge before dropping (undo the row drop from Y)
+      // 2. Post-drop: after the row drop (the recorded position)
+      // Offset by tiny epsilon so CSS doesn't discard the duplicate percent.
+      const pct = frameToPercent(ip.frame, total)
+      const postDrop = offsetToScreen(ip.position)
+      const preDrop = offsetToScreen({
+        x: ip.position.x,
+        y: ip.position.y - config.formationRowDrop,
+      })
+      points.push({ percent: pct, x: preDrop.x, y: preDrop.y })
+      points.push({ percent: pct + 0.01, x: postDrop.x, y: postDrop.y })
     }
   }
 
