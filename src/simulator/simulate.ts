@@ -506,19 +506,33 @@ function simulateCore(
           // Start per-cell staggered lifecycle
           pendingWave = wave
           brightenStartFrame = frame
-          const minCol = wave.cells.reduce((m, w) => Math.min(m, w.cell.x), Infinity)
+          const waveSize = wave.cells.length
 
-          // Build cell list and shuffle for random pluck order
-          const cells: Array<{ cellIndex: number; targetPos: Position }> = wave.cells.map((w) => {
-            const cellIndex = grid.cells.findIndex((c) => c.x === w.cell.x && c.y === w.cell.y)
-            const targetPos = invaderPosition(w.cell.x, w.cell.y, minCol)
-            if (cellIndex >= 0) gridCellStates[cellIndex]!.targetPosition = { ...targetPos }
-            return { cellIndex, targetPos }
-          })
-          for (let i = cells.length - 1; i > 0; i--) {
-            const j = prng.range(0, i)
-            ;[cells[i], cells[j]] = [cells[j]!, cells[i]!]
+          // Randomly select cells from ALL remaining in_grid cells (not just the wave's columns)
+          const availableIndices: number[] = []
+          for (let ci = 0; ci < grid.cells.length; ci++) {
+            if (grid.cells[ci]!.level > 0 && gridCellStates[ci]!.status === 'in_grid') {
+              availableIndices.push(ci)
+            }
           }
+          // Shuffle and take waveSize cells
+          for (let i = availableIndices.length - 1; i > 0; i--) {
+            const j = prng.range(0, i)
+            ;[availableIndices[i], availableIndices[j]] = [availableIndices[j]!, availableIndices[i]!]
+          }
+          const selectedIndices = availableIndices.slice(0, waveSize)
+
+          // Build cell list with formation target positions
+          // Formation positions use a sequential layout (col 0..N, row from cell.y)
+          const cells: Array<{ cellIndex: number; targetPos: Position }> = selectedIndices.map((ci, i) => {
+            const cell = grid.cells[ci]!
+            // Layout invaders in a grid: columns by index, rows by cell.y
+            const col = Math.floor(i / 7)
+            const row = i % 7
+            const targetPos = invaderPosition(col, row, 0)
+            gridCellStates[ci]!.targetPosition = { ...targetPos }
+            return { cellIndex: ci, targetPos }
+          })
 
           // Schedule each cell with staggered timing
           // Pluck is spread across pluckDuration, then each cell individually
@@ -598,12 +612,16 @@ function simulateCore(
       // This ensures hatched cells are visible briefly before becoming invaders
       if (allTransformed && frame > lifecycleEndFrame + 10) {
         const wave = pendingWave!
-        const invaders: InvaderState[] = cellSchedules.map((cs, i) => ({
-          id: `inv-w${wave.waveIndex}-${i}`,
-          cell: wave.cells[i]!.cell, hp: wave.cells[i]!.hp, maxHp: wave.cells[i]!.hp,
-          position: cs.targetPos,
-          destroyed: false, destroyedAtFrame: null,
-        }))
+        const invaders: InvaderState[] = cellSchedules.map((cs, i) => {
+          const cell = cs.cellIndex >= 0 ? grid.cells[cs.cellIndex]! : wave.cells[i]!.cell
+          const hp = cell.level <= 2 ? 1 : cell.level === 3 ? 2 : 3
+          return {
+            id: `inv-w${wave.waveIndex}-${i}`,
+            cell, hp, maxHp: hp,
+            position: cs.targetPos,
+            destroyed: false, destroyedAtFrame: null,
+          }
+        })
         totalInvaders += invaders.length
         formations.push(createFormation(invaders, wave.waveIndex, config.playArea, formationConfig))
 
