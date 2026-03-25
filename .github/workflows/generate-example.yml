@@ -22,28 +22,26 @@ jobs:
       - run: pnpm install --frozen-lockfile
       - run: pnpm build
 
-      # Generate example SVG for Goblinlordx
       - name: Generate SVG
         run: GITHUB_TOKEN=${{ secrets.GITHUB_TOKEN }} npx tsx scripts/generate.ts Goblinlordx commit-invaders.svg
-      
-      # Commit to output branch
+
       - name: Deploy to output branch
         run: |
+          # Save SVG before switching branches
+          cp commit-invaders.svg /tmp/commit-invaders.svg
+          
           git config user.name "commit-invaders[bot]"
           git config user.email "commit-invaders[bot]@users.noreply.github.com"
           
-          # Create or checkout output branch
           git fetch origin output 2>/dev/null || true
           if git rev-parse --verify origin/output >/dev/null 2>&1; then
             git checkout output
           else
             git checkout --orphan output
-            git rm -rf .
+            git rm -rf . 2>/dev/null || true
           fi
           
-          # Copy SVG and commit
-          git checkout main -- commit-invaders.svg 2>/dev/null || cp /tmp/ci-svg commit-invaders.svg
-          mv commit-invaders.svg commit-invaders.svg 2>/dev/null || true
+          cp /tmp/commit-invaders.svg commit-invaders.svg
           git add commit-invaders.svg
           git diff --cached --quiet || git commit -m "chore: update example SVG for Goblinlordx"
           git push origin output
