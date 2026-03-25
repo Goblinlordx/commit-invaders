@@ -268,24 +268,48 @@ export function renderFrame(
     ctx.fillStyle = '#161b22'
     ctx.fillRect(0, gameAreaHeight, screen.width, statusBarHeight)
 
+    // Status bar alpha during ending phases
+    let statusAlpha = 1
+    if (phase === 'ending_fadeout') statusAlpha = 1 - state.wavePhaseProgress
+    else if (phase === 'ending_score' || phase === 'ending_hold') statusAlpha = 0
+    else if (phase === 'ending_blackout') statusAlpha = 0
+    else if (phase === 'ending_reset') statusAlpha = state.wavePhaseProgress
+
     // Wave indicator (left)
-    ctx.fillStyle = '#8b949e'
     ctx.font = '11px monospace'
     ctx.textBaseline = 'middle'
-    const waveText = state.formations.length > 0
-      ? `WAVE ${state.currentWave}/${state.totalWaves}`
-      : 'READY'
-    ctx.fillText(waveText, 8, gameAreaHeight + statusBarHeight / 2)
 
-    // Score counter (right) — commit value
-    ctx.fillStyle = '#39d353'
-    ctx.textAlign = 'right'
-    ctx.font = 'bold 12px monospace'
-    ctx.fillText(
-      `${state.score} COMMITS`,
-      screen.width - 8,
-      gameAreaHeight + statusBarHeight / 2,
-    )
-    ctx.textAlign = 'left' // reset
+    if (phase === 'ending_reset') {
+      // Reset: fade in "READY"
+      ctx.globalAlpha = statusAlpha
+      ctx.fillStyle = '#8b949e'
+      ctx.fillText('READY', 8, gameAreaHeight + statusBarHeight / 2)
+      // Reset: fade in "0 COMMITS"
+      ctx.fillStyle = '#39d353'
+      ctx.textAlign = 'right'
+      ctx.font = 'bold 12px monospace'
+      ctx.fillText('0 COMMITS', screen.width - 8, gameAreaHeight + statusBarHeight / 2)
+      ctx.globalAlpha = 1
+      ctx.textAlign = 'left'
+    } else {
+      ctx.globalAlpha = statusAlpha
+      ctx.fillStyle = '#8b949e'
+      const waveText = state.formations.length > 0
+        ? `WAVE ${state.currentWave}/${state.totalWaves}`
+        : 'READY'
+      ctx.fillText(waveText, 8, gameAreaHeight + statusBarHeight / 2)
+
+      // Score counter (right)
+      ctx.fillStyle = '#39d353'
+      ctx.textAlign = 'right'
+      ctx.font = 'bold 12px monospace'
+      ctx.fillText(
+        `${state.score} COMMITS`,
+        screen.width - 8,
+        gameAreaHeight + statusBarHeight / 2,
+      )
+      ctx.globalAlpha = 1
+      ctx.textAlign = 'left'
+    }
   }
 }
