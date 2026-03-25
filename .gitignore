@@ -1,3 +1,11 @@
 node_modules/
 dist/
 *.tsbuildinfo
+
+# Build/test artifacts
+commit-invaders.svg
+dev/css-validator/latest.svg
+test-results/
+.playwright-mcp/
+*.svg.bak
+/tmp/
