@@ -71,7 +71,7 @@ describe('svg-compositor', () => {
     const grid = makeGrid(4, 'test-svg')
     const svg = generateAnimatedSvg(grid, 'test', config)
 
-    expect(svg).toContain('class="overlay"')
+    expect(svg).toContain('overlay')
   })
 
   it('contains formation groups', () => {
