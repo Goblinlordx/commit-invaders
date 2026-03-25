@@ -336,6 +336,7 @@ function simulateCore(
   let solution: FiringSolution | null = null
   let solveCooldown = 0
   let solveSpeed = 0 // formation speed when solution was computed
+  let solveAliveCount = 0 // alive invader count when solved (boundary changes when invaders die)
 
   // Ending sequence state
   let endingPhase: 'none' | 'fadeout' | 'score' | 'score_out' | 'board_in' | 'hold' | 'blackout' | 'reset' | 'done' = 'none'
@@ -501,7 +502,9 @@ function simulateCore(
         const sol = solveHit(t, frame, ship.position.x, config)
         if (sol) {
           solution = sol
-          solveSpeed = t.formation.getState().speed
+          const fs = t.formation.getState()
+          solveSpeed = fs.speed
+          solveAliveCount = fs.invaders.filter(i => !i.destroyed).length
           return
         }
       }
@@ -781,14 +784,15 @@ function simulateCore(
     } else if (!solution) {
       findSolution(frame)
     } else if (solution.targetId) {
-      // Re-validate: invalidate if target died or formation speed changed >10%
+      // Re-validate: invalidate if any invader died (changes bounce boundaries + speed)
       let valid = false
       for (const f of formations) {
         const fs = f.getState()
         if (!fs.active) continue
         const inv = fs.invaders.find((i) => i.id === solution!.targetId)
         if (inv && !inv.destroyed) {
-          valid = solveSpeed > 0 ? Math.abs(fs.speed - solveSpeed) / solveSpeed <= 0.1 : true
+          const currentAlive = fs.invaders.filter(i => !i.destroyed).length
+          valid = currentAlive === solveAliveCount
           break
         }
       }
