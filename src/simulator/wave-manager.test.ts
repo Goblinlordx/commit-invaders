@@ -205,7 +205,7 @@ describe('WaveManager', () => {
   })
 
   describe('HP assignment', () => {
-    it('assigns HP based on commit level (1-2=1HP, 3=2HP, 4=3HP)', () => {
+    it('assigns 1 HP to all invaders (one-hit kill)', () => {
       const cells = [
         makeCell(0, 0, 1),
         makeCell(0, 1, 2),
@@ -216,10 +216,9 @@ describe('WaveManager', () => {
       const wm = createWaveManager(grid, defaultConfig)
 
       const wave = wm.getWave(0)
-      expect(wave.cells[0]!.hp).toBe(1)
-      expect(wave.cells[1]!.hp).toBe(1)
-      expect(wave.cells[2]!.hp).toBe(2)
-      expect(wave.cells[3]!.hp).toBe(3)
+      for (const wc of wave.cells) {
+        expect(wc.hp).toBe(1)
+      }
     })
   })
 })

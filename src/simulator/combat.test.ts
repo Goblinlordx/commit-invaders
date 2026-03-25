@@ -146,14 +146,14 @@ describe('checkHits', () => {
     expect(result.updatedLasers).toHaveLength(0)
   })
 
-  it('reduces invader HP by 1 per hit', () => {
+  it('one-hit kill regardless of HP', () => {
     const lasers = [makeLaser({ position: { x: 50, y: 50 } })]
     const invaders = [makeInvader({ hp: 3, maxHp: 3, position: { x: 50, y: 50 } })]
 
     const result = checkHits(lasers, invaders, DEFAULT_LASER_WIDTH, DEFAULT_INVADER_SIZE)
 
-    expect(result.updatedInvaders[0]!.hp).toBe(2)
-    expect(result.updatedInvaders[0]!.destroyed).toBe(false)
+    expect(result.updatedInvaders[0]!.hp).toBe(0)
+    expect(result.updatedInvaders[0]!.destroyed).toBe(true)
   })
 
   it('marks invader destroyed when HP reaches 0', () => {
@@ -176,13 +176,13 @@ describe('checkHits', () => {
     expect(result.scoreIncrease).toBe(5)
   })
 
-  it('does not increment score when invader is damaged but not destroyed', () => {
+  it('always increments score on hit (one-hit kill)', () => {
     const lasers = [makeLaser({ position: { x: 50, y: 50 } })]
     const invaders = [makeInvader({ hp: 3, maxHp: 3, position: { x: 50, y: 50 } })]
 
     const result = checkHits(lasers, invaders, DEFAULT_LASER_WIDTH, DEFAULT_INVADER_SIZE)
 
-    expect(result.scoreIncrease).toBe(0)
+    expect(result.scoreIncrease).toBe(5) // cell.count = 5
   })
 
   it('reports no hits when laser misses all invaders', () => {

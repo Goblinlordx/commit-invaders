@@ -645,7 +645,7 @@ function simulateCore(
         const wave = pendingWave!
         const invaders: InvaderState[] = cellSchedules.map((cs, i) => {
           const cell = cs.cellIndex >= 0 ? grid.cells[cs.cellIndex]! : wave.cells[i]!.cell
-          const hp = cell.level <= 2 ? 1 : cell.level === 3 ? 2 : 3
+          const hp = 1 // all invaders are one-hit kill
           return {
             id: `inv-w${wave.waveIndex}-${i}`,
             cell, hp, maxHp: hp,

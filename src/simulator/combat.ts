@@ -105,13 +105,10 @@ export function checkHits(
       if (hit) {
         consumedLaserIds.add(laser.id)
 
-        const currentHp =
-          damagedInvaders.get(invader.id)?.hp ?? invader.hp
-        const newHp = currentHp - 1
-
+        // One-hit kill — every hit destroys the invader
         damagedInvaders.set(invader.id, {
-          hp: newHp,
-          destroyed: newHp <= 0,
+          hp: 0,
+          destroyed: true,
         })
 
         hits.push({ laserId: laser.id, invaderId: invader.id })

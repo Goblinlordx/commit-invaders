@@ -22,10 +22,8 @@ export interface WaveManager {
   markCleared(waveIndex: number, frame: number): void
 }
 
-function hpFromLevel(level: ContributionLevel): number {
-  if (level <= 2) return 1
-  if (level === 3) return 2
-  return 3 // level 4
+function hpFromLevel(_level: ContributionLevel): number {
+  return 1 // all invaders are one-hit kill
 }
 
 export function createWaveManager(grid: Grid, config: WaveConfig): WaveManager {

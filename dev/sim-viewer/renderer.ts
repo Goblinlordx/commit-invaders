@@ -90,10 +90,11 @@ export function renderFrame(
   // ── Layer 2: Overlay ──
   const phase = state.wavePhase
   let overlayAlpha = 0
-  if (phase === 'idle') overlayAlpha = 0
+  if (phase === 'idle' || phase === 'ending_reset') overlayAlpha = 0
   else if (phase === 'brightening') overlayAlpha = 0.6 * (1 - state.wavePhaseProgress)
   else if (phase === 'plucking') overlayAlpha = 0
   else if (phase === 'darkening') overlayAlpha = 0.6 * state.wavePhaseProgress
+  else if (phase === 'ending_blackout') overlayAlpha = 0 // blackout overlay handles this
   else overlayAlpha = 0.6
 
   if (overlayAlpha > 0.01) {
@@ -179,7 +180,10 @@ export function renderFrame(
 
   // Ship (fades during ending)
   const isEnding = phase.startsWith('ending_')
-  const shipAlpha = phase === 'ending_fadeout' ? 1 - state.wavePhaseProgress : (isEnding ? 0 : 1)
+  let shipAlpha = 1
+  if (phase === 'ending_fadeout') shipAlpha = 1 - state.wavePhaseProgress
+  else if (phase === 'ending_reset') shipAlpha = state.wavePhaseProgress
+  else if (isEnding) shipAlpha = 0
   if (shipAlpha > 0.01) {
     const { sx: shipSx, sy: shipSy } = simToScreen(
       state.ship.position.x,
