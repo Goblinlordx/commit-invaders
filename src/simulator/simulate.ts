@@ -691,7 +691,7 @@ function simulateCore(
     }
     if (breached) {
       if (emergencyBreach) {
-        // Last resort: destroy all remaining invaders and continue
+        // Last resort: destroy all remaining invaders, skip remaining waves, trigger ending
         for (const formation of formations) {
           const fState = formation.getState()
           if (!fState.active) continue
@@ -705,6 +705,13 @@ function simulateCore(
           }
           fState.active = false
           frameEvents.push({ frame, type: 'wave_clear', entityId: `formation-${fState.waveIndex}`, position: { x: 0, y: 0 }, data: { waveIndex: fState.waveIndex } })
+        }
+        // Force ending sequence immediately — breach IS the game end
+        if (endingPhase === 'none') {
+          endingPhase = 'fadeout'
+          endingPhaseStart = frame
+          endingPhaseFramesLeft = wc.endingFadeoutDuration
+          allEvents.push({ frame, type: 'game_end', entityId: 'game', position: { x: 0, y: 0 }, data: { score, totalFrames: frame } })
         }
       } else {
         // Abort — outer retry loop will re-run with higher hitChance
