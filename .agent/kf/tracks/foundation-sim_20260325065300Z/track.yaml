@@ -1,0 +1,179 @@
+id: foundation-sim_20260325065300Z
+title: "Foundation & Game Simulation"
+type: feature
+status: pending
+created: 2026-03-25
+updated: 2026-03-25
+spec:
+  summary: |
+    Bootstrap the project and build the core game simulation engine. The
+    simulation runs entirely headless — no renderer required. It produces
+    a complete, deterministic state history that can be peeked at any frame.
+    Driven by contribution data (Grid) and a choreographed ShipScript.
+  context: |
+    The simulation is the foundation of everything. It must:
+    - Run completely without any renderer (headless)
+    - Produce a complete state history addressable by frame number
+    - Support peeking state at any frame (random access, not just sequential)
+    - Be 100% deterministic: same (Grid, ShipScript) → identical state history
+
+    Architecture:
+      FIXED behavior (entirely scripted from input data):
+        - Wave spawning: cells detach based on previous wave completion time
+          (not a fixed schedule — waves with more invaders take longer)
+        - Formation movement: fixed zigzag, speed increases as invaders die
+        - Laser physics: fixed speed upward
+        - Hit detection: automatic intersection check
+        - Health: commit level determines HP (level 1-2=1HP, 3=2HP, 4=3HP)
+
+      CHOREOGRAPHED (ShipScript — the only variable):
+        - Ship position and firing, keyed to frame numbers
+        - Hit timing varies naturally because ship doesn't fire at fixed rate
+        - Choreographer generates script knowing all future invader positions
+
+      Wave spawning timing:
+        - Next wave spawns after current wave is CLEARED (all invaders destroyed)
+        - Wave clear time varies based on invader count and health in that wave
+        - This creates natural pacing — dense commit weeks = longer waves
+  codebase_analysis: |
+    Greenfield. Informed by Platane/snk: same simulate-then-render separation,
+    same GitHub GraphQL query. Our choreographer is analogous to snk's solver.
+  acceptance_criteria:
+    - Project scaffold: pnpm, TypeScript strict, vitest, eslint, prettier
+    - GitHub GraphQL fetcher retrieves contribution data, maps to Grid
+    - Simulation runs entirely headless — no rendering dependency
+    - State history is a complete array of GameState snapshots, one per frame
+    - peek(frame) returns GameState at any frame in O(1) or near-O(1) time
+    - Same (Grid, ShipScript) always produces identical state history
+    - Wave manager groups columns into waves, spawns next wave on previous wave clear
+    - Wave clear time varies naturally based on invader count per wave
+    - Formations move in fixed zigzag, speed increases as invaders are destroyed
+    - ShipScript commands applied at specified frames (move, fire, stop)
+    - Hit timing varies naturally (ship fires per script, not at fixed intervals)
+    - Health tracking per invader based on commit intensity level
+    - Choreographer generates optimal ShipScript from Grid data
+    - End-to-end: Grid → choreographer → simulate → all invaders destroyed
+    - All logic unit tested with fixture data
+  out_of_scope: |
+    Rendering of any kind (Track 2). CSS/SVG (Track 3). GitHub Action (Track 4).
+  technical_notes: |
+    Directory structure:
+      src/
+        types.ts              — all shared types
+        fetcher/
+          graphql.ts          — GitHub GraphQL client
+          parser.ts           — API response → Grid
+        simulator/
+          engine.ts           — runs simulation, produces StateHistory
+          wave-manager.ts     — groups columns, manages spawn-on-clear
+          formation.ts        — zigzag movement, boundary detection
+          combat.ts           — laser physics, hit detection, health
+          choreographer.ts    — generates ShipScript from Grid
+          types.ts            — SimEvent, GameState, ShipScript, StateHistory
+      tests/
+        fixtures/             — sample grids, expected outputs
+
+    Core architecture — simulation as state history:
+
+      StateHistory {
+        frames: GameState[]       // complete snapshot per frame
+        totalFrames: number
+        peek(frame: number): GameState   // random access
+      }
+
+      GameState {
+        frame: number
+        gridCells: CellState[]    // which cells are in grid vs detached
+        formations: FormationState[]
+        ship: ShipState
+        lasers: LaserState[]
+        effects: EffectState[]    // explosions, flashes
+        events: SimEvent[]        // events that occurred THIS frame
+      }
+
+    The simulation pre-computes the ENTIRE state history up front.
+    This is feasible because the game is short (~500-2000 frames).
+    The renderer (Track 2) just calls peek(n) — no simulation runs
+    during rendering. This guarantees determinism and enables instant
+    seeking to any frame.
+
+    Wave spawn timing (completion-based):
+      - Wave 1 spawns at frame 0 (or after brief intro delay)
+      - Wave N+1 spawns K frames after wave N clear event
+        (K = configurable spawn delay, e.g. 30 frames)
+      - Waves with more invaders or higher-HP invaders take longer
+        to clear → next wave spawns later → natural pacing
+
+    ShipScript & choreographer:
+      ShipCommand =
+        | { frame: number, action: 'move', x: number }
+        | { frame: number, action: 'fire' }
+        | { frame: number, action: 'stop' }
+
+      Choreographer algorithm:
+        1. Pre-compute all formation paths (zigzag is deterministic)
+        2. For each invader, find optimal frame to shoot it
+           (consider: ship travel time to align, laser travel time, invader position)
+        3. Schedule move → fire pairs with natural spacing
+           (don't fire at fixed intervals — vary based on target distance)
+        4. Output: ShipScript that destroys every invader
+
+    Coordinate system:
+      Grid area: y = 0 to gridHeight
+      Play area: y = gridHeight + gap to playAreaBottom
+      Ship: near bottom of play area (fixed y)
+      Formations: spawn at top of play area, descend
+plan:
+  - phase: "Project Scaffold"
+    tasks:
+      - text: "Initialize package.json (pnpm, Node 20), tsconfig.json (strict), vitest, eslint, prettier"
+        done: false
+      - text: "Create directory structure: src/types.ts, src/fetcher/, src/simulator/, tests/fixtures/"
+        done: false
+  - phase: "Types & Contribution Fetcher"
+    tasks:
+      - text: "Define all types: Grid, ShipScript, ShipCommand, SimEvent, GameState, StateHistory"
+        done: false
+      - text: "Write tests for fetcher parsing with fixture data"
+        done: false
+      - text: "Implement GraphQL client and response parser (API response → Grid)"
+        done: false
+      - text: "Write tests for fetcher error handling"
+        done: false
+  - phase: "Wave Manager & Formation"
+    tasks:
+      - text: "Write tests for wave manager: column grouping, spawn-on-clear timing, varied wave durations"
+        done: false
+      - text: "Implement wave manager: groups columns, spawns next wave after previous clears"
+        done: false
+      - text: "Write tests for formation: zigzag, boundary detection, speed increase on kills"
+        done: false
+      - text: "Implement formation: fixed zigzag per frame, speed scales with remaining invaders"
+        done: false
+  - phase: "Combat & Hit Detection"
+    tasks:
+      - text: "Write tests for laser physics: spawn, travel, despawn on hit/boundary"
+        done: false
+      - text: "Implement laser management"
+        done: false
+      - text: "Write tests for hit detection: intersection, HP reduction, destroy at 0 HP"
+        done: false
+      - text: "Implement hit detection and health tracking"
+        done: false
+  - phase: "Engine, Choreographer & State History"
+    tasks:
+      - text: "Write tests for engine: Grid + ShipScript → StateHistory with correct frame count"
+        done: false
+      - text: "Implement engine: run full simulation, store complete GameState per frame"
+        done: false
+      - text: "Implement peek(frame): O(1) random access to any frame's GameState"
+        done: false
+      - text: "Write tests for choreographer: generates ShipScript that clears all waves"
+        done: false
+      - text: "Implement choreographer: pre-computes invader paths, schedules optimal ship actions"
+        done: false
+      - text: "Write end-to-end test: fixture Grid → choreographer → engine → all invaders destroyed"
+        done: false
+      - text: "Write determinism test: same inputs produce identical StateHistory across runs"
+        done: false
+extra: {}

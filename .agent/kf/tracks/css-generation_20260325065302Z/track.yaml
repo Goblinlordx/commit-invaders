@@ -1,0 +1,139 @@
+id: css-generation_20260325065302Z
+title: "Inflection Extraction, CSS Generation & Automated Visual Validation"
+type: feature
+status: pending
+created: 2026-03-25
+updated: 2026-03-25
+spec:
+  summary: |
+    Transform StateHistory into optimized CSS animations. Extract inflection
+    points (direction changes) from state history, generate shared @keyframes
+    templates with per-element CSS variables, compose final animated SVG with
+    sprites and palettes, and validate with Playwright visual regression
+    comparing CSS SVG against simulation renderer screenshots.
+  context: |
+    Pipeline: StateHistory → inflection extraction → CSS keyframes → SVG
+
+    Data-driven CSS: ~15 shared @keyframes templates parameterized by CSS
+    custom properties, plus ~1 formation keyframe per wave. Total ~25 rules
+    vs Platane/snk's ~370. Formations animate as <g> groups.
+
+    Validation:
+    1. Human already accepted simulation renderer output (Track 2)
+    2. Playwright captures simulation renderer at key frames via seekToFrame()
+    3. Playwright freezes CSS SVG at equivalent time via negative animation-delay
+    4. Pixel diff comparison at inflection points — automated, runs in CI
+  codebase_analysis: |
+    Builds on Track 1 (StateHistory with peek()) and Track 2 (seekable renderer).
+    CSS seek via negative animation-delay is a well-known technique.
+  acceptance_criteria:
+    - Inflection extractor collapses same-direction movement to 2 endpoints
+    - Shared @keyframes for detach, transform, explode, laser (defined once)
+    - Per-wave formation @keyframes from inflection points
+    - Per-element CSS custom properties as style attributes
+    - Formation movement via <g> group animation
+    - Total keyframe rules under 30 for 10-wave game
+    - 3+ invader sprite variants as SVG symbols
+    - Ship, laser, explosion sprites
+    - Light/dark palettes via prefers-color-scheme
+    - Valid SVG compositor output
+    - CSS SVG seekable via negative animation-delay technique
+    - Playwright tests pass: sim renderer vs CSS SVG at inflection frames
+    - Pixel diff under 5% threshold
+    - Seamless loop (frame 0 = final frame)
+    - GitHub-safe SVG (no JS, no external resources)
+  out_of_scope: |
+    GitHub Action (Track 4). GIF output.
+  technical_notes: |
+    Directory structure:
+      src/
+        animation/
+          inflection.ts       — extracts direction changes from StateHistory
+          keyframe-emitter.ts — shared @keyframes CSS
+          data-emitter.ts     — per-element CSS variable style attributes
+          timeline.ts         — frame-to-CSS-percentage mapping
+        renderer/
+          sprites.ts          — SVG symbol definitions
+          palette.ts          — CSS custom property color schemes
+          grid.ts             — contribution grid SVG layout
+          compositor.ts       — assembles complete SVG
+      dev/
+        css-validator/
+          index.html          — side-by-side sim canvas vs CSS SVG
+          controller.ts       — synchronized frame/time seeking
+      tests/
+        visual/
+          simulation-vs-css.spec.ts  — Playwright regression tests
+
+    Inflection extraction:
+      Walks StateHistory frame by frame. For each entity (formation group,
+      ship), detects when movement direction changes. Keeps only the start,
+      end, and turn frames. Maps frame numbers to CSS percentages.
+
+    CSS seek for Playwright:
+      .seek-mode svg * {
+        animation-play-state: paused !important;
+        animation-delay: calc(-1 * var(--seek-time)) !important;
+      }
+      Playwright sets --seek-time to freeze SVG at any point.
+
+    Playwright test flow:
+      1. Load css-validator page
+      2. Get inflection frames from simulation
+      3. For each frame: seekToFrame on sim, seekToTime on CSS
+      4. Screenshot both, pixel-diff compare
+      5. Assert threshold < 5%
+plan:
+  - phase: "Inflection Extraction"
+    tasks:
+      - text: "Write tests: consecutive same-direction frames collapse to 2 endpoints"
+        done: false
+      - text: "Write tests: edge cases (single-frame, immediate reversal, stationary)"
+        done: false
+      - text: "Implement inflection extractor from StateHistory"
+        done: false
+      - text: "Write tests for timeline mapper: frame-to-CSS-percentage"
+        done: false
+      - text: "Implement timeline mapper"
+        done: false
+  - phase: "CSS Keyframe Generation"
+    tasks:
+      - text: "Write tests for shared keyframe templates (detach, transform, explode, laser)"
+        done: false
+      - text: "Implement shared keyframe template emitter"
+        done: false
+      - text: "Write tests for per-wave formation keyframes from inflection points"
+        done: false
+      - text: "Implement per-wave formation keyframe generator"
+        done: false
+      - text: "Write tests for per-element data emitter (CSS variable style attributes)"
+        done: false
+      - text: "Implement data emitter"
+        done: false
+  - phase: "Sprites, Palette & SVG Compositor"
+    tasks:
+      - text: "Design 3+ invader sprite variants as SVG symbols"
+        done: false
+      - text: "Implement ship, laser, explosion sprites"
+        done: false
+      - text: "Implement light/dark palettes with prefers-color-scheme"
+        done: false
+      - text: "Write tests for SVG compositor (valid structure)"
+        done: false
+      - text: "Implement SVG compositor"
+        done: false
+  - phase: "Playwright Visual Validation"
+    tasks:
+      - text: "Add Playwright, configure playwright.config.ts"
+        done: false
+      - text: "Build dev/css-validator: side-by-side sim canvas + CSS SVG with sync seeking"
+        done: false
+      - text: "Implement CSS seek controller (negative animation-delay technique)"
+        done: false
+      - text: "Write Playwright test: screenshot sim + CSS at all inflection frames, pixel diff"
+        done: false
+      - text: "Write Playwright test: seamless loop (frame 0 matches final frame)"
+        done: false
+      - text: "Verify all tests pass headless in CI"
+        done: false
+extra: {}

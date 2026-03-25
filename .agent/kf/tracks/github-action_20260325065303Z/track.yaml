@@ -1,0 +1,67 @@
+id: github-action_20260325065303Z
+title: "GitHub Action — Delivery, packaging & documentation"
+type: feature
+status: pending
+created: 2026-03-25
+updated: 2026-03-25
+spec:
+  summary: |
+    Package the validated pipeline as a GitHub Action: action.yml, entrypoint,
+    bundling, output branch management, reduced-motion fallback, and README.
+  context: |
+    Everything works locally and is validated by both human review and
+    automated Playwright tests. This track is purely packaging and docs.
+  codebase_analysis: |
+    Follows Platane/snk node20 SVG-only pattern.
+  acceptance_criteria:
+    - action.yml with inputs (github_user_name, github_token, output_branch, animation_duration, waves_per_week)
+    - node20 runtime
+    - Full pipeline orchestration in entrypoint
+    - Animated SVG with embedded light/dark palette
+    - Reduced-motion static SVG fallback
+    - Output branch creation, SVG commit, push
+    - tsup bundle to dist/index.js
+    - Example workflow YAML
+    - README with preview, setup, config table, picture tag
+    - End-to-end test in workflow
+  out_of_scope: |
+    Marketplace publishing. GIF output. Web demo.
+  technical_notes: |
+    See previous track version — unchanged. Execution flow:
+    fetch → choreographer → simulate → extract inflections → CSS → SVG → write → push
+plan:
+  - phase: "Action Entrypoint"
+    tasks:
+      - text: "Write tests for input parsing"
+        done: false
+      - text: "Implement input parser"
+        done: false
+      - text: "Implement action entrypoint orchestrating full pipeline"
+        done: false
+  - phase: "Output Management"
+    tasks:
+      - text: "Write tests for output branch logic"
+        done: false
+      - text: "Implement output writer (branch, commit, push)"
+        done: false
+      - text: "Implement reduced-motion static SVG"
+        done: false
+  - phase: "Bundling & Definition"
+    tasks:
+      - text: "Configure tsup bundle"
+        done: false
+      - text: "Create action.yml"
+        done: false
+      - text: "Create example workflow"
+        done: false
+  - phase: "Documentation & Verification"
+    tasks:
+      - text: "Write README.md"
+        done: false
+      - text: "Run action end-to-end"
+        done: false
+      - text: "Verify SVGs in GitHub README"
+        done: false
+      - text: "All tests pass, lint clean, bundle builds"
+        done: false
+extra: {}
