@@ -78,7 +78,7 @@ Options:
 | `github_user_name` | Yes | — | GitHub username |
 | `output_branch` | No | `output` | Branch to commit SVG to |
 | `output_file` | No | `commit-invaders.svg` | Output filename |
-| `enable_scoreboard` | No | `true` | Show high score board |
+| `enable_scoreboard` | No | `true` | Show high score board (requires token with `read:user` scope and private contribution access) |
 | `weeks_per_wave` | No | `4` | Weeks grouped per invader wave |
 
 ## Action Outputs
