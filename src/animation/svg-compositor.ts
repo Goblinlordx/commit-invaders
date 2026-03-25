@@ -36,6 +36,67 @@ import {
 
 const RENDER_MARGIN = 10
 
+/**
+ * Build a CSS @keyframes string with proper bookended visibility windows.
+ * Each window is a [showPct, hidePct] pair where the element is visible.
+ * CSS interpolates between stops, so we need explicit opacity:0 stops
+ * on BOTH sides of every gap to prevent gradual fade-in/out.
+ *
+ * @param name - Keyframe name
+ * @param windows - Array of [showPct, hidePct] visibility windows (0-100)
+ * @param extraStops - Optional additional stops (e.g., transform) keyed by percent
+ */
+function visibilityKeyframes(
+  name: string,
+  windows: [number, number][],
+  extraStops?: Map<number, string>,
+): string {
+  // Collect all percent→opacity entries
+  const stops = new Map<number, number>()
+  const EPSILON = 0.01
+
+  // Determine if any window touches the boundaries
+  let startsAt0 = false
+  let endsAt100 = false
+
+  for (const [show, hide] of windows) {
+    if (show <= EPSILON) startsAt0 = true
+    if (hide >= 100 - EPSILON) endsAt100 = true
+  }
+
+  // Start hidden (unless a window starts at 0)
+  if (!startsAt0) stops.set(0, 0)
+
+  for (const [show, hide] of windows) {
+    // Just before show: ensure hidden
+    const beforeShow = Math.max(0, show - EPSILON)
+    if (!stops.has(beforeShow) && show > EPSILON) stops.set(beforeShow, 0)
+    // Show
+    stops.set(show, 1)
+    // Hold visible until hide
+    stops.set(hide, 1)
+    // Just after hide: hidden
+    if (hide < 100 - EPSILON) {
+      const afterHide = Math.min(100, hide + EPSILON)
+      if (!stops.has(afterHide)) stops.set(afterHide, 0)
+    }
+  }
+
+  // End hidden (unless a window ends at 100)
+  if (!endsAt100) stops.set(100, 0)
+
+  // Merge and sort
+  const sorted = [...stops.entries()].sort((a, b) => a[0] - b[0])
+
+  // Build stops with optional extra properties
+  const lines = sorted.map(([pct, opacity]) => {
+    const extra = extraStops?.get(pct) ?? ''
+    return `  ${pct.toFixed(2)}% { opacity: ${opacity};${extra ? ' ' + extra : ''} }`
+  })
+
+  return `@keyframes ${name} {\n${lines.join('\n')}\n}`
+}
+
 function simToScreen(simX: number, simY: number, config: SimConfig): { sx: number; sy: number } {
   return {
     sx: RENDER_MARGIN + config.playArea.height - simY,
@@ -163,13 +224,15 @@ export function composeSvg(options: CompositeSvgOptions): string {
     const despawnPct = frameToPercent(cd.hatchCompleteTime * fps, output.totalFrames)
 
     const kfStops = [
-      `${Math.max(0, pluckPct - 0.01).toFixed(2)}% { opacity: 0; transform: translate(${gridCenterX}px, ${gridCenterY}px); width: ${config.cellSize}px; height: ${config.cellSize}px; }`,
+      `0.00% { opacity: 0; }`,
+      `${Math.max(0, pluckPct - 0.01).toFixed(2)}% { opacity: 0; transform: translate(${gridCenterX}px, ${gridCenterY}px); }`,
       `${pluckPct.toFixed(2)}% { opacity: 1; transform: translate(${gridCenterX}px, ${gridCenterY}px); fill: ${PLUCK_COLOR}; }`,
       `${travelStartPct.toFixed(2)}% { transform: translate(${gridCenterX}px, ${gridCenterY}px); fill: ${PLUCK_COLOR}; }`,
       `${travelEndPct.toFixed(2)}% { transform: translate(${cd.targetScreenX}px, ${cd.targetScreenY}px); fill: ${PLUCK_COLOR}; }`,
       `${hatchStartPct.toFixed(2)}% { transform: translate(${cd.targetScreenX}px, ${cd.targetScreenY}px); fill: ${INVADER_COLOR}; }`,
       `${Math.min(100, despawnPct).toFixed(2)}% { transform: translate(${cd.targetScreenX}px, ${cd.targetScreenY}px); fill: ${INVADER_COLOR}; opacity: 1; }`,
       `${Math.min(100, despawnPct + 0.01).toFixed(2)}% { opacity: 0; }`,
+      `100.00% { opacity: 0; }`,
     ]
 
     cssRules.push(`@keyframes ${cellKfName} {\n  ${kfStops.join('\n  ')}\n}`)
@@ -212,12 +275,7 @@ export function composeSvg(options: CompositeSvgOptions): string {
       const destroyPct = destroyIp ? frameToPercent(destroyIp.frame, output.totalFrames) : clearPct
 
       const invKfName = `inv-${inv.id.replace(/[^a-z0-9]/g, '-')}`
-      cssRules.push(`@keyframes ${invKfName} {
-  ${Math.max(0, spawnPct - 0.01).toFixed(2)}% { opacity: 0; }
-  ${spawnPct.toFixed(2)}% { opacity: 1; }
-  ${Math.min(100, destroyPct).toFixed(2)}% { opacity: 1; }
-  ${Math.min(100, destroyPct + 0.01).toFixed(2)}% { opacity: 0; }
-}`)
+      cssRules.push(visibilityKeyframes(invKfName, [[spawnPct, Math.min(100, destroyPct)]]))
 
       invaderElements.push(
         `<rect x="${sx - half}" y="${sy - half}" width="${config.invaderSize}" height="${config.invaderSize}" ` +
@@ -238,12 +296,10 @@ export function composeSvg(options: CompositeSvgOptions): string {
     const despawnPct = (ld.despawnTime / dur) * 100
     const laserKfName = `lsr-${ld.laserId.replace(/[^a-z0-9]/g, '-')}`
 
-    cssRules.push(`@keyframes ${laserKfName} {
-  ${Math.max(0, spawnPct - 0.01).toFixed(2)}% { opacity: 0; transform: translateX(0); }
-  ${spawnPct.toFixed(2)}% { opacity: 1; transform: translateX(0); }
-  ${Math.min(100, despawnPct).toFixed(2)}% { opacity: 1; transform: translateX(${ld.despawnDistance.toFixed(1)}px); }
-  ${Math.min(100, despawnPct + 0.01).toFixed(2)}% { opacity: 0; }
-}`)
+    const laserExtra = new Map<number, string>()
+    laserExtra.set(spawnPct, `transform: translateX(0);`)
+    laserExtra.set(Math.min(100, despawnPct), `transform: translateX(${ld.despawnDistance.toFixed(1)}px);`)
+    cssRules.push(visibilityKeyframes(laserKfName, [[spawnPct, Math.min(100, despawnPct)]], laserExtra))
 
     const half = config.laserWidth / 2
     elements.push(
@@ -320,12 +376,7 @@ export function composeSvg(options: CompositeSvgOptions): string {
     const endPct = frameToPercent(labelEnd, output.totalFrames)
 
     const waveLabelKf = `wave-label-${wi}`
-    cssRules.push(`@keyframes ${waveLabelKf} {
-  ${Math.max(0, startPct - 0.01).toFixed(2)}% { opacity: 0; }
-  ${startPct.toFixed(2)}% { opacity: 1; }
-  ${endPct.toFixed(2)}% { opacity: 1; }
-  ${Math.min(100, endPct + 0.01).toFixed(2)}% { opacity: 0; }
-}`)
+    cssRules.push(visibilityKeyframes(waveLabelKf, [[startPct, endPct]]))
     elements.push(
       `<text x="${screenW / 2}" y="${gameAreaH / 2}" text-anchor="middle" dominant-baseline="middle" ` +
       `font-family="monospace" font-weight="bold" font-size="16" fill="#e6edf3" opacity="0" ` +
@@ -395,12 +446,7 @@ export function composeSvg(options: CompositeSvgOptions): string {
     // Clamp to ending fadeout
     if (startPct >= frameToPercent(endingFadeoutEnd, output.totalFrames)) continue
     const kfName = `score-${i}`
-    cssRules.push(`@keyframes ${kfName} {
-  ${Math.max(0, startPct - 0.01).toFixed(2)}% { opacity: 0; }
-  ${startPct.toFixed(2)}% { opacity: 1; }
-  ${endPct.toFixed(2)}% { opacity: 1; }
-  ${Math.min(100, endPct + 0.01).toFixed(2)}% { opacity: 0; }
-}`)
+    cssRules.push(visibilityKeyframes(kfName, [[startPct, endPct]]))
     elements.push(
       `<text x="${screenW - 8}" y="${statusY}" text-anchor="end" dominant-baseline="middle" ` +
       `font-family="monospace" font-weight="bold" font-size="12" fill="#39d353" opacity="0" ` +
@@ -416,12 +462,7 @@ export function composeSvg(options: CompositeSvgOptions): string {
     : output.totalFrames
   const readyStartPct = 0
   const readyEndPct = frameToPercent(firstWaveLifecycleStart, output.totalFrames)
-  cssRules.push(`@keyframes status-ready-start {
-  0% { opacity: 1; }
-  ${readyEndPct.toFixed(2)}% { opacity: 1; }
-  ${Math.min(100, readyEndPct + 0.01).toFixed(2)}% { opacity: 0; }
-  100% { opacity: 0; }
-}`)
+  cssRules.push(visibilityKeyframes('status-ready-start', [[0, readyEndPct]]))
   elements.push(
     `<text x="8" y="${statusY}" dominant-baseline="middle" ` +
     `font-family="monospace" font-size="11" fill="#8b949e" ` +
@@ -439,12 +480,7 @@ export function composeSvg(options: CompositeSvgOptions): string {
     const spawnPct = frameToPercent(spawnFrame, output.totalFrames)
     const endPct = frameToPercent(endFrame, output.totalFrames)
     const waveKf = `status-wave-${wi}`
-    cssRules.push(`@keyframes ${waveKf} {
-  ${Math.max(0, spawnPct - 0.01).toFixed(2)}% { opacity: 0; }
-  ${spawnPct.toFixed(2)}% { opacity: 1; }
-  ${endPct.toFixed(2)}% { opacity: 1; }
-  ${Math.min(100, endPct + 0.01).toFixed(2)}% { opacity: 0; }
-}`)
+    cssRules.push(visibilityKeyframes(waveKf, [[spawnPct, endPct]]))
     elements.push(
       `<text x="8" y="${statusY}" dominant-baseline="middle" ` +
       `font-family="monospace" font-size="11" fill="#8b949e" opacity="0" ` +
@@ -456,20 +492,14 @@ export function composeSvg(options: CompositeSvgOptions): string {
   if (gameEndEvent) {
     const resetStartPct = resetRestorePct
     const resetEndPct = Math.min(100, resetRestorePct + (2.5 / dur) * 100)
-    cssRules.push(`@keyframes status-ready-reset {
-  ${Math.max(0, resetStartPct - 0.01).toFixed(2)}% { opacity: 0; }
-  ${resetEndPct.toFixed(2)}% { opacity: 1; }
-}`)
+    cssRules.push(visibilityKeyframes('status-ready-reset', [[resetEndPct, 100]]))
     elements.push(
       `<text x="8" y="${statusY}" dominant-baseline="middle" ` +
       `font-family="monospace" font-size="11" fill="#8b949e" opacity="0" ` +
       `style="animation: status-ready-reset ${dur}s linear infinite">READY</text>`
     )
     // "0 COMMITS" during reset
-    cssRules.push(`@keyframes status-score-reset {
-  ${Math.max(0, resetStartPct - 0.01).toFixed(2)}% { opacity: 0; }
-  ${resetEndPct.toFixed(2)}% { opacity: 1; }
-}`)
+    cssRules.push(visibilityKeyframes('status-score-reset', [[resetEndPct, 100]]))
     elements.push(
       `<text x="${screenW - 8}" y="${statusY}" text-anchor="end" dominant-baseline="middle" ` +
       `font-family="monospace" font-weight="bold" font-size="12" fill="#39d353" opacity="0" ` +
@@ -494,12 +524,9 @@ export function composeSvg(options: CompositeSvgOptions): string {
     const scoreEndPct = frameToPercent(scoreEndFrame, output.totalFrames)
     const scoreOutPct = frameToPercent(scoreOutEndFrame, output.totalFrames)
     const scoreKf = 'ending-score-text'
-    cssRules.push(`@keyframes ${scoreKf} {
-  ${Math.max(0, scoreStartPct - 0.01).toFixed(2)}% { opacity: 0; }
-  ${(scoreStartPct + (scoreEndPct - scoreStartPct) * 0.15).toFixed(2)}% { opacity: 1; }
-  ${scoreEndPct.toFixed(2)}% { opacity: 1; }
-  ${scoreOutPct.toFixed(2)}% { opacity: 0; }
-}`)
+    // Fade in over first 15% of score phase, then hold, then fade out
+    const scoreFadeInPct = scoreStartPct + (scoreEndPct - scoreStartPct) * 0.15
+    cssRules.push(visibilityKeyframes(scoreKf, [[scoreFadeInPct, scoreEndPct]]))
     const scoreText = `${fmtScore(finalScore)} COMMITS`
     elements.push(
       `<g style="animation: wiggle-score 0.6s ease-in-out infinite">` +
@@ -514,12 +541,8 @@ export function composeSvg(options: CompositeSvgOptions): string {
       const boardHoldPct = frameToPercent(boardEndFrame, output.totalFrames)
       const boardFadePct = frameToPercent(boardEndFrame + wc.endingBlackoutDuration, output.totalFrames)
       const boardKf = 'ending-board'
-      cssRules.push(`@keyframes ${boardKf} {
-  ${Math.max(0, boardStartPct - 0.01).toFixed(2)}% { opacity: 0; }
-  ${frameToPercent(boardInFrame + wc.endingBoardInDuration, output.totalFrames).toFixed(2)}% { opacity: 1; }
-  ${boardHoldPct.toFixed(2)}% { opacity: 1; }
-  ${Math.min(100, boardFadePct).toFixed(2)}% { opacity: 0; }
-}`)
+      const boardVisiblePct = frameToPercent(boardInFrame + wc.endingBoardInDuration, output.totalFrames)
+      cssRules.push(visibilityKeyframes(boardKf, [[boardVisiblePct, boardHoldPct]]))
 
       const boardElements: string[] = []
       boardElements.push(
@@ -564,11 +587,7 @@ export function composeSvg(options: CompositeSvgOptions): string {
     const blackoutFullPct = frameToPercent(blackoutEndFrame, output.totalFrames)
     const resetDonePct = frameToPercent(resetEndFrame, output.totalFrames)
     const blackoutKf = 'ending-blackout'
-    cssRules.push(`@keyframes ${blackoutKf} {
-  ${Math.max(0, blackoutStartPct - 0.01).toFixed(2)}% { opacity: 0; }
-  ${blackoutFullPct.toFixed(2)}% { opacity: 1; }
-  ${Math.min(100, resetDonePct).toFixed(2)}% { opacity: 0; }
-}`)
+    cssRules.push(visibilityKeyframes(blackoutKf, [[blackoutFullPct, Math.min(100, resetDonePct)]]))
     elements.push(
       `<rect x="0" y="0" width="${screenW}" height="${screenH}" fill="#000000" opacity="0" ` +
       `style="animation: ${blackoutKf} ${dur}s linear infinite" />`
