@@ -42,6 +42,8 @@ function makeConfig(overrides: Partial<SimConfig> = {}): SimConfig {
     hitChance: 0.85,
     fireRate: 1000,
     shipYRange: 0,
+    formationSpread: 0,
+    formationRowStagger: 0,
     ...overrides,
   }
 }

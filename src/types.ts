@@ -226,6 +226,8 @@ export interface SimConfig {
   hitChance: number // 0-1, probability each shot is a hit vs miss
   fireRate: number // shots per second — minimum time between shots = 1/fireRate
   shipYRange: number // px the ship can move along fire axis from shipY (0 = fixed)
+  formationSpread: number // px extra gap between invaders in formation (0 = grid-tight)
+  formationRowStagger: number // px horizontal offset per row (0 = aligned, creates zigzag)
 }
 
 // ── PRNG ──

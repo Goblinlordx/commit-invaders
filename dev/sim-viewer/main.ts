@@ -46,7 +46,9 @@ function defaultConfig(): SimConfig {
     formationRowDrop: STRIDE,
     hitChance: 0.85,
     fireRate: 3, // 3 shots per second
-    shipYRange: 30, // ship can drift 30px along fire axis
+    shipYRange: 30,
+    formationSpread: 2, // 2px extra gap between invaders
+    formationRowStagger: 3, // 3px offset per row for zigzag look
   }
 }
 
@@ -127,6 +129,8 @@ const TUNING_PARAMS: TuningParam[] = [
   { key: 'hitChance', label: 'Hit Chance', min: 0.1, max: 1.0, step: 0.05 },
   { key: 'fireRate', label: 'Fire Rate', min: 1, max: 20, step: 1 },
   { key: 'shipYRange', label: 'Ship Y Range', min: 0, max: 100, step: 5 },
+  { key: 'formationSpread', label: 'Spread', min: 0, max: 20, step: 1 },
+  { key: 'formationRowStagger', label: 'Row Stagger', min: 0, max: 15, step: 1 },
   { key: 'framesPerSecond', label: 'Sim FPS', min: 10, max: 120, step: 5 },
 ]
 

@@ -231,11 +231,23 @@ export function simulate(
 ): SimOutput {
   const prng = createPRNG(seed)
   const dt = 1 / config.framesPerSecond
+  const stride = config.cellSize + config.cellGap
+  const formationStride = stride + config.formationSpread
   const formationConfig = {
     baseSpeed: config.formationBaseSpeed,
     maxSpeed: config.formationMaxSpeed,
     rowDrop: config.formationRowDrop,
     dt,
+  }
+
+  /** Compute invader formation position from cell coordinates. */
+  function invaderPosition(cellX: number, cellY: number, minCol: number): Position {
+    const col = cellX - minCol
+    const staggerX = cellY * config.formationRowStagger
+    return {
+      x: config.gridArea.x + col * formationStride + staggerX,
+      y: config.gridArea.y + cellY * formationStride,
+    }
   }
 
   const allEvents: SimEvent[] = []
@@ -407,10 +419,7 @@ export function simulate(
           const invaders: InvaderState[] = wave.cells.map((w, i) => ({
             id: `inv-w${wave.waveIndex}-${i}`,
             cell: w.cell, hp: w.hp, maxHp: w.hp,
-            position: {
-              x: config.gridArea.x + (w.cell.x - minCol) * (config.cellSize + config.cellGap),
-              y: config.gridArea.y + w.cell.y * (config.cellSize + config.cellGap),
-            },
+            position: invaderPosition(w.cell.x, w.cell.y, minCol),
             destroyed: false, destroyedAtFrame: null,
           }))
           totalInvaders += invaders.length
@@ -426,14 +435,9 @@ export function simulate(
           // Start lifecycle — compute target positions and begin brightening
           pendingWave = wave
           const minCol = wave.cells.reduce((m, w) => Math.min(m, w.cell.x), Infinity)
-          const stride = config.cellSize + config.cellGap
           lifecycleCells = wave.cells.map((w, i) => {
-            // Find matching grid cell index
             const cellIndex = grid.cells.findIndex((c) => c.x === w.cell.x && c.y === w.cell.y)
-            const targetPos: Position = {
-              x: config.gridArea.x + (w.cell.x - minCol) * stride,
-              y: config.gridArea.y + w.cell.y * stride,
-            }
+            const targetPos = invaderPosition(w.cell.x, w.cell.y, minCol)
             if (cellIndex >= 0) {
               gridCellStates[cellIndex]!.targetPosition = { ...targetPos }
             }
@@ -728,6 +732,13 @@ function replayToFrame(grid: Grid, config: SimConfig, frameDecisions: Map<number
   const wm = createWaveManager(grid, config.waveConfig)
   const replayDt = 1 / config.framesPerSecond
   const fc = { baseSpeed: config.formationBaseSpeed, maxSpeed: config.formationMaxSpeed, rowDrop: config.formationRowDrop, dt: replayDt }
+  const replayFormStride = config.cellSize + config.cellGap + config.formationSpread
+  function replayInvPos(cellX: number, cellY: number, minCol: number): Position {
+    return {
+      x: config.gridArea.x + (cellX - minCol) * replayFormStride + cellY * config.formationRowStagger,
+      y: config.gridArea.y + cellY * replayFormStride,
+    }
+  }
   let score = 0, totalInvaders = 0, laserCounter = 0, lasers: LaserState[] = []
   const formations: Formation[] = []
   const ship: ShipState = { position: { x: config.playArea.width / 2, y: config.shipY }, targetX: null }
@@ -738,7 +749,7 @@ function replayToFrame(grid: Grid, config: SimConfig, frameDecisions: Map<number
       const mc = wave.cells.reduce((m, wc) => Math.min(m, wc.cell.x), Infinity)
       const invaders: InvaderState[] = wave.cells.map((wc, i) => ({
         id: `inv-w${wave.waveIndex}-${i}`, cell: wc.cell, hp: wc.hp, maxHp: wc.hp,
-        position: { x: config.gridArea.x + (wc.cell.x - mc) * (config.cellSize + config.cellGap), y: config.gridArea.y + wc.cell.y * (config.cellSize + config.cellGap) },
+        position: replayInvPos(wc.cell.x, wc.cell.y, mc),
         destroyed: false, destroyedAtFrame: null,
       }))
       totalInvaders += invaders.length
