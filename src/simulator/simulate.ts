@@ -316,6 +316,11 @@ function simulateCore(
   let solution: FiringSolution | null = null
   let solveCooldown = 0
 
+  // Ending sequence state
+  let endingPhase: 'none' | 'fadeout' | 'score' | 'hold' | 'blackout' | 'reset' | 'done' = 'none'
+  let endingPhaseStart = 0
+  let endingPhaseFramesLeft = 0
+
   // ── Per-cell staggered lifecycle ──
   interface CellSchedule {
     cellIndex: number
@@ -350,11 +355,34 @@ function simulateCore(
       if (anyHatching) return 'hatching'
       return 'hatching'
     }
+    // Ending phases
+    const endingPhaseMap: Record<string, import('../types.js').WavePhase> = {
+      fadeout: 'ending_fadeout', score: 'ending_score', hold: 'ending_hold',
+      blackout: 'ending_blackout', reset: 'ending_reset',
+    }
+    if (endingPhase !== 'none' && endingPhase !== 'done') {
+      return endingPhaseMap[endingPhase] ?? 'idle'
+    }
+
     if (formations.some((f) => f.getState().active)) return 'active'
     return 'idle'
   }
 
   function getWavePhaseProgress(): number {
+    // Ending phase progress
+    if (endingPhase !== 'none' && endingPhase !== 'done') {
+      const durations: Record<string, number> = {
+        fadeout: config.waveConfig.endingFadeoutDuration,
+        score: config.waveConfig.endingScoreDuration,
+        hold: config.waveConfig.endingHoldDuration,
+        blackout: config.waveConfig.endingBlackoutDuration,
+        reset: config.waveConfig.endingResetDuration,
+      }
+      const total = durations[endingPhase] ?? 1
+      if (total === 0) return 1
+      return 1 - endingPhaseFramesLeft / total
+    }
+
     if (pendingWave === null) return 0
     if (lifecycleEndFrame <= brightenStartFrame) return 0
     const elapsed = totalFrames - brightenStartFrame
@@ -780,11 +808,35 @@ function simulateCore(
 
     totalFrames = frame + 1
 
+    // Ending sequence
     const allSpawned = formations.length === simWM.totalWaves
     const allCleared = allSpawned && formations.length > 0 && formations.every((f) => !f.getState().active)
-    if (allCleared) {
-      allEvents.push({ frame, type: 'game_end', entityId: 'game', position: { x: 0, y: 0 }, data: { score, totalFrames } })
-      break
+
+    if (allCleared && endingPhase === 'none') {
+      endingPhase = 'fadeout'
+      endingPhaseStart = frame
+      endingPhaseFramesLeft = wc.endingFadeoutDuration
+      allEvents.push({ frame, type: 'game_end', entityId: 'game', position: { x: 0, y: 0 }, data: { score, totalFrames: frame } })
+    }
+
+    if (endingPhase !== 'none') {
+      endingPhaseFramesLeft--
+      if (endingPhaseFramesLeft <= 0) {
+        const transitions: Array<[string, string, number]> = [
+          ['fadeout', 'score', wc.endingScoreDuration],
+          ['score', 'hold', wc.endingHoldDuration],
+          ['hold', 'blackout', wc.endingBlackoutDuration],
+          ['blackout', 'reset', wc.endingResetDuration],
+          ['reset', 'done', 0],
+        ]
+        const t = transitions.find(([from]) => from === endingPhase)
+        if (t) {
+          endingPhase = t[1] as typeof endingPhase
+          endingPhaseStart = frame
+          endingPhaseFramesLeft = t[2]!
+        }
+      }
+      if ((endingPhase as string) === 'done') break
     }
   }
 

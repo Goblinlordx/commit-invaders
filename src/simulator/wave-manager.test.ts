@@ -34,6 +34,11 @@ const defaultConfig: WaveConfig = {
   darkenDuration: 0,
   travelDuration: 0,
   hatchDuration: 0,
+  endingFadeoutDuration: 0,
+  endingScoreDuration: 0,
+  endingHoldDuration: 0,
+  endingBlackoutDuration: 0,
+  endingResetDuration: 0,
 }
 
 describe('WaveManager', () => {

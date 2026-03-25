@@ -181,15 +181,21 @@ export function renderFrame(
     ctx.fillRect(sx - laserHalf, sy - laserHalf, config.laserWidth, config.laserWidth)
   }
 
-  // Ship
-  const { sx: shipSx, sy: shipSy } = simToScreen(
-    state.ship.position.x,
-    state.ship.position.y,
-    config,
-  )
-  const shipHalf = config.invaderSize / 2
-  ctx.fillStyle = SHIP_COLOR
-  ctx.fillRect(shipSx - shipHalf, shipSy - shipHalf, config.invaderSize, config.invaderSize)
+  // Ship (fades during ending)
+  const isEnding = phase.startsWith('ending_')
+  const shipAlpha = phase === 'ending_fadeout' ? 1 - state.wavePhaseProgress : (isEnding ? 0 : 1)
+  if (shipAlpha > 0.01) {
+    const { sx: shipSx, sy: shipSy } = simToScreen(
+      state.ship.position.x,
+      state.ship.position.y,
+      config,
+    )
+    const shipHalf = config.invaderSize / 2
+    ctx.globalAlpha = shipAlpha
+    ctx.fillStyle = SHIP_COLOR
+    ctx.fillRect(shipSx - shipHalf, shipSy - shipHalf, config.invaderSize, config.invaderSize)
+    ctx.globalAlpha = 1
+  }
 
   // Wave label overlay (center, during transition phases)
   const showWaveLabel = phase === 'brightening' || phase === 'plucking' || phase === 'darkening' || phase === 'traveling' || phase === 'hatching'
@@ -206,6 +212,50 @@ export function renderFrame(
       gameAreaH / 2,
     )
     ctx.restore()
+  }
+
+  // Ending: score text with wiggling characters
+  const showScore = phase === 'ending_score' || phase === 'ending_hold' || phase === 'ending_blackout'
+  if (showScore) {
+    const gameAreaH = config.playArea.width + RENDER_MARGIN * 2
+    const centerX = screen.width / 2
+    const centerY = gameAreaH / 2
+    const scoreAlpha = phase === 'ending_score' ? state.wavePhaseProgress : (phase === 'ending_blackout' ? 1 - state.wavePhaseProgress : 1)
+
+    ctx.save()
+    ctx.globalAlpha = scoreAlpha
+    ctx.font = 'bold 18px monospace'
+    ctx.textAlign = 'center'
+    ctx.textBaseline = 'middle'
+
+    const text = `${state.score} COMMITS DESTROYED`
+    const charWidth = 11 // approximate monospace char width
+    const totalWidth = text.length * charWidth
+    const startX = centerX - totalWidth / 2
+
+    for (let i = 0; i < text.length; i++) {
+      // Wiggle: each character bobs up/down with staggered phase
+      const wigglePhase = (state.frame * 0.08 + i * 0.5) % (Math.PI * 2)
+      const wiggleY = Math.sin(wigglePhase) * 3
+
+      ctx.fillStyle = '#39d353'
+      ctx.fillText(text[i]!, startX + i * charWidth, centerY + wiggleY)
+    }
+
+    ctx.globalAlpha = 1
+    ctx.restore()
+  }
+
+  // Ending: blackout overlay
+  if (phase === 'ending_blackout') {
+    ctx.fillStyle = `rgba(0, 0, 0, ${state.wavePhaseProgress})`
+    ctx.fillRect(0, 0, screen.width, screen.height)
+  }
+
+  // Ending: reset — fade from black to initial state
+  if (phase === 'ending_reset') {
+    ctx.fillStyle = `rgba(0, 0, 0, ${1 - state.wavePhaseProgress})`
+    ctx.fillRect(0, 0, screen.width, screen.height)
   }
 
   // Status bar (bottom)

@@ -26,7 +26,7 @@ function makeGrid(cells: ContributionCell[]): Grid {
 function makeConfig(overrides: Partial<SimConfig> = {}): SimConfig {
   return {
     framesPerSecond: 1, // dt=1 — keeps legacy test values (speed in px/frame)
-    waveConfig: { weeksPerWave: 4, spawnDelay: 10, brightenDuration: 0, pluckDuration: 0, darkenDuration: 0, travelDuration: 0, hatchDuration: 0 },
+    waveConfig: { weeksPerWave: 4, spawnDelay: 10, brightenDuration: 0, pluckDuration: 0, darkenDuration: 0, travelDuration: 0, hatchDuration: 0, endingFadeoutDuration: 0, endingScoreDuration: 0, endingHoldDuration: 0, endingBlackoutDuration: 0, endingResetDuration: 0 },
     playArea: { x: 0, y: 0, width: 300, height: 400 },
     gridArea: { x: 10, y: 10, width: 280, height: 100 },
     cellSize: 11,

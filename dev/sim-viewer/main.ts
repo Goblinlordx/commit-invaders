@@ -31,6 +31,9 @@ function defaultConfig(): SimConfig {
       weeksPerWave: 4, spawnDelay: 0, // no extra delay — lifecycle IS the transition
       brightenDuration: 30, pluckDuration: 20, darkenDuration: 20,
       travelDuration: 40, hatchDuration: 20,
+      endingFadeoutDuration: 60, endingScoreDuration: 30,
+      endingHoldDuration: 180, endingBlackoutDuration: 60,
+      endingResetDuration: 60,
     },
     playArea: { x: 0, y: 0, width: gridW, height: gridH + shipMargin },
     gridArea: { x: PADDING, y: 0, width: 7 * STRIDE, height: gridH },
@@ -153,6 +156,12 @@ const TUNING_PARAMS: TuningParam[] = [
   { key: 'waveConfig.travelDuration', label: 'Travel', min: 0, max: 120, step: 5 },
   { key: 'waveConfig.hatchDuration', label: 'Hatch', min: 0, max: 120, step: 5 },
   { key: 'waveConfig.spawnDelay', label: 'Wave Delay', min: 0, max: 300, step: 10 },
+  // Ending sequence
+  { key: 'waveConfig.endingFadeoutDuration', label: 'End Fade', min: 0, max: 120, step: 10 },
+  { key: 'waveConfig.endingScoreDuration', label: 'Score In', min: 0, max: 120, step: 10 },
+  { key: 'waveConfig.endingHoldDuration', label: 'Score Hold', min: 30, max: 600, step: 30 },
+  { key: 'waveConfig.endingBlackoutDuration', label: 'Blackout', min: 0, max: 120, step: 10 },
+  { key: 'waveConfig.endingResetDuration', label: 'Reset', min: 0, max: 120, step: 10 },
 ]
 
 function buildTuningPanel(): void {
