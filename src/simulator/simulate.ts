@@ -446,15 +446,12 @@ function simulateCore(
         ;[targets[i], targets[j]] = [targets[j]!, targets[i]!]
       }
 
-      // Only target invaders not already locked by an in-flight laser
+      // Prefer unlocked targets, but fire at locked ones if all are locked
+      // (keeps the ship shooting constantly to prevent breach)
       const unlocked = targets.filter((t) => !lockedTargets.has(t.id))
-      if (unlocked.length === 0) {
-        // All targets locked — wait for a hit to resolve before firing again
-        solveCooldown = 3
-        return
-      }
+      const available = unlocked.length > 0 ? unlocked : targets
 
-      for (const t of unlocked) {
+      for (const t of available) {
         const sol = solveHit(t, frame, ship.position.x, ship.position.y, config)
         if (sol) {
           solution = sol
