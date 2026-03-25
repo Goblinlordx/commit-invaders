@@ -43,6 +43,7 @@ function defaultConfig(): SimConfig {
 // ── State ──
 let currentConfig = defaultConfig()
 let currentSvgString = ''
+let currentTheme = 'dark'
 let animDuration = 0
 let isPlaying = true
 let playRaf = 0
