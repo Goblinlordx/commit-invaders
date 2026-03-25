@@ -101,30 +101,52 @@ export function renderFrame(
   }
 
   // ── Layer 3: Lifecycle cells (plucked/traveling/hatching) — above overlay, below ship/lasers ──
+  // Invaders are drawn centered on their position. Lifecycle cells must transition
+  // to match: hatching cells end at exact invader position, size, and color.
+  const invHalf = config.invaderSize / 2
+
   for (const gc of state.gridCells) {
     const status = gc.status
     if (status !== 'plucked' && status !== 'traveling' && status !== 'hatching') continue
 
-    let color = PLUCK_COLOR
-    let screenX = gridScreenOffsetX + gc.cell.x * stride
-    let screenY = gridScreenOffsetY + gc.cell.y * stride
+    // Grid position (top-left of cell, like the background grid)
+    const gridX = gridScreenOffsetX + gc.cell.x * stride
+    const gridY = gridScreenOffsetY + gc.cell.y * stride
 
-    if (status === 'traveling' && gc.targetPosition) {
-      const { sx: targetSx, sy: targetSy } = simToScreen(gc.targetPosition.x, gc.targetPosition.y, config)
-      const t = gc.detachProgress
-      screenX = screenX + (targetSx - screenX) * t
-      screenY = screenY + (targetSy - screenY) * t
-    }
-
-    if (status === 'hatching' && gc.targetPosition) {
+    // Target position (centered, like invaders)
+    let targetCenterX = gridX + config.cellSize / 2
+    let targetCenterY = gridY + config.cellSize / 2
+    if (gc.targetPosition) {
       const { sx, sy } = simToScreen(gc.targetPosition.x, gc.targetPosition.y, config)
-      screenX = sx
-      screenY = sy
-      color = HATCH_COLOR
+      targetCenterX = sx
+      targetCenterY = sy
     }
 
-    ctx.fillStyle = color
-    ctx.fillRect(screenX, screenY, config.cellSize, config.cellSize)
+    if (status === 'plucked') {
+      // At grid position, cell size, amber color
+      ctx.fillStyle = PLUCK_COLOR
+      ctx.fillRect(gridX, gridY, config.cellSize, config.cellSize)
+    } else if (status === 'traveling') {
+      // Interpolate position from grid to target (centered)
+      const t = gc.detachProgress
+      const gridCenterX = gridX + config.cellSize / 2
+      const gridCenterY = gridY + config.cellSize / 2
+      const cx = gridCenterX + (targetCenterX - gridCenterX) * t
+      const cy = gridCenterY + (targetCenterY - gridCenterY) * t
+      // Interpolate size from cellSize to invaderSize
+      const size = config.cellSize + (config.invaderSize - config.cellSize) * t
+      const half = size / 2
+      ctx.fillStyle = PLUCK_COLOR
+      ctx.fillRect(cx - half, cy - half, size, size)
+    } else if (status === 'hatching') {
+      // At target position (centered like invaders), transitioning color
+      // detachProgress is 1 during hatch, so use a separate progress
+      // We don't have per-cell hatch progress in CellState, so use
+      // a simple color: HATCH_COLOR (midpoint between amber and red)
+      // Final frame of hatch should be INVADER_COLOR
+      ctx.fillStyle = HATCH_COLOR
+      ctx.fillRect(targetCenterX - invHalf, targetCenterY - invHalf, config.invaderSize, config.invaderSize)
+    }
   }
 
   // Formations (invaders)
