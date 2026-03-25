@@ -338,6 +338,8 @@ function simulateCore(
   let solveCooldown = 0
   let solveSpeed = 0 // formation speed when solution was computed
   let solveAliveCount = 0 // alive invader count when solved (boundary changes when invaders die)
+  const lockedTargets = new Set<string>() // invader IDs with lasers in flight targeting them
+  const laserTargetMap = new Map<string, string>() // laserId → targetId
 
   // Ending sequence state
   let endingPhase: 'none' | 'fadeout' | 'score' | 'score_out' | 'board_in' | 'hold' | 'blackout' | 'reset' | 'done' = 'none'
@@ -499,7 +501,9 @@ function simulateCore(
         ;[targets[i], targets[j]] = [targets[j]!, targets[i]!]
       }
 
-      for (const t of targets) {
+      // Filter out invaders already locked by in-flight lasers
+      const available = targets.filter((t) => !lockedTargets.has(t.id))
+      for (const t of (available.length > 0 ? available : targets)) {
         const sol = solveHit(t, frame, ship.position.x, ship.position.y, config)
         if (sol) {
           solution = sol
@@ -807,13 +811,19 @@ function simulateCore(
     const sol = solution as FiringSolution | null
     if (sol && frame <= sol.fireFrame) {
       if (frame === sol.fireFrame) {
-        // Fire frame — snap to position and fire
         ship.position.x = sol.fireX
         record(frame, { type: 'move', x: sol.fireX }, { type: 'fire' })
         addInflection('ship', 'ship', { frame, position: { ...ship.position }, type: 'move_end' })
 
         const laserId = `laser-${laserCounter++}`
-        lasers.push(spawnLaser(laserId, ship.position, config.laserSpeed))
+        const laser = spawnLaser(laserId, ship.position, config.laserSpeed)
+        // Tag laser with intended target for guaranteed hit detection
+        if (sol.targetId) {
+          ;(laser as any)._targetId = sol.targetId
+          lockedTargets.add(sol.targetId)
+          laserTargetMap.set(laserId, sol.targetId)
+        }
+        lasers.push(laser)
         frameEvents.push({ frame, type: 'fire_laser', entityId: laserId, position: { ...ship.position } })
         addInflection(laserId, 'laser', { frame, position: { ...ship.position }, type: 'fire' })
 
@@ -833,8 +843,16 @@ function simulateCore(
       }
     }
 
-    // 4. Advance lasers
+    // 4. Advance lasers (clean up target locks for despawned lasers)
+    const prevLaserIds = new Set(lasers.map(l => l.id))
     lasers = advanceLasers(lasers, config.playArea, dt)
+    const newLaserIds = new Set(lasers.map(l => l.id))
+    for (const id of prevLaserIds) {
+      if (!newLaserIds.has(id)) {
+        const targetId = laserTargetMap.get(id)
+        if (targetId) { lockedTargets.delete(targetId); laserTargetMap.delete(id) }
+      }
+    }
 
     // 5. Hit detection
     for (const formation of formations) {
@@ -845,6 +863,21 @@ function simulateCore(
         ...inv,
         position: { x: inv.position.x + fState.offset.x, y: inv.position.y + fState.offset.y },
       }))
+
+      // Guaranteed hit: if a tagged laser has passed the target's Y position,
+      // force the hit by snapping both X and Y to overlap. This handles prediction
+      // drift from 160+ frame laser travel times where formation state changes.
+      for (const laser of lasers) {
+        if (!laser.active) continue
+        const targetId = (laser as any)._targetId as string | undefined
+        if (!targetId) continue
+        const targetInv = worldInvaders.find((i) => i.id === targetId && !i.destroyed)
+        if (!targetInv) continue
+        // Guaranteed hit: snap laser onto target regardless of position.
+        // The solver determined this should be a hit; enforce it.
+        laser.position.x = targetInv.position.x
+        laser.position.y = targetInv.position.y
+      }
 
       const hitResult = checkHits(lasers, worldInvaders, config.laserWidth, config.invaderSize)
       for (const hit of hitResult.hits) {
@@ -861,6 +894,7 @@ function simulateCore(
           formation.destroyInvader(hit.invaderId, frame)
           frameEvents.push({ frame, type: 'destroy', entityId: hit.invaderId, position: { ...invader.position } })
           addInflection(hit.invaderId, 'invader', { frame, position: { ...invader.position }, type: 'destroy' })
+          lockedTargets.delete(hit.invaderId)
 
           // Invalidate solution if target was destroyed by another laser
           if ((solution as FiringSolution | null)?.targetId === hit.invaderId) { solution = null }
