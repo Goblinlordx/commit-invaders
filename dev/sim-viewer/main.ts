@@ -111,11 +111,25 @@ let accumulator = 0
 // ── Tuning panel ──
 
 interface TuningParam {
-  key: keyof SimConfig
+  key: string // supports nested keys like 'waveConfig.pluckDuration'
   label: string
   min: number
   max: number
   step: number
+}
+
+function getNestedValue(obj: Record<string, unknown>, path: string): number {
+  const parts = path.split('.')
+  let cur: unknown = obj
+  for (const p of parts) cur = (cur as Record<string, unknown>)?.[p]
+  return cur as number
+}
+
+function setNestedValue(obj: Record<string, unknown>, path: string, val: number): void {
+  const parts = path.split('.')
+  let cur: Record<string, unknown> = obj
+  for (let i = 0; i < parts.length - 1; i++) cur = cur[parts[i]!] as Record<string, unknown>
+  cur[parts[parts.length - 1]!] = val
 }
 
 const TUNING_PARAMS: TuningParam[] = [
@@ -125,13 +139,20 @@ const TUNING_PARAMS: TuningParam[] = [
   { key: 'invaderSize', label: 'Invader Size', min: 3, max: 15, step: 1 },
   { key: 'formationBaseSpeed', label: 'Form. Speed', min: 10, max: 300, step: 5 },
   { key: 'formationMaxSpeed', label: 'Form. Max', min: 30, max: 600, step: 10 },
-  { key: 'formationRowDrop', label: 'Row Drop', min: 5, max: 50, step: 1 },
+  { key: 'formationRowDrop', label: 'Row Drop', min: 1, max: 50, step: 1 },
   { key: 'hitChance', label: 'Hit Chance', min: 0.1, max: 1.0, step: 0.05 },
   { key: 'fireRate', label: 'Fire Rate', min: 1, max: 20, step: 1 },
   { key: 'shipYRange', label: 'Ship Y Range', min: 0, max: 100, step: 5 },
   { key: 'formationSpread', label: 'Spread', min: 0, max: 20, step: 1 },
   { key: 'formationRowStagger', label: 'Row Stagger', min: 0, max: 15, step: 1 },
   { key: 'framesPerSecond', label: 'Sim FPS', min: 10, max: 120, step: 5 },
+  // Wave lifecycle timing
+  { key: 'waveConfig.brightenDuration', label: 'Brighten', min: 0, max: 120, step: 5 },
+  { key: 'waveConfig.pluckDuration', label: 'Pluck', min: 0, max: 120, step: 5 },
+  { key: 'waveConfig.darkenDuration', label: 'Darken', min: 0, max: 120, step: 5 },
+  { key: 'waveConfig.travelDuration', label: 'Travel', min: 0, max: 120, step: 5 },
+  { key: 'waveConfig.hatchDuration', label: 'Hatch', min: 0, max: 120, step: 5 },
+  { key: 'waveConfig.spawnDelay', label: 'Wave Delay', min: 0, max: 300, step: 10 },
 ]
 
 function buildTuningPanel(): void {
@@ -139,7 +160,7 @@ function buildTuningPanel(): void {
   for (const p of TUNING_PARAMS) {
     const div = document.createElement('div')
     div.className = 'param'
-    const val = config[p.key] as number
+    const val = getNestedValue(config as unknown as Record<string, unknown>, p.key)
     div.innerHTML = `
       <label>${p.label}</label>
       <input type="range" min="${p.min}" max="${p.max}" step="${p.step}" value="${val}" data-key="${p.key}" />
@@ -149,7 +170,7 @@ function buildTuningPanel(): void {
     const valDiv = div.querySelector('.val')!
     input.addEventListener('input', () => {
       const v = parseFloat(input.value)
-      ;(config as Record<string, unknown>)[p.key] = v
+      setNestedValue(config as unknown as Record<string, unknown>, p.key, v)
       valDiv.textContent = String(v)
     })
     tuningDiv.appendChild(div)
