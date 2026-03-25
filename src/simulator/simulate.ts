@@ -229,6 +229,29 @@ export function simulate(
   seed: string,
   config: SimConfig,
 ): SimOutput {
+  // Guarantee completion: if a run doesn't clear all waves, retry with
+  // increased hit chance. Each retry bumps hitChance toward 1.0.
+  const expectedScore = grid.cells.reduce((sum, c) => sum + c.count, 0)
+  let effectiveHitChance = config.hitChance
+  const maxRetries = 5
+
+  for (let attempt = 0; attempt < maxRetries; attempt++) {
+    const result = simulateCore(grid, seed, { ...config, hitChance: effectiveHitChance })
+    if (result.finalScore >= expectedScore) return result
+
+    // Didn't complete — increase hit chance and retry
+    effectiveHitChance = Math.min(1.0, effectiveHitChance + (1.0 - effectiveHitChance) * 0.5)
+  }
+
+  // Final attempt at 100% hit chance — must complete
+  return simulateCore(grid, seed, { ...config, hitChance: 1.0 })
+}
+
+function simulateCore(
+  grid: Grid,
+  seed: string,
+  config: SimConfig,
+): SimOutput {
   const prng = createPRNG(seed)
   const dt = 1 / config.framesPerSecond
   const stride = config.cellSize + config.cellGap
