@@ -34,7 +34,7 @@ const defaultConfig: SimConfig = {
   gridArea: { x: PADDING, y: 0, width: 7 * STRIDE, height: gridH },
   cellSize: 11, cellGap: 2, laserSpeed: 240, laserWidth: 4, invaderSize: 9,
   shipSpeed: 180, shipY: gridH + shipMargin - 4,
-  formationBaseSpeed: 60, formationMaxSpeed: 240, formationRowDrop: 7,
+  formationBaseSpeed: 60, formationMaxSpeed: 240, formationRowDrop: 14,
   hitChance: 0.85, fireRate: 5, shipYRange: 30,
   formationSpread: 10, formationRowStagger: 10,
 }
