@@ -270,6 +270,7 @@ function simulateCore(
   seed: string,
   config: SimConfig,
   waveHitChances: Map<number, number> = new Map(),
+  stopAtFrame: number = MAX_FRAMES,
 ): SimOutput {
   const prng = createPRNG(seed)
   const dt = 1 / config.framesPerSecond
@@ -297,16 +298,7 @@ function simulateCore(
   const anchorSnapshots = new Map<number, GameState>()
   const frameDecisions = new Map<number, Decision[]>()
 
-  // Per-frame lifecycle data (lightweight — just phase + cell status indices)
-  // Stored every frame so peek() can overlay accurate lifecycle state onto replayed GameState
-  interface FrameLifecycle {
-    wavePhase: import('../types.js').WavePhase
-    wavePhaseProgress: number
-    cellStatuses: Array<{ status: import('../types.js').CellStatus; detachProgress: number; targetPosition: Position | null }>
-    formationCount: number
-    formationStates: import('../types.js').FormationState[] // deep-cloned
-  }
-  const frameLifecycleData: FrameLifecycle[] = []
+  // No per-frame lifecycle storage — peek() re-runs simulation for accuracy
 
   const simWM = createWaveManager(grid, config.waveConfig)
   const formations: Formation[] = []
@@ -476,7 +468,7 @@ function simulateCore(
 
   let totalFrames = 0
 
-  for (let frame = 0; frame < MAX_FRAMES; frame++) {
+  for (let frame = 0; frame < stopAtFrame; frame++) {
     const frameEvents: SimEvent[] = []
 
     // Record formation count before lifecycle (to skip new formations in step 2)
@@ -778,20 +770,8 @@ function simulateCore(
     }
 
     allEvents.push(...frameEvents)
-    if (frame % ANCHOR_INTERVAL === 0) anchorSnapshots.set(frame, buildGameState(frame, frameEvents))
+    if (frame % ANCHOR_INTERVAL === 0 || frame === stopAtFrame - 1) anchorSnapshots.set(frame, buildGameState(frame, frameEvents))
 
-    // Record lightweight lifecycle data every frame for peek() accuracy
-    frameLifecycleData[frame] = {
-      wavePhase: getWavePhase(),
-      wavePhaseProgress: getWavePhaseProgress(),
-      cellStatuses: gridCellStates.map((cs) => ({
-        status: cs.status,
-        detachProgress: cs.detachProgress,
-        targetPosition: cs.targetPosition ? { ...cs.targetPosition } : null,
-      })),
-      formationCount: formations.length,
-      formationStates: formations.map(cloneFormationState),
-    }
     totalFrames = frame + 1
 
     const allSpawned = formations.length === simWM.totalWaves
@@ -829,22 +809,10 @@ function simulateCore(
     const a = anchorSnapshots.get(targetFrame)
     if (a) { lruSet(targetFrame, a); return a }
 
-    // Replay produces correct physics state but lacks lifecycle data.
-    // Overlay the recorded per-frame lifecycle data onto the replayed state.
-    const s = replayToFrame(grid, config, frameDecisions, targetFrame)
-    const lifecycle = frameLifecycleData[targetFrame]
-    if (lifecycle) {
-      s.wavePhase = lifecycle.wavePhase
-      s.wavePhaseProgress = lifecycle.wavePhaseProgress
-      for (let i = 0; i < s.gridCells.length && i < lifecycle.cellStatuses.length; i++) {
-        s.gridCells[i]!.status = lifecycle.cellStatuses[i]!.status
-        s.gridCells[i]!.detachProgress = lifecycle.cellStatuses[i]!.detachProgress
-        s.gridCells[i]!.targetPosition = lifecycle.cellStatuses[i]!.targetPosition
-      }
-      // Replace replay's formations with the recorded accurate ones
-      // (replay creates formations instantly with wrong timing/offset)
-      s.formations = lifecycle.formationStates
-    }
+    // Re-run simulation to target frame — deterministic, includes lifecycle
+    // This is accurate (same PRNG, same lifecycle state machine) but slower
+    // than replay. The LRU cache mitigates repeated seeks.
+    const s = simulateToFrame(grid, seed, config, waveHitChances, targetFrame)
     lruSet(targetFrame, s)
     return s
   }
@@ -856,7 +824,25 @@ function simulateCore(
   }
 }
 
-// ── Replay for peek() ──
+// ── Accurate replay via full simulation to target frame ──
+
+function simulateToFrame(
+  grid: Grid,
+  seed: string,
+  config: SimConfig,
+  waveHitChances: Map<number, number>,
+  targetFrame: number,
+): GameState {
+  // Re-run the full simulation (with lifecycle) stopping at targetFrame+1.
+  // The last frame is always stored as an anchor, so we can extract it.
+  // This is not recursive because this result's peek() won't be called.
+  const result = simulateCore(grid, seed, config, waveHitChances, targetFrame + 1)
+  // Access the anchor directly from the SimOutput's internal snapshot
+  // The anchor at targetFrame is guaranteed to exist (stopAtFrame-1 condition)
+  return result.peek(targetFrame) // safe: targetFrame IS an anchor
+}
+
+// ── Legacy replay (used by simulateCore internally for anchor misses) ──
 
 function replayToFrame(grid: Grid, config: SimConfig, frameDecisions: Map<number, Decision[]>, targetFrame: number): GameState {
   const wm = createWaveManager(grid, config.waveConfig)
