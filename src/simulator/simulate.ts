@@ -108,6 +108,8 @@ function solveHit(
 
   const fState = target.formation.getState()
   const alive = fState.invaders.filter((i) => !i.destroyed)
+  // Use current speed for near-future prediction. Speed increases as invaders die,
+  // but we re-validate solutions each frame so short-term prediction is sufficient.
   const spd = fState.speed * dt // px/s → px/frame
 
   // Pre-compute the formation path once for (maxDelay + maxLaserTicks) ticks.
@@ -333,6 +335,7 @@ function simulateCore(
   // Solver: committed firing solution
   let solution: FiringSolution | null = null
   let solveCooldown = 0
+  let solveSpeed = 0 // formation speed when solution was computed
 
   // Ending sequence state
   let endingPhase: 'none' | 'fadeout' | 'score' | 'score_out' | 'board_in' | 'hold' | 'blackout' | 'reset' | 'done' = 'none'
@@ -498,6 +501,7 @@ function simulateCore(
         const sol = solveHit(t, frame, ship.position.x, config)
         if (sol) {
           solution = sol
+          solveSpeed = t.formation.getState().speed
           return
         }
       }
@@ -776,6 +780,22 @@ function simulateCore(
       }
     } else if (!solution) {
       findSolution(frame)
+    } else if (solution.targetId) {
+      // Re-validate: invalidate if target died or formation speed changed >10%
+      let valid = false
+      for (const f of formations) {
+        const fs = f.getState()
+        if (!fs.active) continue
+        const inv = fs.invaders.find((i) => i.id === solution!.targetId)
+        if (inv && !inv.destroyed) {
+          valid = solveSpeed > 0 ? Math.abs(fs.speed - solveSpeed) / solveSpeed <= 0.1 : true
+          break
+        }
+      }
+      if (!valid) {
+        solution = null
+        findSolution(frame)
+      }
     }
 
     // Execute committed solution
