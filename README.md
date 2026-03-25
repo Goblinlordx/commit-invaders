@@ -111,7 +111,7 @@ pnpm build        # bundle for GitHub Action
 
 ## Acknowledgments
 
-This project was heavily inspired by [Platane/snk](https://github.com/Platane/snk) — the original snake contribution graph animation that started it all. Built with [Kiloforge](https://github.com/anthropics/claude-code) (skills only) for track-based development workflow.
+This project was heavily inspired by [Platane/snk](https://github.com/Platane/snk) — the original snake contribution graph animation that started it all. Built with [Kiloforge](https://kiloforge.dev/skills/index.html) (skills only) for track-based development workflow.
 
 ## License
 
