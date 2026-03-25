@@ -303,6 +303,7 @@ function simulateCore(
     wavePhase: import('../types.js').WavePhase
     wavePhaseProgress: number
     cellStatuses: Array<{ status: import('../types.js').CellStatus; detachProgress: number; targetPosition: Position | null }>
+    formationCount: number // how many formations exist at this frame
   }
   const frameLifecycleData: FrameLifecycle[] = []
 
@@ -669,8 +670,17 @@ function simulateCore(
       break
     }
 
-    // 3. Solver: find solution or execute committed one
-    if (solveCooldown > 0) {
+    // 3. Solver: only active when no lifecycle pending (wave must be started)
+    if (pendingWave) {
+      // During lifecycle — solver is idle, ship can drift freely
+      if (config.shipYRange > 0 && prng.chance(0.1)) {
+        const minY = config.shipY - config.shipYRange
+        const targetY = prng.float(minY, config.shipY)
+        const yStep = config.shipSpeed * dt * 0.3
+        const dy = targetY - ship.position.y
+        ship.position.y += Math.sign(dy) * Math.min(Math.abs(dy), yStep)
+      }
+    } else if (solveCooldown > 0) {
       solveCooldown--
       // Organic Y drift during cooldown (ship advances/retreats along fire axis)
       if (config.shipYRange > 0 && prng.chance(0.15)) {
@@ -773,6 +783,7 @@ function simulateCore(
         detachProgress: cs.detachProgress,
         targetPosition: cs.targetPosition ? { ...cs.targetPosition } : null,
       })),
+      formationCount: formations.length,
     }
     totalFrames = frame + 1
 
@@ -823,6 +834,9 @@ function simulateCore(
         s.gridCells[i]!.detachProgress = lifecycle.cellStatuses[i]!.detachProgress
         s.gridCells[i]!.targetPosition = lifecycle.cellStatuses[i]!.targetPosition
       }
+      // Trim formations to match actual count at this frame
+      // (replay creates formations instantly, but lifecycle delays them)
+      s.formations = s.formations.slice(0, lifecycle.formationCount)
     }
     lruSet(targetFrame, s)
     return s
