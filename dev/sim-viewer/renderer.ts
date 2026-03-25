@@ -1,4 +1,5 @@
 import type { GameState, SimConfig } from '../../src/types.js'
+import type { ScoreboardResult } from '../../src/scoreboard.js'
 
 // ── Hitbox colors (must match CSS/SVG renderer for pixel-diff validation) ──
 
@@ -60,6 +61,7 @@ export function renderFrame(
   state: GameState,
   config: SimConfig,
   statusBarHeight: number = 0,
+  scoreboardData?: ScoreboardResult,
 ): void {
   const screen = getScreenSize(config, statusBarHeight)
 
@@ -217,32 +219,78 @@ export function renderFrame(
     ctx.restore()
   }
 
-  // Ending: score text with wiggling characters
+  // Ending: scoreboard display
   const showScore = phase === 'ending_score' || phase === 'ending_hold' || phase === 'ending_blackout'
-  if (showScore) {
+  if (showScore && scoreboardData) {
     const gameAreaH = config.playArea.width + RENDER_MARGIN * 2
     const centerX = screen.width / 2
-    const centerY = gameAreaH / 2
     const scoreAlpha = phase === 'ending_score' ? state.wavePhaseProgress : (phase === 'ending_blackout' ? 1 - state.wavePhaseProgress : 1)
 
     ctx.save()
     ctx.globalAlpha = scoreAlpha
-    ctx.font = 'bold 18px monospace'
+
+    // Title with wiggle
+    const title = 'HIGHEST COMMIT DESTRUCTION DAYS'
+    const titleY = 12
+    ctx.font = 'bold 9px monospace'
     ctx.textAlign = 'center'
     ctx.textBaseline = 'middle'
+    const titleCharW = 5.5
+    const titleStartX = centerX - (title.length * titleCharW) / 2
 
-    const text = `${state.score} COMMITS DESTROYED`
-    const charWidth = 11 // approximate monospace char width
-    const totalWidth = text.length * charWidth
-    const startX = centerX - totalWidth / 2
-
-    for (let i = 0; i < text.length; i++) {
-      // Wiggle: each character bobs up/down with staggered phase
-      const wigglePhase = (state.frame * 0.08 + i * 0.5) % (Math.PI * 2)
-      const wiggleY = Math.sin(wigglePhase) * 3
-
+    for (let i = 0; i < title.length; i++) {
+      const wiggle = Math.sin((state.frame * 0.08 + i * 0.4) % (Math.PI * 2)) * 2
       ctx.fillStyle = '#39d353'
-      ctx.fillText(text[i]!, startX + i * charWidth, centerY + wiggleY)
+      ctx.fillText(title[i]!, titleStartX + i * titleCharW, titleY + wiggle)
+    }
+
+    // "New High Score!" indicator
+    if (scoreboardData.isNewHighScore) {
+      ctx.font = 'bold 8px monospace'
+      ctx.fillStyle = '#ffff00'
+      ctx.textAlign = 'center'
+      const nhsY = 22
+      const nhsText = '★ NEW HIGH SCORE! ★'
+      const nhsCharW = 5
+      const nhsStartX = centerX - (nhsText.length * nhsCharW) / 2
+      for (let i = 0; i < nhsText.length; i++) {
+        const wiggle = Math.sin((state.frame * 0.12 + i * 0.6) % (Math.PI * 2)) * 2
+        ctx.fillText(nhsText[i]!, nhsStartX + i * nhsCharW, nhsY + wiggle)
+      }
+    }
+
+    // Scoreboard table
+    const tableTop = scoreboardData.isNewHighScore ? 32 : 24
+    const rowHeight = 10
+    ctx.font = '8px monospace'
+    ctx.textBaseline = 'middle'
+
+    for (let i = 0; i < scoreboardData.entries.length; i++) {
+      const entry = scoreboardData.entries[i]!
+      const y = tableTop + i * rowHeight
+      const isCurrent = entry.isCurrent
+
+      // Highlight current entry
+      if (isCurrent) {
+        ctx.fillStyle = 'rgba(57, 211, 83, 0.15)'
+        ctx.fillRect(centerX - 120, y - rowHeight / 2, 240, rowHeight)
+      }
+
+      // Rank
+      ctx.textAlign = 'left'
+      ctx.fillStyle = isCurrent ? '#ffff00' : '#8b949e'
+      ctx.font = isCurrent ? 'bold 8px monospace' : '8px monospace'
+      ctx.fillText(`${String(entry.rank).padStart(2, ' ')}.`, centerX - 110, y)
+
+      // Date
+      ctx.fillStyle = isCurrent ? '#e6edf3' : '#8b949e'
+      ctx.fillText(entry.date, centerX - 90, y)
+
+      // Score
+      ctx.textAlign = 'right'
+      ctx.fillStyle = isCurrent ? '#39d353' : '#58a6ff'
+      ctx.font = isCurrent ? 'bold 8px monospace' : '8px monospace'
+      ctx.fillText(String(entry.score), centerX + 110, y)
     }
 
     ctx.globalAlpha = 1

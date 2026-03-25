@@ -1,6 +1,7 @@
 import type { Grid, SimConfig, SimOutput, GameState, ContributionLevel } from '../../src/types.js'
 import { simulate } from '../../src/simulator/simulate.js'
 import { createPRNG } from '../../src/simulator/prng.js'
+import { computeScoreboard, type ScoreboardResult } from '../../src/scoreboard.js'
 import { renderFrame, getScreenSize } from './renderer.js'
 
 // ── Default config ──
@@ -105,6 +106,7 @@ const tuningDiv = document.getElementById('tuning')!
 
 let config = defaultConfig()
 let output: SimOutput
+let scoreboard: ScoreboardResult
 let currentFrame = 0
 let playing = false
 let speed = 1
@@ -200,6 +202,11 @@ function runSim(): void {
   canvas.height = screen.height
 
   output = simulate(grid, seed, config)
+
+  // Compute scoreboard — use the last date in the grid as "current day"
+  const lastDate = grid.cells.reduce((max, c) => c.date > max ? c.date : max, '')
+  scoreboard = computeScoreboard(grid, lastDate, weeks * 7, 10)
+
   currentFrame = 0
   scrubber.max = String(output.totalFrames - 1)
   scrubber.value = '0'
@@ -211,7 +218,7 @@ function runSim(): void {
 
 function draw(): void {
   const state = output.peek(currentFrame)
-  renderFrame(ctx, state, config, STATUS_BAR_HEIGHT)
+  renderFrame(ctx, state, config, STATUS_BAR_HEIGHT, scoreboard)
   updateHud(state)
 }
 
