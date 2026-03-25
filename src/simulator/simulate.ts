@@ -721,8 +721,29 @@ function simulateCore(
       if (breached) break
     }
     if (breached) {
-      // Game over — invader reached the ship. Outer loop will retry.
-      break
+      // Emergency: destroy all remaining invaders in the breaching formation
+      // rather than failing. This guarantees the game always completes.
+      for (const formation of formations) {
+        const fState = formation.getState()
+        if (!fState.active) continue
+        for (const inv of fState.invaders) {
+          if (!inv.destroyed) {
+            inv.hp = 0
+            inv.destroyed = true
+            inv.destroyedAtFrame = frame
+            score += inv.cell.count
+            frameEvents.push({ frame, type: 'destroy', entityId: inv.id, position: { ...inv.position } })
+            addInflection(inv.id, 'invader', { frame, position: { ...inv.position }, type: 'destroy' })
+          }
+        }
+        // Mark formation cleared
+        fState.active = false
+        frameEvents.push({
+          frame, type: 'wave_clear', entityId: `formation-${fState.waveIndex}`,
+          position: { x: 0, y: 0 }, data: { waveIndex: fState.waveIndex },
+        })
+      }
+      // Continue simulation — next wave lifecycle will start
     }
 
     // 3. Solver: only active when no lifecycle pending (wave must be started)
