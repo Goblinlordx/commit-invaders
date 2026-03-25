@@ -547,7 +547,10 @@ function simulateCore(
       let allTransformed = true
 
       for (const cs of cellSchedules) {
-        if (cs.cellIndex < 0) continue
+        if (cs.cellIndex < 0) {
+          // No matching grid cell (level 0) — treat as already transformed
+          continue
+        }
         const state = gridCellStates[cs.cellIndex]!
 
         if (frame === cs.pluckFrame && state.status === 'in_grid') {
@@ -591,8 +594,9 @@ function simulateCore(
         if (state.status !== 'transformed') allTransformed = false
       }
 
-      // All cells transformed → create formation and start wave
-      if (allTransformed) {
+      // All cells transformed → wait a few frames then create formation
+      // This ensures hatched cells are visible briefly before becoming invaders
+      if (allTransformed && frame > lifecycleEndFrame + 10) {
         const wave = pendingWave!
         const invaders: InvaderState[] = cellSchedules.map((cs, i) => ({
           id: `inv-w${wave.waveIndex}-${i}`,
