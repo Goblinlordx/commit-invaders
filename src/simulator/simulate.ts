@@ -506,7 +506,7 @@ function simulateCore(
     const wc = config.waveConfig
     const lifecycleTotal = wc.brightenDuration + wc.pluckDuration + wc.darkenDuration + wc.travelDuration + wc.hatchDuration
 
-    if (!pendingWave) {
+    if (!pendingWave && frame >= wc.startDelay) {
       const wave = simWM.trySpawnNext(frame)
       if (wave) {
         if (lifecycleTotal === 0) {

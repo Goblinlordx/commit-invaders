@@ -28,6 +28,7 @@ function makeGrid(cells: ContributionCell[], width: number): Grid {
 
 const defaultConfig: WaveConfig = {
   weeksPerWave: 1,
+  startDelay: 0,
   spawnDelay: 30,
   brightenDuration: 0,
   pluckDuration: 0,

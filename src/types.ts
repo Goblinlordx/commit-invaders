@@ -205,6 +205,7 @@ export interface SimOutput {
 
 export interface WaveConfig {
   weeksPerWave: number
+  startDelay: number // frames to hold initial state before first wave
   spawnDelay: number // frames between wave clear and next spawn
   brightenDuration: number // frames for overlay fade-out
   pluckDuration: number // frames cells show as plucked at grid pos

@@ -28,7 +28,7 @@ function defaultConfig(): SimConfig {
   return {
     framesPerSecond: 60,
     waveConfig: {
-      weeksPerWave: 4, spawnDelay: 0, // no extra delay — lifecycle IS the transition
+      weeksPerWave: 4, startDelay: 60, spawnDelay: 0,
       brightenDuration: 30, pluckDuration: 20, darkenDuration: 20,
       travelDuration: 40, hatchDuration: 20,
       endingFadeoutDuration: 60, endingScoreDuration: 30,
@@ -155,6 +155,7 @@ const TUNING_PARAMS: TuningParam[] = [
   { key: 'waveConfig.darkenDuration', label: 'Darken', min: 0, max: 120, step: 5 },
   { key: 'waveConfig.travelDuration', label: 'Travel', min: 0, max: 120, step: 5 },
   { key: 'waveConfig.hatchDuration', label: 'Hatch', min: 0, max: 120, step: 5 },
+  { key: 'waveConfig.startDelay', label: 'Start Delay', min: 0, max: 180, step: 10 },
   { key: 'waveConfig.spawnDelay', label: 'Wave Delay', min: 0, max: 300, step: 10 },
   // Ending sequence
   { key: 'waveConfig.endingFadeoutDuration', label: 'End Fade', min: 0, max: 120, step: 10 },
