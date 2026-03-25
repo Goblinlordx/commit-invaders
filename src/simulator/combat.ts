@@ -79,6 +79,7 @@ export function checkHits(
   invaders: readonly InvaderState[],
   laserWidth: number = DEFAULT_LASER_WIDTH,
   invaderSize: number = DEFAULT_INVADER_SIZE,
+  dt: number = 1,
 ): CheckHitsResult {
   const hits: HitResult[] = []
   const consumedLaserIds = new Set<string>()
@@ -87,15 +88,21 @@ export function checkHits(
   for (const laser of lasers) {
     if (!laser.active || consumedLaserIds.has(laser.id)) continue
 
+    // Swept Y: laser moved from (y + speed*dt) to (y) this frame.
+    // Extend AABB to cover the swept path to prevent tunneling through invaders.
+    const travelDist = laser.speed * dt
+    const sweptMinY = laser.position.y - laserWidth / 2
+    const sweptHeight = laserWidth + travelDist
+
     for (const invader of invaders) {
       if (invader.destroyed) continue
       if (damagedInvaders.get(invader.id)?.destroyed) continue
 
       const hit = aabbOverlap(
         laser.position.x - laserWidth / 2,
-        laser.position.y - laserWidth / 2,
+        sweptMinY,
         laserWidth,
-        laserWidth,
+        sweptHeight,
         invader.position.x - invaderSize / 2,
         invader.position.y - invaderSize / 2,
         invaderSize,

@@ -345,8 +345,6 @@ function simulateCore(
   // Solver: committed firing solution
   let solution: FiringSolution | null = null
   let solveCooldown = 0
-  const lockedTargets = new Set<string>() // invaders with lasers in flight targeting them
-  const laserTargetMap = new Map<string, string>() // laserId → targetId
 
   // Ending sequence state
   let endingPhase: 'none' | 'fadeout' | 'score' | 'score_out' | 'board_in' | 'hold' | 'blackout' | 'reset' | 'done' = 'none'
@@ -508,9 +506,7 @@ function simulateCore(
         ;[targets[i], targets[j]] = [targets[j]!, targets[i]!]
       }
 
-      // Skip invaders already targeted by in-flight lasers
-      const available = targets.filter((t) => !lockedTargets.has(t.id))
-      for (const t of (available.length > 0 ? available : targets)) {
+      for (const t of targets) {
         const sol = solveHit(t, frame, ship.position.x, ship.position.y, config)
         if (sol) {
           solution = sol
@@ -816,12 +812,7 @@ function simulateCore(
         addInflection('ship', 'ship', { frame, position: { ...ship.position }, type: 'move_end' })
 
         const laserId = `laser-${laserCounter++}`
-        const newLaser = spawnLaser(laserId, ship.position, config.laserSpeed)
-        if (sol.targetId) {
-          lockedTargets.add(sol.targetId)
-          laserTargetMap.set(laserId, sol.targetId)
-        }
-        lasers.push(newLaser)
+        lasers.push(spawnLaser(laserId, ship.position, config.laserSpeed))
         frameEvents.push({ frame, type: 'fire_laser', entityId: laserId, position: { ...ship.position } })
         addInflection(laserId, 'laser', { frame, position: { ...ship.position }, type: 'fire' })
 
@@ -841,16 +832,8 @@ function simulateCore(
       }
     }
 
-    // 4. Advance lasers + clean up target locks for despawned lasers
-    const prevLaserIds = new Set(lasers.map(l => l.id))
+    // 4. Advance lasers
     lasers = advanceLasers(lasers, config.playArea, dt)
-    const newLaserIds = new Set(lasers.map(l => l.id))
-    for (const id of prevLaserIds) {
-      if (!newLaserIds.has(id)) {
-        const tid = laserTargetMap.get(id)
-        if (tid) { lockedTargets.delete(tid); laserTargetMap.delete(id) }
-      }
-    }
 
     // 5. Hit detection
     for (const formation of formations) {
@@ -862,7 +845,7 @@ function simulateCore(
         position: { x: inv.position.x + fState.offset.x, y: inv.position.y + fState.offset.y },
       }))
 
-      const hitResult = checkHits(lasers, worldInvaders, config.laserWidth, config.invaderSize)
+      const hitResult = checkHits(lasers, worldInvaders, config.laserWidth, config.invaderSize, dt)
       for (const hit of hitResult.hits) {
         const invader = worldInvaders.find((i) => i.id === hit.invaderId)!
         const updated = hitResult.updatedInvaders.find((i) => i.id === hit.invaderId)!
@@ -877,7 +860,6 @@ function simulateCore(
           formation.destroyInvader(hit.invaderId, frame)
           frameEvents.push({ frame, type: 'destroy', entityId: hit.invaderId, position: { ...invader.position } })
           addInflection(hit.invaderId, 'invader', { frame, position: { ...invader.position }, type: 'destroy' })
-          lockedTargets.delete(hit.invaderId)
           // Invalidate solution if target was destroyed by another laser
           if ((solution as FiringSolution | null)?.targetId === hit.invaderId) { solution = null }
         }
@@ -1041,7 +1023,7 @@ function replayToFrame(grid: Grid, config: SimConfig, frameDecisions: Map<number
     for (const f of formations) {
       const s = f.getState(); if (!s.active) continue
       const wi = s.invaders.map(inv => ({ ...inv, position: { x: inv.position.x + s.offset.x, y: inv.position.y + s.offset.y } }))
-      const hr = checkHits(lasers, wi, config.laserWidth, config.invaderSize)
+      const hr = checkHits(lasers, wi, config.laserWidth, config.invaderSize, replayDt)
       for (const h of hr.hits) { const u = hr.updatedInvaders.find(i => i.id === h.invaderId)!; const o = s.invaders.find(i => i.id === h.invaderId)!; o.hp = u.hp; if (u.destroyed) f.destroyInvader(h.invaderId, frame) }
       score += hr.scoreIncrease; lasers = hr.updatedLasers
     }

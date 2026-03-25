@@ -245,7 +245,7 @@ describe('Formation', () => {
       expect(formation.getState().speed).toBe(defaultFormationConfig.baseSpeed)
     })
 
-    it('increases speed when invaders are destroyed', () => {
+    it('keeps constant speed when invaders are destroyed (for prediction accuracy)', () => {
       const invaders = [
         makeInvader('inv-0', 100, 20),
         makeInvader('inv-1', 120, 20),
@@ -262,30 +262,8 @@ describe('Formation', () => {
       formation.destroyInvader('inv-0', 1)
       formation.destroyInvader('inv-1', 1)
 
-      // Speed = baseSpeed * (total / remaining) = 1 * (4/2) = 2
-      expect(formation.getState().speed).toBe(2)
-    })
-
-    it('caps speed at maxSpeed', () => {
-      const invaders = [
-        makeInvader('inv-0', 100, 20),
-        makeInvader('inv-1', 120, 20),
-        makeInvader('inv-2', 140, 20),
-        makeInvader('inv-3', 160, 20),
-      ]
-      const formation = createFormation(
-        invaders,
-        0,
-        defaultPlayArea,
-        { ...defaultFormationConfig, maxSpeed: 3 },
-      )
-
-      // Destroy 3 of 4: speed = 1 * (4/1) = 4, capped at 3
-      formation.destroyInvader('inv-0', 1)
-      formation.destroyInvader('inv-1', 1)
-      formation.destroyInvader('inv-2', 1)
-
-      expect(formation.getState().speed).toBe(3)
+      // Speed stays at baseSpeed — constant for prediction accuracy
+      expect(formation.getState().speed).toBe(defaultFormationConfig.baseSpeed)
     })
 
     it('marks formation cleared when all invaders destroyed', () => {
