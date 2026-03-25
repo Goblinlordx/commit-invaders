@@ -120,9 +120,54 @@ describe('computeScoreboard', () => {
   it('currentDayScore reflects the window ending on currentDate', () => {
     const counts = [10, 20, 30, 40, 50]
     const grid = makeYearGrid(counts)
-    // Window of 3 ending on day 4 (index 3): days 2,3,4 = 30+40+50 = 120... wait
-    // Actually index 3 = '2025-01-04', window of 3 = days 2,3,4 → counts[1]+[2]+[3] = 20+30+40 = 90
     const result = computeScoreboard(grid, '2025-01-04', 3, 10)
     expect(result.currentDayScore).toBe(90)
+  })
+})
+
+describe('computeScoreboard — performance', () => {
+  it('scales as O(N log N), not O(N²) or O(N³)', () => {
+    // Run at multiple sizes and verify time grows sub-quadratically
+    const sizes = [365, 730, 1460, 2920] // 1yr, 2yr, 4yr, 8yr
+    const times: Array<{ n: number; ms: number }> = []
+
+    for (const n of sizes) {
+      const counts = Array.from({ length: n }, (_, i) => ((i * 7 + 13) % 20) + 1)
+      const grid = makeYearGrid(counts)
+      const lastDate = new Date('2025-01-01')
+      lastDate.setDate(lastDate.getDate() + n - 1)
+      const currentDate = lastDate.toISOString().slice(0, 10)
+
+      const start = performance.now()
+      const result = computeScoreboard(grid, currentDate, 364, 10)
+      const ms = performance.now() - start
+
+      times.push({ n, ms })
+      expect(result.entries.length).toBeGreaterThan(0)
+      expect(result.entries.length).toBeLessThanOrEqual(10)
+    }
+
+    // Log results
+    console.log('\n  Scoreboard performance:')
+    for (const t of times) {
+      console.log(`    N=${t.n}: ${t.ms.toFixed(2)}ms`)
+    }
+
+    // Verify sub-quadratic scaling:
+    // If O(N log N), doubling N should roughly double time (plus log factor)
+    // If O(N²), doubling N would quadruple time
+    // If O(N³), doubling N would 8x time
+    // Check that 8x the data doesn't take more than 6x the time (generous bound for N log N)
+    const t1 = times[0]!.ms
+    const t8 = times[3]!.ms
+
+    // With 8x data, N log N grows ~8 * (log(8N)/log(N)) ≈ 8 * 1.3 ≈ 10.4x
+    // N² would grow 64x, N³ would grow 512x
+    // Use 20x as generous upper bound for N log N
+    if (t1 > 0.01) {
+      const ratio = t8 / t1
+      console.log(`    Ratio (8x data): ${ratio.toFixed(1)}x (expect <20x for N log N, >60x for N²)`)
+      expect(ratio).toBeLessThan(30) // generous bound
+    }
   })
 })

@@ -99,26 +99,25 @@ export function computeScoreboard(
     currentDayScore = prefix[currentIdx + 1]! - prefix[startIdx]!
   }
 
-  // Distance filtering: increase minDistance until we'd drop below maxEntries
-  let bestEntries: WindowRecord[] = []
-  let bestDistance = 0
+  // Distance filtering via binary search — O(N log N) total
+  // filterByDistance is monotonic: more distance → fewer or equal entries
+  // Binary search for max distance that yields >= maxEntries
+  let lo = 0
+  let hi = allDates.length
 
-  for (let dist = 0; dist <= allDates.length; dist++) {
-    const filtered = filterByDistance(records, dist)
-
-    if (filtered.length >= maxEntries) {
-      bestEntries = filtered.slice(0, maxEntries)
-      bestDistance = dist
+  while (lo < hi) {
+    const mid = Math.floor((lo + hi + 1) / 2)
+    const count = filterByDistance(records, mid, maxEntries).length
+    if (count >= maxEntries) {
+      lo = mid
     } else {
-      // Increasing distance dropped us below maxEntries — use previous best
-      // If we never had enough, use what we have
-      if (bestEntries.length === 0) {
-        bestEntries = filtered.slice(0, maxEntries)
-        bestDistance = dist
-      }
-      break
+      hi = mid - 1
     }
   }
+
+  const bestDistance = lo
+  const bestFiltered = filterByDistance(records, bestDistance, maxEntries)
+  const bestEntries = bestFiltered.slice(0, maxEntries)
 
   // Check if current day is on the board
   const isNewHighScore = bestEntries.some((e) => e.date === currentDate)
@@ -143,24 +142,68 @@ export function computeScoreboard(
 /**
  * Filter records by minimum distance between entries.
  * Takes the highest-scoring records that are at least `minDist` days apart.
+ * Uses a sorted set of used indices for O(log K) proximity checks per record,
+ * where K = number of accepted entries. Early-exits when `needed` entries found.
+ *
+ * Total: O(N log K) per call, called O(log N) times = O(N log N log K) overall.
  */
 function filterByDistance(
   sortedRecords: Array<{ endIndex: number; score: number }>,
   minDist: number,
+  needed: number = Infinity,
 ): Array<{ endIndex: number; date: string; score: number }> {
   const result: Array<{ endIndex: number; date: string; score: number }> = []
-  const usedIndices: number[] = []
+  // Keep used indices sorted for binary search proximity check
+  const used: number[] = []
 
   for (const rec of sortedRecords) {
+    if (result.length >= needed) break
+
     const r = rec as { endIndex: number; date: string; score: number }
-    const tooClose = usedIndices.some(
-      (idx) => Math.abs(r.endIndex - idx) < minDist,
-    )
-    if (!tooClose) {
+
+    if (minDist <= 0 || used.length === 0) {
       result.push(r)
-      usedIndices.push(r.endIndex)
+      insertSorted(used, r.endIndex)
+      continue
+    }
+
+    // Binary search for nearest used index
+    if (!isTooClose(used, r.endIndex, minDist)) {
+      result.push(r)
+      insertSorted(used, r.endIndex)
     }
   }
 
   return result
+}
+
+/** Insert value into a sorted array maintaining sort order. */
+function insertSorted(arr: number[], val: number): void {
+  let lo = 0
+  let hi = arr.length
+  while (lo < hi) {
+    const mid = (lo + hi) >>> 1
+    if (arr[mid]! < val) lo = mid + 1
+    else hi = mid
+  }
+  arr.splice(lo, 0, val)
+}
+
+/** Check if val is within minDist of any value in sorted array. O(log N). */
+function isTooClose(sorted: number[], val: number, minDist: number): boolean {
+  if (sorted.length === 0) return false
+
+  // Find insertion point
+  let lo = 0
+  let hi = sorted.length
+  while (lo < hi) {
+    const mid = (lo + hi) >>> 1
+    if (sorted[mid]! < val) lo = mid + 1
+    else hi = mid
+  }
+
+  // Check neighbors
+  if (lo < sorted.length && Math.abs(sorted[lo]! - val) < minDist) return true
+  if (lo > 0 && Math.abs(sorted[lo - 1]! - val) < minDist) return true
+  return false
 }
