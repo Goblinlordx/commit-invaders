@@ -1,91 +1,96 @@
 id: entity-validation_20260325143202Z
-title: "Isolated Entity Animation Validation via Playwright"
+title: Isolated Entity Animation Validation via Playwright
 type: feature
 status: pending
 created: 2026-03-25
-updated: 2026-03-25
+updated: '2026-03-25'
 spec:
-  summary: |
-    Build per-entity test harness that renders one entity type in both
+  summary: 'Build per-entity test harness that renders one entity type in both
+
     canvas and CSS/SVG side-by-side, scrubs to specific states, and
+
     pixel-diffs them. Validates each entity independently before full
+
     integration.
-  context: |
-    Before composing all entities into a full SVG animation, each entity
+
+    '
+  context: 'Before composing all entities into a full SVG animation, each entity
+
     type must be validated in isolation. This catches positioning, sizing,
+
     and timing errors at the individual entity level where they are easy
+
     to diagnose.
 
+
     For each entity type:
+
     1. Canvas renderer draws the entity at specific states (from GameState)
+
     2. CSS/SVG renderer draws the same entity using CSS animations
+
     3. Both are frozen at the same time point
+
     4. Playwright screenshots both and pixel-diffs them
 
+
     The canvas renderer may need restructuring to support single-entity
+
     rendering (drawing just one entity type from a GameState).
+
+    '
   acceptance_criteria:
-    - Canvas renderer supports single-entity drawing mode (one entity type at a time)
-    - Per-entity CSS/SVG rendering matches canvas for grid cells at all lifecycle states
-    - Per-entity validation for invaders (static, formation-offset, destroyed)
-    - Per-entity validation for ship (position, opacity during ending)
-    - Per-entity validation for lasers (position at various Y values)
-    - Per-entity validation for overlay (opacity at various phase progress values)
-    - Playwright test suite with automated pixel-diff per entity type
-    - Pixel diff threshold under 1% for each entity at each state
-    - Test runner produces clear pass/fail per entity type
-  out_of_scope: |
-    Full simulation composition. Inflection point mapping.
+  - Canvas renderer supports single-entity drawing mode (one entity type at a time)
+  - Per-entity CSS/SVG rendering matches canvas for grid cells at all lifecycle states
+  - Per-entity validation for invaders (static, formation-offset, destroyed)
+  - Per-entity validation for ship (position, opacity during ending)
+  - Per-entity validation for lasers (position at various Y values)
+  - Per-entity validation for overlay (opacity at various phase progress values)
+  - Playwright test suite with automated pixel-diff per entity type
+  - Pixel diff threshold under 1% for each entity at each state
+  - Test runner produces clear pass/fail per entity type
+  out_of_scope: 'Full simulation composition. Inflection point mapping.
+
     Visual polish (sprites, effects).
-  technical_notes: |
-    Dev tool: dev/entity-validator/
-      index.html           — side-by-side canvas + SVG per entity
-      controller.ts        — sync state across both renderers
 
-    Canvas changes:
-      renderer.ts gains a renderEntity(ctx, entityType, state, config) function
-      that draws ONLY one entity type (grid, invader, ship, laser, overlay)
-
-    CSS seek technique:
-      .seek-mode * { animation-play-state: paused !important;
-                     animation-delay: calc(-1 * var(--seek-time)) !important; }
-
-    Playwright tests: tests/visual/
-      entity-grid-cell.spec.ts    — grid cell at each lifecycle state
-      entity-invader.spec.ts      — invader in formation
-      entity-ship.spec.ts         — ship at various positions
-      entity-laser.spec.ts        — laser at various Y values
-      entity-overlay.spec.ts      — overlay at various opacities
-      entity-formation.spec.ts    — formation group offset
+    '
+  technical_notes: "Dev tool: dev/entity-validator/\n  index.html           — side-by-side canvas + SVG per entity\n  controller.ts\
+    \        — sync state across both renderers\n\nCanvas changes:\n  renderer.ts gains a renderEntity(ctx, entityType, state,\
+    \ config) function\n  that draws ONLY one entity type (grid, invader, ship, laser, overlay)\n\nCSS seek technique:\n \
+    \ .seek-mode * { animation-play-state: paused !important;\n                 animation-delay: calc(-1 * var(--seek-time))\
+    \ !important; }\n\nPlaywright tests: tests/visual/\n  entity-grid-cell.spec.ts    — grid cell at each lifecycle state\n\
+    \  entity-invader.spec.ts      — invader in formation\n  entity-ship.spec.ts         — ship at various positions\n  entity-laser.spec.ts\
+    \        — laser at various Y values\n  entity-overlay.spec.ts      — overlay at various opacities\n  entity-formation.spec.ts\
+    \    — formation group offset\n"
 plan:
-  - phase: "Canvas Entity Isolation"
-    tasks:
-      - text: "Refactor renderer to support single-entity drawing mode"
-        done: false
-      - text: "Create renderEntity() function that draws one entity type from GameState"
-        done: false
-      - text: "Test renderEntity for grid cell, invader, ship, laser, overlay"
-        done: false
-  - phase: "CSS Entity Isolation"
-    tasks:
-      - text: "Create per-entity SVG rendering from CSS templates (one entity at a time)"
-        done: false
-      - text: "Implement CSS seek controller (negative animation-delay technique)"
-        done: false
-      - text: "Build dev/entity-validator/ with side-by-side canvas + SVG panels"
-        done: false
-  - phase: "Playwright Validation"
-    tasks:
-      - text: "Add Playwright, configure playwright.config.ts"
-        done: false
-      - text: "Write grid cell validation tests (all lifecycle states)"
-        done: false
-      - text: "Write invader validation tests (static, offset, destroyed)"
-        done: false
-      - text: "Write ship validation tests (position, ending fade)"
-        done: false
-      - text: "Write laser validation tests (various Y positions)"
-        done: false
-      - text: "Write overlay validation tests (various opacities)"
-        done: false
+- phase: Canvas Entity Isolation
+  tasks:
+  - text: Refactor renderer to support single-entity drawing mode
+    done: true
+  - text: Create renderEntity() function that draws one entity type from GameState
+    done: true
+  - text: Test renderEntity for grid cell, invader, ship, laser, overlay
+    done: true
+- phase: CSS Entity Isolation
+  tasks:
+  - text: Create per-entity SVG rendering from CSS templates (one entity at a time)
+    done: true
+  - text: Implement CSS seek controller (negative animation-delay technique)
+    done: true
+  - text: Build dev/entity-validator/ with side-by-side canvas + SVG panels
+    done: true
+- phase: Playwright Validation
+  tasks:
+  - text: Add Playwright, configure playwright.config.ts
+    done: true
+  - text: Write grid cell validation tests (all lifecycle states)
+    done: true
+  - text: Write invader validation tests (static, offset, destroyed)
+    done: true
+  - text: Write ship validation tests (position, ending fade)
+    done: true
+  - text: Write laser validation tests (various Y positions)
+    done: true
+  - text: Write overlay validation tests (various opacities)
+    done: true
 extra: {}
