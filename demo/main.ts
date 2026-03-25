@@ -89,19 +89,21 @@ function doGenerate() {
         const scoreboard = computeScoreboard(grid, lastDate, grid.width * 7, 10)
 
         currentSvgString = composeSvg({ grid, seed, config: currentConfig, scoreboard })
+        const dur = output.totalFrames / currentConfig.framesPerSecond
+
         previewContainer.innerHTML = currentSvgString
 
         // Stats
         const activeCells = grid.cells.filter(c => c.level > 0).length
         const totalCommits = grid.cells.reduce((sum, c) => sum + c.count, 0)
         const waveCount = output.events.filter(e => e.type === 'wave_spawn').length
-        const dur = output.totalFrames / currentConfig.framesPerSecond
         $('#stat-cells')!.textContent = `${activeCells} cells`
         $('#stat-commits')!.textContent = `${totalCommits} commits`
         $('#stat-waves')!.textContent = `${waveCount} waves`
         $('#stat-duration')!.textContent = `${dur.toFixed(1)}s`
         $('#stat-size')!.textContent = `${(currentSvgString.length / 1024).toFixed(1)} KB`
-        timeDisplay.textContent = `Duration: ${Math.floor(dur / 60)}:${String(Math.floor(dur % 60)).padStart(2, '0')}`
+        const fmt = (s: number) => `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, '0')}`
+        timeDisplay.textContent = `Duration: ${fmt(dur)} | ${waveCount} waves | ${(currentSvgString.length / 1024).toFixed(0)} KB`
         statsRow.style.display = 'flex'
         actionsRow.style.display = 'flex'
       } catch (e) {
