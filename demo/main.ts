@@ -86,7 +86,7 @@ async function fetchContributionGrid(username: string): Promise<Grid | null> {
 
     // Build tooltip map from raw HTML: element-id → contribution count
     const tooltipMap = new Map<string, number>()
-    const tooltipRegex = /for="(contribution-day-component-[^"]+)"[^>]*>(\d+)\s+contribution/g
+    const tooltipRegex = /for="(contribution-day-component-[^"]+)"[^>]*>\s*(\d+)\s+contribution/gs
     let tm
     while ((tm = tooltipRegex.exec(html)) !== null) {
       tooltipMap.set(tm[1]!, parseInt(tm[2]!, 10))
