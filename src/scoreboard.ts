@@ -119,15 +119,23 @@ export function computeScoreboard(
   const bestFiltered = filterByDistance(records, bestDistance, maxEntries)
   const bestEntries = bestFiltered.slice(0, maxEntries)
 
-  // Check if current day is on the board
-  const isNewHighScore = bestEntries.some((e) => e.date === currentDate)
+  // The current date's score may match the top entry but get distance-filtered out.
+  // If the #1 entry has the same score as the current window, treat it as "current".
+  const topScore = bestEntries.length > 0 ? bestEntries[0]!.score : 0
+  const isNewHighScore = currentDayScore > 0 && currentDayScore >= topScore
 
-  const entries: HighScoreEntry[] = bestEntries.map((e, i) => ({
-    date: e.date,
-    score: e.score,
-    rank: i + 1,
-    isCurrent: e.date === currentDate,
-  }))
+  let currentMarked = false
+  const entries: HighScoreEntry[] = bestEntries.map((e, i) => {
+    // Mark the first entry whose score matches the current window score as "current"
+    const isCurrent = !currentMarked && e.score === currentDayScore && currentDayScore > 0
+    if (isCurrent) currentMarked = true
+    return {
+      date: e.date,
+      score: e.score,
+      rank: i + 1,
+      isCurrent,
+    }
+  })
 
   return {
     entries,

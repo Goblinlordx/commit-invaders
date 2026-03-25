@@ -420,6 +420,7 @@ export function composeSvg(options: CompositeSvgOptions): string {
   0% { opacity: 1; }
   ${readyEndPct.toFixed(2)}% { opacity: 1; }
   ${Math.min(100, readyEndPct + 0.01).toFixed(2)}% { opacity: 0; }
+  100% { opacity: 0; }
 }`)
   elements.push(
     `<text x="8" y="${statusY}" dominant-baseline="middle" ` +

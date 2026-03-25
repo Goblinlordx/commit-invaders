@@ -268,17 +268,33 @@ export function overlayKeyframeStops(
   const total = output.totalFrames
   const stops: OverlayStop[] = []
 
-  // Sample overlay at key frames
+  // Sample overlay at key frames AND within transition phases
   const samplePoints = new Set<number>()
   samplePoints.add(0)
   samplePoints.add(total - 1)
 
-  // Add wave phase change events
+  // Add wave phase change events + intermediate samples within transition phases
+  const phaseChangeFrames: number[] = []
   for (const ev of output.events) {
     if (ev.type === 'wave_phase_change' || ev.type === 'wave_spawn' || ev.type === 'wave_clear' || ev.type === 'game_end') {
       samplePoints.add(ev.frame)
       if (ev.frame > 0) samplePoints.add(ev.frame - 1)
       if (ev.frame < total - 1) samplePoints.add(ev.frame + 1)
+      if (ev.type === 'wave_phase_change') phaseChangeFrames.push(ev.frame)
+    }
+  }
+
+  // Add intermediate samples within brightening/darkening phases (10 samples each)
+  for (const startFrame of phaseChangeFrames) {
+    const state = output.peek(startFrame)
+    if (state.wavePhase === 'brightening' || state.wavePhase === 'darkening') {
+      const phaseDur = state.wavePhase === 'brightening'
+        ? config.waveConfig.brightenDuration
+        : config.waveConfig.darkenDuration
+      for (let s = 1; s <= 10; s++) {
+        const f = startFrame + Math.floor((phaseDur * s) / 10)
+        if (f < total) samplePoints.add(f)
+      }
     }
   }
 
