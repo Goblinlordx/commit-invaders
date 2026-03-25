@@ -588,11 +588,17 @@ function simulateCore(
 
         if (frame === cs.hatchStartFrame && state.status === 'traveling') {
           state.status = 'hatching'
-          state.detachProgress = 1
+          state.detachProgress = 0 // reuse for hatch progress 0→1
           const cellId = `cell-${grid.cells[cs.cellIndex]!.x}-${grid.cells[cs.cellIndex]!.y}`
           addInflection(cellId, 'cell', { frame, position: cs.targetPos, type: 'travel_end' })
           frameEvents.push({ frame, type: 'cell_hatch_start', entityId: cellId, position: cs.targetPos })
           addInflection(cellId, 'cell', { frame, position: cs.targetPos, type: 'hatch_start' })
+        }
+
+        // Interpolate hatch progress
+        if (state.status === 'hatching' && frame >= cs.hatchStartFrame && frame < cs.transformFrame) {
+          const elapsed = frame - cs.hatchStartFrame
+          state.detachProgress = wc.hatchDuration > 0 ? Math.min(1, elapsed / wc.hatchDuration) : 1
         }
 
         if (frame === cs.transformFrame && state.status === 'hatching') {

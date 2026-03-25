@@ -108,8 +108,10 @@ export function renderFrame(
 
   for (const gc of state.gridCells) {
     const status = gc.status
-    // Only draw active lifecycle states — transformed cells are gone (despawned)
-    if (status !== 'plucked' && status !== 'traveling' && status !== 'hatching') continue
+    // Draw lifecycle cells + transformed (waiting for wave start)
+    // Transformed cells despawn when formation appears (phase=active)
+    if (status === 'transformed' && phase === 'active') continue
+    if (status !== 'plucked' && status !== 'traveling' && status !== 'hatching' && status !== 'transformed') continue
 
     // Grid position (top-left of cell)
     const gridX = gridScreenOffsetX + gc.cell.x * stride
@@ -138,7 +140,17 @@ export function renderFrame(
       ctx.fillStyle = PLUCK_COLOR
       ctx.fillRect(cx - half, cy - half, size, size)
     } else if (status === 'hatching') {
-      ctx.fillStyle = HATCH_COLOR
+      // Interpolate color from amber → invader red using detachProgress (0→1)
+      const t = gc.detachProgress
+      // Lerp RGB: PLUCK_COLOR=#d29922 (210,153,34) → INVADER_COLOR=#ff4444 (255,68,68)
+      const r = Math.round(210 + (255 - 210) * t)
+      const g = Math.round(153 + (68 - 153) * t)
+      const b = Math.round(34 + (68 - 34) * t)
+      ctx.fillStyle = `rgb(${r},${g},${b})`
+      ctx.fillRect(targetCenterX - invHalf, targetCenterY - invHalf, config.invaderSize, config.invaderSize)
+    } else if (status === 'transformed') {
+      // Waiting for all cells to transform → draw as invader (exact match)
+      ctx.fillStyle = INVADER_COLOR
       ctx.fillRect(targetCenterX - invHalf, targetCenterY - invHalf, config.invaderSize, config.invaderSize)
     }
   }
