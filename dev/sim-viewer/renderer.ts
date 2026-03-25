@@ -16,6 +16,7 @@ export const BG_COLOR = '#0d1117'
 export const PLUCK_COLOR = '#d29922' // amber/gold for plucked cells
 export const HATCH_COLOR = '#e05555' // transitioning to invader red
 export const OVERLAY_COLOR = 'rgba(13, 17, 23, 0.6)'
+export const RENDER_MARGIN = 10 // px padding around play area for centered entities at edges
 
 /**
  * Map sim coordinates to screen coordinates (90° CW rotation).
@@ -35,8 +36,8 @@ function simToScreen(
   simY: number,
   config: SimConfig,
 ): { sx: number; sy: number } {
-  const sx = config.playArea.height - simY
-  const sy = simX
+  const sx = RENDER_MARGIN + config.playArea.height - simY
+  const sy = RENDER_MARGIN + simX
   return { sx, sy }
 }
 
@@ -49,8 +50,8 @@ export function getScreenSize(
   statusBarHeight: number = 0,
 ): { width: number; height: number } {
   return {
-    width: config.playArea.height,
-    height: config.playArea.width + statusBarHeight,
+    width: config.playArea.height + RENDER_MARGIN * 2,
+    height: config.playArea.width + RENDER_MARGIN * 2 + statusBarHeight,
   }
 }
 
@@ -68,8 +69,8 @@ export function renderFrame(
 
   // ── Layer 1: Grid background (in_grid cells only) ──
   const stride = config.cellSize + config.cellGap
-  const gridScreenOffsetX = screen.width - config.gridArea.height
-  const gridScreenOffsetY = (config.playArea.width - config.gridArea.width) / 2
+  const gridScreenOffsetX = screen.width - config.gridArea.height - RENDER_MARGIN
+  const gridScreenOffsetY = RENDER_MARGIN + (config.playArea.width - config.gridArea.width) / 2
 
   for (const gc of state.gridCells) {
     const status = gc.status
@@ -181,7 +182,7 @@ export function renderFrame(
   // Wave label overlay (center, during transition phases)
   const showWaveLabel = phase === 'brightening' || phase === 'plucking' || phase === 'darkening' || phase === 'traveling' || phase === 'hatching'
   if (showWaveLabel) {
-    const gameAreaH = config.playArea.width
+    const gameAreaH = config.playArea.width + RENDER_MARGIN * 2
     ctx.save()
     ctx.fillStyle = '#e6edf3'
     ctx.font = 'bold 16px monospace'
@@ -197,7 +198,7 @@ export function renderFrame(
 
   // Status bar (bottom)
   if (statusBarHeight > 0) {
-    const gameAreaHeight = config.playArea.width // after rotation
+    const gameAreaHeight = config.playArea.width + RENDER_MARGIN * 2 // after rotation + margin
     ctx.fillStyle = '#161b22'
     ctx.fillRect(0, gameAreaHeight, screen.width, statusBarHeight)
 
