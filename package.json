@@ -1,11 +1,26 @@
 {
   "name": "commit-invaders",
-  "version": "0.1.0",
-  "description": "A GitHub Action that generates animated SVG of a Space Invaders-style game from your contribution graph",
+  "version": "1.0.0",
+  "description": "Generate an animated Space Invaders SVG from your GitHub contribution graph",
   "type": "module",
   "engines": {
     "node": ">=20"
   },
+  "bin": {
+    "commit-invaders": "./bin/commit-invaders.js"
+  },
+  "files": [
+    "dist/",
+    "bin/",
+    "src/",
+    "action.yml",
+    "README.md"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Goblinlordx/commit-invaders"
+  },
+  "author": "Goblinlordx",
   "scripts": {
     "build": "tsup",
     "test": "vitest run",
