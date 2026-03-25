@@ -1,7 +1,7 @@
 import type { Grid, SimConfig, SimOutput, GameState, ContributionLevel } from '../../src/types.js'
 import { simulate } from '../../src/simulator/simulate.js'
 import { createPRNG } from '../../src/simulator/prng.js'
-import { renderFrame } from './renderer.js'
+import { renderFrame, getScreenSize } from './renderer.js'
 
 // ── Default config ──
 
@@ -131,8 +131,9 @@ function runSim(): void {
   const seed = seedInput.value || 'demo-seed'
   const grid = makeGrid(weeks, seed + '-grid')
 
-  canvas.width = config.playArea.width
-  canvas.height = config.playArea.height
+  const screen = getScreenSize(config)
+  canvas.width = screen.width
+  canvas.height = screen.height
 
   output = simulate(grid, seed, config)
   currentFrame = 0
