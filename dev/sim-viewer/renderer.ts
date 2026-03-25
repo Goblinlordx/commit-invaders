@@ -98,11 +98,12 @@ export function renderFrame(
 
   // ── Layer 2: Overlay ──
   let overlayAlpha = 0
+  const hasCompletedWaves = state.formations.length > 0
   if (phase === 'idle' || phase === 'ending_reset') overlayAlpha = 0
-  else if (phase === 'brightening') overlayAlpha = 0.6 * (1 - state.wavePhaseProgress)
+  else if (phase === 'brightening') overlayAlpha = hasCompletedWaves ? 0.6 * (1 - state.wavePhaseProgress) : 0
   else if (phase === 'plucking') overlayAlpha = 0
   else if (phase === 'darkening') overlayAlpha = 0.6 * state.wavePhaseProgress
-  else if (phase === 'ending_blackout') overlayAlpha = 0 // blackout overlay handles this
+  else if (phase === 'ending_blackout') overlayAlpha = 0
   else overlayAlpha = 0.6
 
   if (overlayAlpha > 0.01) {
@@ -148,12 +149,21 @@ export function renderFrame(
       ctx.fillStyle = PLUCK_COLOR
       ctx.fillRect(cx - half, cy - half, size, size)
     } else if (status === 'hatching') {
-      // Interpolate color from amber → invader red using detachProgress (0→1)
+      // Interpolate color: amber → bright orange → invader red
       const t = gc.detachProgress
-      // Lerp RGB: PLUCK_COLOR=#d29922 (210,153,34) → INVADER_COLOR=#ff4444 (255,68,68)
-      const r = Math.round(210 + (255 - 210) * t)
-      const g = Math.round(153 + (68 - 153) * t)
-      const b = Math.round(34 + (68 - 34) * t)
+      // Two-phase: amber(210,153,34) → orange(255,140,40) → red(255,68,68)
+      let r: number, g: number, b: number
+      if (t < 0.5) {
+        const t2 = t * 2
+        r = Math.round(210 + (255 - 210) * t2)
+        g = Math.round(153 + (140 - 153) * t2)
+        b = Math.round(34 + (40 - 34) * t2)
+      } else {
+        const t2 = (t - 0.5) * 2
+        r = 255
+        g = Math.round(140 + (68 - 140) * t2)
+        b = Math.round(40 + (68 - 40) * t2)
+      }
       ctx.fillStyle = `rgb(${r},${g},${b})`
       ctx.fillRect(targetCenterX - invHalf, targetCenterY - invHalf, config.invaderSize, config.invaderSize)
     // transformed cells are not drawn — formation layer handles them
