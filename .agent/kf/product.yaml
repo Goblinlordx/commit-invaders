@@ -1,8 +1,10 @@
 name: "Commit Invaders"
 description: >
   A GitHub Action that generates an animated SVG of a Space Invaders-style
-  game where GitHub contribution graph commits transform into descending
-  invader waves and get destroyed by a player ship's lasers.
+  game where GitHub contribution graph commits transform into invader waves
+  and get destroyed by a player ship's lasers. The contribution grid is the
+  background — cells are plucked from the grid, travel to formation positions,
+  hatch into invaders, and the ship fires horizontally to destroy them.
 
 problem: >
   GitHub profile animations are dominated by the same snake game (Platane/snk).
@@ -16,7 +18,51 @@ users:
 
 goals:
   - Generate animated SVG from GitHub contribution graph data
-  - Animate commits transforming from the static grid into Space Invaders-style waves
+  - Horizontal layout: ship on left, fires right across the contribution grid
+  - Contribution grid as background — cells pluck, travel, hatch into invaders
+  - Per-cell staggered lifecycle (pluck → travel → hatch) with configurable timing
+  - Wave-by-wave combat with formation oscillation and ship targeting solver
+  - Ending sequence: score display, high score board, fade to black, reset to start
+  - Seamless loop: first and last frames visually identical
   - Support light and dark mode via CSS prefers-color-scheme
-  - Run as a GitHub Action on a cron schedule (every 12 hours)
+  - Run as a GitHub Action on a cron schedule
   - Produce crisp, performant SVG animations using CSS keyframes (no JavaScript)
+  - GitHub-safe SVG: no JS, no external resources
+
+features:
+  simulation:
+    - Outcome-first solver: PRNG predetermines hit/miss, solver computes exact firing positions
+    - Time-based physics: all speeds in px/s, dt = 1/framesPerSecond
+    - Fully parameterized SimConfig: laser/ship/formation speeds, sizes, hitChance, fireRate
+    - Per-wave retry with escalating hitChance guarantees completion
+    - One-hit kills: every hit destroys the invader
+    - Invader breach detection: game stops if invader reaches ship Y
+    - Deterministic: same (Grid, seed, config) → identical SimOutput
+
+  lifecycle:
+    - Per-cell staggered pluck/travel/hatch (not lockstep)
+    - Random cell selection from entire grid per wave (not column-grouped)
+    - Configurable timing: brightenDuration, pluckDuration, darkenDuration, travelDuration, hatchDuration
+    - All cells stay visible as hatching until simultaneous despawn on wave start
+    - Overlay opacity varies by wave phase (transparent during pluck, dimmed during combat)
+
+  ending:
+    - Ship fadeout → score display with wiggling characters → fade out
+    - Scoreboard fade in (HIGH SCORES, 2 columns, highlighted current day)
+    - New High Score indicator with wiggling text
+    - Blackout fade → reset fade to initial state
+    - Configurable timing per phase
+
+  scoreboard:
+    - Sliding window algorithm across contribution history
+    - Binary search distance filtering for non-overlapping high scores (O(N log N))
+    - Top 10 entries with rank, date (YYYY-MM-DD), compact score (1.23k, 12.3M)
+    - Current day highlighted if on the board
+
+  renderer:
+    - Horizontal layout via 90° CW rotation of sim coordinates
+    - Hitbox mode: flat colored AABB rects for validation
+    - Contribution grid as background with phase-based overlay
+    - Status bar: wave indicator + commit score counter
+    - Render margin for centered entities at edges
+    - Start delay for clean initial hold matching loop point

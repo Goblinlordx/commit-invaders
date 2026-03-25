@@ -12,12 +12,43 @@ infrastructure: "GitHub Actions"
 dependencies:
   - "@octokit/graphql — GitHub API client for fetching contribution data"
   - "@actions/core — GitHub Actions toolkit"
-  - "vitest — test runner"
-  - "typescript — type checking"
+  - "vitest — test runner (112+ tests)"
+  - "typescript — type checking (strict mode, noUncheckedIndexedAccess)"
   - "tsup — bundler for the action"
   - "eslint — linting"
   - "prettier — formatting"
+  - "vite — dev server for sim-viewer and validation tools"
+
+architecture:
+  simulation:
+    entry_point: "src/simulator/simulate.ts → simulate(grid, seed, config) → SimOutput"
+    solver: "Outcome-first: PRNG predetermines hit/miss, ballistics solver computes exact fire positions"
+    physics: "Time-based (dt = 1/framesPerSecond), all speeds in px/s"
+    prediction: "Exact formation path prediction via replicated tick logic, verified 100% accurate"
+    completion: "Per-wave retry with escalating hitChance, invader breach detection"
+    peek: "SimOutput.peek(frame) re-runs simulateCore to target frame (deterministic)"
+
+  subsystems:
+    wave_manager: "src/simulator/wave-manager.ts — groups cells into waves, sequential spawning"
+    formation: "src/simulator/formation.ts — zigzag oscillation, boundary bouncing, speed scaling"
+    combat: "src/simulator/combat.ts — AABB hit detection, one-hit kills, commit-count scoring"
+    prng: "src/simulator/prng.ts — Mulberry32 seeded PRNG"
+    scoreboard: "src/scoreboard.ts — sliding window high scores with O(N log N) distance filtering"
+
+  renderer:
+    canvas: "dev/sim-viewer/ — Vite-based hitbox debug renderer with playback controls"
+    rotation: "90° CW rotation: sim Y→screen X, sim X→screen Y (horizontal layout)"
+    layers: "grid background → overlay → lifecycle cells → invaders → lasers → ship → UI"
+
+  types:
+    config: "SimConfig — fully parameterized physics (speeds, sizes, hitChance, fireRate, framesPerSecond)"
+    state: "GameState — reconstructable snapshot with wavePhase, wavePhaseProgress, gridCells status"
+    events: "SimEvent — compact deltas (cell_pluck, fire_laser, hit, destroy, wave_phase_change, etc.)"
+    inflections: "InflectionPoint — per-entity state change markers for CSS keyframe generation"
+    timelines: "EntityTimeline — per-entity inflection sequences (formation, ship, laser, invader, cell)"
 
 notes:
-  output_format: "Animated SVG with CSS @keyframes and <animate> elements"
-  constraint: "GitHub strips JavaScript from SVGs in READMEs — all animation must be CSS/SMIL only"
+  output_format: "Animated SVG with CSS @keyframes — no JavaScript, no external resources"
+  constraint: "GitHub strips JavaScript from SVGs in READMEs — all animation must be pure CSS"
+  coordinate_system: "Sim space (vertical) rotated 90° CW to screen space (horizontal)"
+  validation_strategy: "Per-entity isolated CSS vs canvas pixel-diff, then full composition validation"
