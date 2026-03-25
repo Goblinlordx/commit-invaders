@@ -629,19 +629,24 @@ function simulateCore(
           state.detachProgress = wc.hatchDuration > 0 ? Math.min(1, elapsed / wc.hatchDuration) : 1
         }
 
-        if (frame === cs.transformFrame && state.status === 'hatching') {
-          state.status = 'transformed'
-          const cellId = `cell-${grid.cells[cs.cellIndex]!.x}-${grid.cells[cs.cellIndex]!.y}`
-          frameEvents.push({ frame, type: 'cell_hatch_complete', entityId: cellId, position: cs.targetPos })
-          addInflection(cellId, 'cell', { frame, position: cs.targetPos, type: 'hatch_complete' })
-        }
-
-        if (state.status !== 'transformed') allTransformed = false
+        // Check if this cell's hatch is complete (but don't change status yet)
+        const hatchComplete = frame >= cs.transformFrame
+        if (!hatchComplete) allTransformed = false
       }
 
       // All cells transformed → wait a few frames then create formation
       // This ensures hatched cells are visible briefly before becoming invaders
       if (allTransformed) {
+        // All hatches complete — transform all cells simultaneously and create formation
+        for (const cs of cellSchedules) {
+          if (cs.cellIndex >= 0) {
+            gridCellStates[cs.cellIndex]!.status = 'transformed'
+            const cellId = `cell-${grid.cells[cs.cellIndex]!.x}-${grid.cells[cs.cellIndex]!.y}`
+            frameEvents.push({ frame, type: 'cell_hatch_complete', entityId: cellId, position: cs.targetPos })
+            addInflection(cellId, 'cell', { frame, position: cs.targetPos, type: 'hatch_complete' })
+          }
+        }
+
         const wave = pendingWave!
         const invaders: InvaderState[] = cellSchedules.map((cs, i) => {
           const cell = cs.cellIndex >= 0 ? grid.cells[cs.cellIndex]! : wave.cells[i]!.cell
