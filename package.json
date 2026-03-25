@@ -15,7 +15,9 @@
     "format:check": "prettier --check 'src/**/*.ts'",
     "typecheck": "tsc --noEmit",
     "dev:sim": "vite dev/sim-viewer",
-    "dev:entities": "vite dev/entity-test"
+    "dev:entities": "vite dev/entity-test",
+    "dev:validator": "vite dev/entity-validator",
+    "test:visual": "playwright test"
   },
   "keywords": [
     "github",
@@ -27,6 +29,7 @@
   ],
   "license": "MIT",
   "devDependencies": {
+    "@playwright/test": "^1.58.2",
     "eslint": "^10.1.0",
     "prettier": "^3.8.1",
     "tsup": "^8.5.1",
