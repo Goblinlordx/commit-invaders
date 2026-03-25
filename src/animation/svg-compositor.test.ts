@@ -109,8 +109,9 @@ describe('svg-compositor', () => {
     const grid = makeGrid(4, 'test-svg')
     const svg = generateAnimatedSvg(grid, 'test', config)
 
-    expect(svg).toContain('class="lc"')
+    // Styled mode: pluck rect + invader sprite hatch
     expect(svg).toContain(PLUCK_COLOR)
+    expect(svg).toContain('lc-pluck-')
   })
 
   it('SVG is GitHub-safe (no script tags)', () => {

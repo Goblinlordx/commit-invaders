@@ -245,10 +245,56 @@ export function composeSvg(options: CompositeSvgOptions): string {
     ]
 
     cssRules.push(`@keyframes ${cellKfName} {\n  ${kfStops.join('\n  ')}\n}`)
-    elements.push(
-      `<rect class="lc" x="${-invHalf}" y="${-invHalf}" width="${config.invaderSize}" height="${config.invaderSize}" fill="${PLUCK_COLOR}" opacity="0" ` +
-      `style="animation: ${cellKfName} ${dur}s linear infinite" />`
-    )
+
+    if (styled) {
+      // Pluck rect (visible during pluck+travel, hidden at hatch)
+      const pluckKfName = `lc-pluck-${cd.cellId.replace(/[^a-z0-9]/g, '-')}`
+      const pluckStops = [
+        `0.00% { opacity: 0; }`,
+        `${Math.max(0, pluckPct - 0.01).toFixed(2)}% { opacity: 0; transform: translate(${gridCenterX}px, ${gridCenterY}px); }`,
+        `${pluckPct.toFixed(2)}% { opacity: 1; transform: translate(${gridCenterX}px, ${gridCenterY}px); }`,
+        `${travelStartPct.toFixed(2)}% { transform: translate(${gridCenterX}px, ${gridCenterY}px); }`,
+        `${travelEndPct.toFixed(2)}% { transform: translate(${cd.targetScreenX}px, ${cd.targetScreenY}px); }`,
+        `${hatchStartPct.toFixed(2)}% { transform: translate(${cd.targetScreenX}px, ${cd.targetScreenY}px); opacity: 1; }`,
+        `${Math.min(100, hatchStartPct + 0.01).toFixed(2)}% { opacity: 0; }`,
+        `100.00% { opacity: 0; }`,
+      ]
+      cssRules.push(`@keyframes ${pluckKfName} {\n  ${pluckStops.join('\n  ')}\n}`)
+      elements.push(
+        `<rect x="${-invHalf}" y="${-invHalf}" width="${config.invaderSize}" height="${config.invaderSize}" fill="${PLUCK_COLOR}" opacity="0" ` +
+        `style="animation: ${pluckKfName} ${dur}s linear infinite" />`
+      )
+
+      // Invader sprite (fades in at hatch, visible until despawn)
+      // Get level from cell ID — need to find the matching cell in grid
+      const parts = cd.cellId.split('-')
+      const cellX = parseInt(parts[1]!, 10)
+      const cellY = parseInt(parts[2]!, 10)
+      const gridCell = grid.cells.find((c) => c.x === cellX && c.y === cellY)
+      const level = gridCell ? gridCell.level : 1
+      const spriteId = invaderSpriteId(level)
+
+      const hatchKfName = `lc-hatch-${cd.cellId.replace(/[^a-z0-9]/g, '-')}`
+      const hatchStops = [
+        `0.00% { opacity: 0; }`,
+        `${Math.max(0, hatchStartPct - 0.01).toFixed(2)}% { opacity: 0; transform: translate(${cd.targetScreenX}px, ${cd.targetScreenY}px); }`,
+        `${hatchStartPct.toFixed(2)}% { opacity: 0; transform: translate(${cd.targetScreenX}px, ${cd.targetScreenY}px); }`,
+        `${Math.min(100, (hatchStartPct + despawnPct) / 2).toFixed(2)}% { opacity: 1; transform: translate(${cd.targetScreenX}px, ${cd.targetScreenY}px); }`,
+        `${Math.min(100, despawnPct).toFixed(2)}% { transform: translate(${cd.targetScreenX}px, ${cd.targetScreenY}px); opacity: 1; }`,
+        `${Math.min(100, despawnPct + 0.01).toFixed(2)}% { opacity: 0; }`,
+        `100.00% { opacity: 0; }`,
+      ]
+      cssRules.push(`@keyframes ${hatchKfName} {\n  ${hatchStops.join('\n  ')}\n}`)
+      elements.push(
+        `<use href="#${spriteId}" x="${-invHalf}" y="${-invHalf}" width="${config.invaderSize}" height="${config.invaderSize}" opacity="0" ` +
+        `style="animation: ${hatchKfName} ${dur}s linear infinite" />`
+      )
+    } else {
+      elements.push(
+        `<rect class="lc" x="${-invHalf}" y="${-invHalf}" width="${config.invaderSize}" height="${config.invaderSize}" fill="${PLUCK_COLOR}" opacity="0" ` +
+        `style="animation: ${cellKfName} ${dur}s linear infinite" />`
+      )
+    }
   }
 
   // ── Formations + Invaders ──
