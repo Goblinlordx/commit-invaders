@@ -1,82 +1,104 @@
 id: demo-page_20260326163728Z
-title: "Demo Page — Interactive GitHub Pages Showcase"
+title: Demo Page — Interactive GitHub Pages Showcase
 type: feature
 status: pending
 created: 2026-03-26
-updated: 2026-03-26
+updated: '2026-03-25'
 spec:
-  summary: |
-    GitHub Pages demo site with live SVG preview, light/dark toggle, debug mode
+  summary: 'GitHub Pages demo site with live SVG preview, light/dark toggle, debug mode
+
     with full sim parameter sliders, polished UI/UX. Benchmarks against snk.
-  context: |
-    The snk project (Platane/snk) has a basic demo page at platane.github.io/snk/
+
+    '
+  context: 'The snk project (Platane/snk) has a basic demo page at platane.github.io/snk/
+
     with minimal UI — just a preview and a few links. This track builds a demo page
+
     that dramatically outclasses it with interactive features, beautiful design, and
+
     developer-friendly debug tooling. The existing dev/sim-viewer already has canvas
+
     rendering with parameter sliders — this track creates a production-quality web
+
     page that showcases the SVG output and exposes tuning controls.
-  codebase_analysis: |
-    - dev/sim-viewer/ has canvas renderer with config sliders (all SimConfig params)
+
+    '
+  codebase_analysis: '- dev/sim-viewer/ has canvas renderer with config sliders (all SimConfig params)
+
     - scripts/generate.ts shows the full pipeline: fetch → parse → simulate → SVG
+
     - Vite is already a devDependency for dev servers
+
     - The SVG compositor can run in-browser (no Node-specific deps except fetch)
+
     - GitHub Pages deployment via gh-pages branch or /docs folder
+
     - snk demo reference at platane.github.io/snk/ for competitive benchmark
+
+    '
   acceptance_criteria:
-    - Live SVG preview from GitHub username input
-    - Light/dark theme toggle with instant SVG re-render
-    - Debug mode panel with all SimConfig parameter sliders
-    - Responsive design that looks great on mobile and desktop
-    - Polished UI/UX that clearly outclasses the snk demo page
-    - GitHub Pages deployable (static site, no server)
-    - Download SVG button
-    - Link to GitHub repo, action setup instructions
-    - Performance — SVG generation runs client-side in under 3 seconds
-  out_of_scope: |
-    Server-side rendering. User authentication. Saving configurations.
+  - Live SVG preview from GitHub username input
+  - Light/dark theme toggle with instant SVG re-render
+  - Debug mode panel with all SimConfig parameter sliders
+  - Responsive design that looks great on mobile and desktop
+  - Polished UI/UX that clearly outclasses the snk demo page
+  - GitHub Pages deployable (static site, no server)
+  - Download SVG button
+  - Link to GitHub repo, action setup instructions
+  - Performance — SVG generation runs client-side in under 3 seconds
+  out_of_scope: 'Server-side rendering. User authentication. Saving configurations.
+
     Video export from the demo page (separate track).
-  technical_notes: |
-    Stack: Vite + vanilla TS (or lightweight framework like Preact if needed).
+
+    '
+  technical_notes: 'Stack: Vite + vanilla TS (or lightweight framework like Preact if needed).
+
     The simulation and SVG compositor run entirely client-side. GitHub contribution
+
     data fetched via CORS proxy or GitHub API token input. Debug mode exposes all
+
     SimConfig fields as sliders/inputs with live re-render. Theme toggle switches
+
     CSS custom properties and re-generates SVG with appropriate palette.
+
     Deploy to GitHub Pages via docs/ folder or separate gh-pages branch.
+
+    '
 plan:
-  - phase: Page Structure
-    tasks:
-      - text: Set up Vite project in docs/ or demo/ directory
-        done: false
-      - text: Design page layout — hero section, preview area, controls, footer
-        done: false
-      - text: Implement responsive CSS with dark/light theme support
-        done: false
-  - phase: Core Features
-    tasks:
-      - text: GitHub username input with live SVG generation
-        done: false
-      - text: SVG preview display with animation playback
-        done: false
-      - text: Light/dark theme toggle with SVG re-render
-        done: false
-      - text: Download SVG button
-        done: false
-  - phase: Debug Mode
-    tasks:
-      - text: Collapsible debug panel with all SimConfig parameter sliders
-        done: false
-      - text: Live re-render on parameter change (debounced)
-        done: false
-      - text: Parameter reset to defaults button
-        done: false
-      - text: Show generation stats (frame count, file size, entity counts)
-        done: false
-  - phase: Polish & Deploy
-    tasks:
-      - text: Add repo links, setup instructions, action badge
-        done: false
-      - text: Mobile responsive testing and fixes
-        done: false
-      - text: Configure GitHub Pages deployment
-        done: false
+- phase: Page Structure
+  tasks:
+  - text: Set up Vite project in docs/ or demo/ directory
+    done: true
+  - text: Design page layout — hero section, preview area, controls, footer
+    done: true
+  - text: Implement responsive CSS with dark/light theme support
+    done: true
+- phase: Core Features
+  tasks:
+  - text: GitHub username input with live SVG generation
+    done: true
+  - text: SVG preview display with animation playback
+    done: true
+  - text: Light/dark theme toggle with SVG re-render
+    done: true
+  - text: Download SVG button
+    done: true
+- phase: Debug Mode
+  tasks:
+  - text: Collapsible debug panel with all SimConfig parameter sliders
+    done: false
+  - text: Live re-render on parameter change (debounced)
+    done: false
+  - text: Parameter reset to defaults button
+    done: false
+  - text: Show generation stats (frame count, file size, entity counts)
+    done: false
+- phase: Polish & Deploy
+  tasks:
+  - text: Add repo links, setup instructions, action badge
+    done: false
+  - text: Mobile responsive testing and fixes
+    done: false
+  - text: Configure GitHub Pages deployment
+    done: false
 extra: {}

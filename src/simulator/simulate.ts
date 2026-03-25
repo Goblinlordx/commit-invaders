@@ -27,47 +27,6 @@ type Decision = { type: 'move'; x: number } | { type: 'fire' }
 
 // ── Prediction ──
 
-/**
- * Predict invader world position at exactly N ticks in the future.
- * Replicates formation.tick() boundary logic exactly — verified to match.
- * Returns both X and Y (Y changes due to row drops on wall bounces).
- */
-function predictWorldPos(
-  invBaseX: number,
-  invBaseY: number,
-  formation: Formation,
-  ticksAhead: number,
-  playArea: { x: number; width: number },
-  rowDrop: number,
-  dt: number,
-): { x: number; y: number } {
-  const s = formation.getState()
-  const alive = s.invaders.filter((i) => !i.destroyed)
-  let offX = s.offset.x
-  let offY = s.offset.y
-  let dir = s.direction
-  const spd = s.speed * dt // px/s → px/frame
-
-  for (let t = 0; t < ticksAhead; t++) {
-    const dx = dir === 'right' ? spd : -spd
-    let wouldExceed = false
-    for (const a of alive) {
-      if (a.position.x + offX + dx < playArea.x ||
-          a.position.x + offX + dx >= playArea.x + playArea.width) {
-        wouldExceed = true
-        break
-      }
-    }
-    if (wouldExceed) {
-      dir = dir === 'right' ? 'left' : 'right'
-      offY += rowDrop
-    } else {
-      offX += dx
-    }
-  }
-
-  return { x: invBaseX + offX, y: invBaseY + offY }
-}
 
 // ── Firing solution ──
 
@@ -88,46 +47,39 @@ function solveHit(
   target: { id: string; invBaseX: number; invBaseY: number; formation: Formation },
   currentFrame: number,
   shipX: number,
+  shipY: number,
   config: SimConfig,
 ): FiringSolution | null {
-  // Search over extraDelay (frames the ship has to move before firing).
-  // For each delay, predict invader position at (delay + travelFrames) ticks
-  // ahead. The laser Y and invader Y must intersect — find the tick count
-  // where the laser (traveling from shipY at laserSpeed) reaches the invader.
+  // Forward-expanding search using formation.predictOffset() — the EXACT same
+  // tick logic as the actual simulation. No separate prediction code.
+  //
+  // For each delay: compute where the invader will be at impact time using
+  // predictOffset, then check if the ship can reach that X in time.
 
-  // Per-frame speeds (px/s * dt = px/frame)
   const dt = 1 / config.framesPerSecond
   const shipSpeedPerFrame = config.shipSpeed * dt
   const laserSpeedPerFrame = config.laserSpeed * dt
   const halfLaser = config.laserWidth / 2
   const halfInvader = config.invaderSize / 2
 
-  // Bounds derived from per-frame speeds
   const maxDelay = Math.ceil(config.playArea.width / shipSpeedPerFrame) + 20
-  const maxLaserTicks = Math.ceil(config.shipY / laserSpeedPerFrame) + 5
+  const maxLT = Math.ceil(shipY / laserSpeedPerFrame) + 5
+  const maxTotalTicks = maxDelay + maxLT + 1
 
+  // Pre-compute path incrementally using formation's tick logic
   const fState = target.formation.getState()
-  const alive = fState.invaders.filter((i) => !i.destroyed)
-  const spd = fState.speed * dt // px/s → px/frame
-
-  // Pre-compute the formation path once for (maxDelay + maxLaserTicks) ticks.
-  const pathLen = maxDelay + maxLaserTicks + 1
-  const pathX: number[] = new Array(pathLen)
-  const pathY: number[] = new Array(pathLen)
-
-  let offX = fState.offset.x
-  let offY = fState.offset.y
-  let dir = fState.direction
-
+  const spd = fState.speed * (1 / config.framesPerSecond)
+  const pathX: number[] = new Array(maxTotalTicks)
+  const pathY: number[] = new Array(maxTotalTicks)
+  let offX = fState.offset.x, offY = fState.offset.y, dir = fState.direction
   pathX[0] = target.invBaseX + offX
   pathY[0] = target.invBaseY + offY
-
-  for (let t = 1; t < pathLen; t++) {
+  for (let t = 1; t < maxTotalTicks; t++) {
     const dx = dir === 'right' ? spd : -spd
     let wouldExceed = false
-    for (const a of alive) {
-      if (a.position.x + offX + dx < config.playArea.x ||
-          a.position.x + offX + dx >= config.playArea.x + config.playArea.width) {
+    for (const inv of fState.invaders) {
+      if (inv.position.x + offX + dx < config.playArea.x ||
+          inv.position.x + offX + dx >= config.playArea.x + config.playArea.width) {
         wouldExceed = true; break
       }
     }
@@ -137,35 +89,32 @@ function solveHit(
     pathY[t] = target.invBaseY + offY
   }
 
-  // Search (extraDelay, laserTicks) space using pre-computed path
-  for (let extraDelay = 0; extraDelay < maxDelay; extraDelay++) {
-    const fireFrame = currentFrame + extraDelay
-    if (fireFrame >= MAX_FRAMES) return null // safety net
+  for (let delay = 0; delay < maxDelay; delay++) {
+    const fireFrame = currentFrame + delay
+    if (fireFrame >= MAX_FRAMES) return null
 
-    for (let laserTicks = 1; laserTicks < maxLaserTicks; laserTicks++) {
-      const totalTicks = extraDelay + laserTicks
-      if (totalTicks >= pathLen) break
+    const reachDist = delay * shipSpeedPerFrame
 
-      const laserY = config.shipY - laserTicks * laserSpeedPerFrame
+    for (let lt = 1; lt < maxLT; lt++) {
+      const totalTicks = delay + lt
+      if (totalTicks >= maxTotalTicks) break
+
+      const laserY = shipY - lt * laserSpeedPerFrame
       if (laserY < 0) break
 
       const predX = pathX[totalTicks]!
       const predY = pathY[totalTicks]!
 
-      const yOverlap =
-        laserY - halfLaser < predY + halfInvader &&
-        laserY + halfLaser > predY - halfInvader
-
+      const yOverlap = laserY - halfLaser < predY + halfInvader &&
+                        laserY + halfLaser > predY - halfInvader
       if (!yOverlap) continue
 
       if (predX < config.playArea.x || predX >= config.playArea.x + config.playArea.width) continue
 
-      const moveDist = Math.abs(predX - shipX)
-      if (moveDist > extraDelay * shipSpeedPerFrame) {
-        break // need more delay
+      // Ship must reach predX within delay frames
+      if (Math.abs(predX - shipX) <= reachDist) {
+        return { fireFrame, fireX: predX, targetId: target.id }
       }
-
-      return { fireFrame, fireX: predX, targetId: target.id }
     }
   }
 
@@ -193,11 +142,10 @@ function solveMiss(
     const dt = 1 / config.framesPerSecond
     const travelFrames = Math.ceil(dist / (config.laserSpeed * dt))
 
+    const predicted = f.predictOffset(travelFrames)
     for (const inv of fState.invaders) {
       if (inv.destroyed) continue
-      const futurePos = predictWorldPos(inv.position.x, inv.position.y, f, travelFrames, config.playArea, config.formationRowDrop, dt)
-      const futureX = futurePos.x
-      occupiedXs.push(futureX)
+      occupiedXs.push(inv.position.x + predicted.x)
     }
   }
 
@@ -299,11 +247,14 @@ function simulateCore(
   }
 
   /** Compute invader formation position from cell coordinates. */
-  function invaderPosition(cellX: number, cellY: number, minCol: number): Position {
+  function invaderPosition(cellX: number, cellY: number, minCol: number, totalCols: number): Position {
     const col = cellX - minCol
     const staggerX = (cellY % 2) * config.formationRowStagger
+    // Center the formation horizontally in the play area
+    const formationWidth = totalCols * formationStride
+    const centerOffset = (config.playArea.width - formationWidth) / 2
     return {
-      x: config.gridArea.x + col * formationStride + staggerX,
+      x: centerOffset + col * formationStride + staggerX,
       y: config.gridArea.y + cellY * formationStride,
     }
   }
@@ -492,7 +443,7 @@ function simulateCore(
       }
 
       for (const t of targets) {
-        const sol = solveHit(t, frame, ship.position.x, config)
+        const sol = solveHit(t, frame, ship.position.x, ship.position.y, config)
         if (sol) {
           solution = sol
           return
@@ -530,10 +481,12 @@ function simulateCore(
         if (lifecycleTotal === 0) {
           // No lifecycle — instant spawn (backward compatible)
           const minCol = wave.cells.reduce((m, w) => Math.min(m, w.cell.x), Infinity)
+          const maxCol = wave.cells.reduce((m, w) => Math.max(m, w.cell.x), -Infinity)
+          const totalCols = maxCol - minCol + 1
           const invaders: InvaderState[] = wave.cells.map((w, i) => ({
             id: `inv-w${wave.waveIndex}-${i}`,
             cell: w.cell, hp: w.hp, maxHp: w.hp,
-            position: invaderPosition(w.cell.x, w.cell.y, minCol),
+            position: invaderPosition(w.cell.x, w.cell.y, minCol, totalCols),
             destroyed: false, destroyedAtFrame: null,
           }))
           totalInvaders += invaders.length
@@ -567,12 +520,15 @@ function simulateCore(
 
           // Build cell list with formation target positions
           // Formation positions use a sequential layout (col 0..N, row from cell.y)
+          // Layout: wide grid — cap columns so formation has room to oscillate
+          // Leave 1 stride margin on each side for oscillation travel
+          const maxFormationWidth = config.playArea.width - formationStride * 2
+          const maxCols = Math.max(1, Math.floor(maxFormationWidth / formationStride))
           const cells: Array<{ cellIndex: number; targetPos: Position }> = selectedIndices.map((ci, i) => {
             const cell = grid.cells[ci]!
-            // Layout invaders in a grid: columns by index, rows by cell.y
-            const col = Math.floor(i / 7)
-            const row = i % 7
-            const targetPos = invaderPosition(col, row, 0)
+            const row = Math.floor(i / maxCols)
+            const col = i % maxCols
+            const targetPos = invaderPosition(col, row, 0, maxCols)
             gridCellStates[ci]!.targetPosition = { ...targetPos }
             return { cellIndex: ci, targetPos }
           })
@@ -768,13 +724,25 @@ function simulateCore(
       }
     } else if (!solution) {
       findSolution(frame)
+    } else if (solution.targetId) {
+      // Re-validate: invalidate only if target was destroyed
+      let targetAlive = false
+      for (const f of formations) {
+        const fs = f.getState()
+        if (!fs.active) continue
+        const inv = fs.invaders.find((i) => i.id === solution!.targetId)
+        if (inv && !inv.destroyed) { targetAlive = true; break }
+      }
+      if (!targetAlive) {
+        solution = null
+        findSolution(frame)
+      }
     }
 
     // Execute committed solution
     const sol = solution as FiringSolution | null
     if (sol && frame <= sol.fireFrame) {
       if (frame === sol.fireFrame) {
-        // Fire frame — snap to position and fire
         ship.position.x = sol.fireX
         record(frame, { type: 'move', x: sol.fireX }, { type: 'fire' })
         addInflection('ship', 'ship', { frame, position: { ...ship.position }, type: 'move_end' })
@@ -813,7 +781,7 @@ function simulateCore(
         position: { x: inv.position.x + fState.offset.x, y: inv.position.y + fState.offset.y },
       }))
 
-      const hitResult = checkHits(lasers, worldInvaders, config.laserWidth, config.invaderSize)
+      const hitResult = checkHits(lasers, worldInvaders, config.laserWidth, config.invaderSize, dt)
       for (const hit of hitResult.hits) {
         const invader = worldInvaders.find((i) => i.id === hit.invaderId)!
         const updated = hitResult.updatedInvaders.find((i) => i.id === hit.invaderId)!
@@ -828,7 +796,6 @@ function simulateCore(
           formation.destroyInvader(hit.invaderId, frame)
           frameEvents.push({ frame, type: 'destroy', entityId: hit.invaderId, position: { ...invader.position } })
           addInflection(hit.invaderId, 'invader', { frame, position: { ...invader.position }, type: 'destroy' })
-
           // Invalidate solution if target was destroyed by another laser
           if ((solution as FiringSolution | null)?.targetId === hit.invaderId) { solution = null }
         }
@@ -953,9 +920,12 @@ function replayToFrame(grid: Grid, config: SimConfig, frameDecisions: Map<number
   const replayDt = 1 / config.framesPerSecond
   const fc = { baseSpeed: config.formationBaseSpeed, maxSpeed: config.formationMaxSpeed, rowDrop: config.formationRowDrop, dt: replayDt }
   const replayFormStride = config.cellSize + config.cellGap + config.formationSpread
-  function replayInvPos(cellX: number, cellY: number, minCol: number): Position {
+  function replayInvPos(cellX: number, cellY: number, minCol: number, totalCols: number): Position {
+    const col = cellX - minCol
+    const formationWidth = totalCols * replayFormStride
+    const centerOffset = (config.playArea.width - formationWidth) / 2
     return {
-      x: config.gridArea.x + (cellX - minCol) * replayFormStride + (cellY % 2) * config.formationRowStagger,
+      x: centerOffset + col * replayFormStride + (cellY % 2) * config.formationRowStagger,
       y: config.gridArea.y + cellY * replayFormStride,
     }
   }
@@ -967,9 +937,11 @@ function replayToFrame(grid: Grid, config: SimConfig, frameDecisions: Map<number
     const wave = wm.trySpawnNext(frame)
     if (wave) {
       const mc = wave.cells.reduce((m, wc) => Math.min(m, wc.cell.x), Infinity)
+      const mxc = wave.cells.reduce((m, wc) => Math.max(m, wc.cell.x), -Infinity)
+      const tc = mxc - mc + 1
       const invaders: InvaderState[] = wave.cells.map((wc, i) => ({
         id: `inv-w${wave.waveIndex}-${i}`, cell: wc.cell, hp: wc.hp, maxHp: wc.hp,
-        position: replayInvPos(wc.cell.x, wc.cell.y, mc),
+        position: replayInvPos(wc.cell.x, wc.cell.y, mc, tc),
         destroyed: false, destroyedAtFrame: null,
       }))
       totalInvaders += invaders.length
@@ -987,7 +959,7 @@ function replayToFrame(grid: Grid, config: SimConfig, frameDecisions: Map<number
     for (const f of formations) {
       const s = f.getState(); if (!s.active) continue
       const wi = s.invaders.map(inv => ({ ...inv, position: { x: inv.position.x + s.offset.x, y: inv.position.y + s.offset.y } }))
-      const hr = checkHits(lasers, wi, config.laserWidth, config.invaderSize)
+      const hr = checkHits(lasers, wi, config.laserWidth, config.invaderSize, replayDt)
       for (const h of hr.hits) { const u = hr.updatedInvaders.find(i => i.id === h.invaderId)!; const o = s.invaders.find(i => i.id === h.invaderId)!; o.hp = u.hp; if (u.destroyed) f.destroyInvader(h.invaderId, frame) }
       score += hr.scoreIncrease; lasers = hr.updatedLasers
     }

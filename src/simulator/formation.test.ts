@@ -186,7 +186,7 @@ describe('Formation', () => {
       expect(reversed).toBe(true)
     })
 
-    it('ignores destroyed invaders for boundary calculation', () => {
+    it('uses original formation footprint for boundary even after kills', () => {
       const invaders = [
         makeInvader('inv-0', 50, 20),
         makeInvader('inv-1', 380, 20),
@@ -198,18 +198,32 @@ describe('Formation', () => {
         defaultFormationConfig,
       )
 
-      // Destroy the rightmost invader
-      formation.destroyInvader('inv-1', 0)
-
-      // Now only inv-0 at x=50 remains — should take longer to hit right boundary
-      let stepsToReverse = 0
+      // Record steps to reverse with full formation
+      let stepsFullFormation = 0
       for (let frame = 1; frame <= 500; frame++) {
         formation.tick(frame)
-        stepsToReverse++
+        stepsFullFormation++
         if (formation.getState().direction === 'left') break
       }
-      // With only invader at x=50, it should take many more steps
-      expect(stepsToReverse).toBeGreaterThan(10)
+
+      // Reset by creating new formation, destroy rightmost
+      const formation2 = createFormation(
+        [makeInvader('inv-0', 50, 20), makeInvader('inv-1', 380, 20)],
+        0,
+        defaultPlayArea,
+        defaultFormationConfig,
+      )
+      formation2.destroyInvader('inv-1', 0)
+
+      let stepsAfterKill = 0
+      for (let frame = 1; frame <= 500; frame++) {
+        formation2.tick(frame)
+        stepsAfterKill++
+        if (formation2.getState().direction === 'left') break
+      }
+      // Same boundary — same steps to reverse (speed may differ but boundary same)
+      // Both should reverse at roughly the same point (boundary = inv-1 at x=380)
+      expect(stepsAfterKill).toBeLessThanOrEqual(stepsFullFormation + 5)
     })
   })
 
@@ -231,7 +245,7 @@ describe('Formation', () => {
       expect(formation.getState().speed).toBe(defaultFormationConfig.baseSpeed)
     })
 
-    it('increases speed when invaders are destroyed', () => {
+    it('keeps constant speed when invaders are destroyed (for prediction accuracy)', () => {
       const invaders = [
         makeInvader('inv-0', 100, 20),
         makeInvader('inv-1', 120, 20),
@@ -248,30 +262,8 @@ describe('Formation', () => {
       formation.destroyInvader('inv-0', 1)
       formation.destroyInvader('inv-1', 1)
 
-      // Speed = baseSpeed * (total / remaining) = 1 * (4/2) = 2
-      expect(formation.getState().speed).toBe(2)
-    })
-
-    it('caps speed at maxSpeed', () => {
-      const invaders = [
-        makeInvader('inv-0', 100, 20),
-        makeInvader('inv-1', 120, 20),
-        makeInvader('inv-2', 140, 20),
-        makeInvader('inv-3', 160, 20),
-      ]
-      const formation = createFormation(
-        invaders,
-        0,
-        defaultPlayArea,
-        { ...defaultFormationConfig, maxSpeed: 3 },
-      )
-
-      // Destroy 3 of 4: speed = 1 * (4/1) = 4, capped at 3
-      formation.destroyInvader('inv-0', 1)
-      formation.destroyInvader('inv-1', 1)
-      formation.destroyInvader('inv-2', 1)
-
-      expect(formation.getState().speed).toBe(3)
+      // Speed stays at baseSpeed — constant for prediction accuracy
+      expect(formation.getState().speed).toBe(defaultFormationConfig.baseSpeed)
     })
 
     it('marks formation cleared when all invaders destroyed', () => {

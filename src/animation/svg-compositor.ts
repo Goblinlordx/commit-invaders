@@ -378,108 +378,56 @@ export function composeSvg(options: CompositeSvgOptions): string {
   }
 
   // ── Explosions (pooled, outside formation groups) ──
-  if (styled && explosionData.length > 0) {
-    const explEvents = [...explosionData].sort((a, b) => a.startPct - b.startPct)
-
-    // Greedy pool assignment
-    const poolSlots: typeof explEvents[number][][] = []
-    const slotEndTimes: number[] = []
-    for (const ev of explEvents) {
-      let assigned = false
-      for (let s = 0; s < poolSlots.length; s++) {
-        if (slotEndTimes[s]! < ev.startPct) {
-          poolSlots[s]!.push(ev)
-          slotEndTimes[s] = ev.endPct
-          assigned = true
-          break
-        }
-      }
-      if (!assigned) {
-        poolSlots.push([ev])
-        slotEndTimes.push(ev.endPct)
-      }
-    }
-
-    // Build one element + keyframe per pool slot
+  // ── Explosions (individual, absolute positions) ──
+  // Each explosion is a <g> translated to the destroy position, with
+  // opacity + scale animated via CSS. Using transform on <g> is reliable
+  // across browsers (unlike animating x/y/width on <use>).
+  if (styled) {
     const s = config.invaderSize
-    for (let slot = 0; slot < poolSlots.length; slot++) {
-      const events = poolSlots[slot]!
-      const kfName = `exp-pool-${slot}`
-      const stops: string[] = [`  0.00% { opacity: 0; }`]
-      for (const ev of events) {
-        const s1 = s, s2 = s * 1.8, s3 = s * 2.5
-        const mid = (ev.startPct + ev.endPct) / 2
-        stops.push(`  ${Math.max(0, ev.startPct - 0.01).toFixed(2)}% { opacity: 0; }`)
-        stops.push(`  ${ev.startPct.toFixed(2)}% { opacity: 1; x: ${(ev.cx - s1 / 2).toFixed(1)}px; y: ${(ev.cy - s1 / 2).toFixed(1)}px; width: ${s1.toFixed(1)}px; height: ${s1.toFixed(1)}px; }`)
-        stops.push(`  ${mid.toFixed(2)}% { opacity: 0.7; x: ${(ev.cx - s2 / 2).toFixed(1)}px; y: ${(ev.cy - s2 / 2).toFixed(1)}px; width: ${s2.toFixed(1)}px; height: ${s2.toFixed(1)}px; }`)
-        stops.push(`  ${ev.endPct.toFixed(2)}% { opacity: 0; x: ${(ev.cx - s3 / 2).toFixed(1)}px; y: ${(ev.cy - s3 / 2).toFixed(1)}px; width: ${s3.toFixed(1)}px; height: ${s3.toFixed(1)}px; }`)
-      }
-      stops.push(`  100.00% { opacity: 0; }`)
-      cssRules.push(`@keyframes ${kfName} {\n${stops.join('\n')}\n}`)
+    const half = s / 2
+    for (let i = 0; i < explosionData.length; i++) {
+      const ev = explosionData[i]!
+      const kfName = `exp-${i}`
+      const mid = (ev.startPct + ev.endPct) / 2
+      cssRules.push(`@keyframes ${kfName} {
+  0.00% { opacity: 0; transform: translate(${ev.cx.toFixed(1)}px, ${ev.cy.toFixed(1)}px) scale(1); }
+  ${Math.max(0, ev.startPct - 0.01).toFixed(2)}% { opacity: 0; transform: translate(${ev.cx.toFixed(1)}px, ${ev.cy.toFixed(1)}px) scale(1); }
+  ${ev.startPct.toFixed(2)}% { opacity: 1; transform: translate(${ev.cx.toFixed(1)}px, ${ev.cy.toFixed(1)}px) scale(1); }
+  ${mid.toFixed(2)}% { opacity: 0.7; transform: translate(${ev.cx.toFixed(1)}px, ${ev.cy.toFixed(1)}px) scale(1.8); }
+  ${ev.endPct.toFixed(2)}% { opacity: 0; transform: translate(${ev.cx.toFixed(1)}px, ${ev.cy.toFixed(1)}px) scale(2.5); }
+  ${Math.min(100, ev.endPct + 0.01).toFixed(2)}% { opacity: 0; }
+  100.00% { opacity: 0; }
+}`)
       elements.push(
-        `<use href="#sprite-explosion" x="0" y="0" width="${s}" height="${s}" ` +
+        `<use href="#sprite-explosion" x="${-half}" y="${-half}" width="${s}" height="${s}" ` +
         `opacity="0" style="animation: ${kfName} ${dur}s linear infinite" />`
       )
     }
   }
 
-  // ── Lasers (pooled) ──
+  // ── Lasers (individual) ──
   const laserData = laserTimings(output, config)
-  {
-    interface LaserEvent { spawnPct: number; despawnPct: number; screenX: number; screenY: number; despawnDistance: number }
-    const laserEvents: LaserEvent[] = laserData.map((ld) => ({
-      spawnPct: (ld.spawnTime / dur) * 100,
-      despawnPct: Math.min(100, (ld.despawnTime / dur) * 100),
-      screenX: ld.screenX,
-      screenY: ld.screenY,
-      despawnDistance: ld.despawnDistance,
-    }))
-    laserEvents.sort((a, b) => a.spawnPct - b.spawnPct)
+  for (const ld of laserData) {
+    const spawnPct = (ld.spawnTime / dur) * 100
+    const despawnPct = Math.min(100, (ld.despawnTime / dur) * 100)
+    const laserKfName = `lsr-${ld.laserId.replace(/[^a-z0-9]/g, '-')}`
 
-    // Greedy pool assignment
-    const laserSlots: LaserEvent[][] = []
-    const laserSlotEndTimes: number[] = []
-    for (const ev of laserEvents) {
-      let assigned = false
-      for (let s = 0; s < laserSlots.length; s++) {
-        if (laserSlotEndTimes[s]! < ev.spawnPct) {
-          laserSlots[s]!.push(ev)
-          laserSlotEndTimes[s] = ev.despawnPct
-          assigned = true
-          break
-        }
-      }
-      if (!assigned) {
-        laserSlots.push([ev])
-        laserSlotEndTimes.push(ev.despawnPct)
-      }
-    }
+    const laserExtra = new Map<number, string>()
+    laserExtra.set(spawnPct, `transform: translateX(0);`)
+    laserExtra.set(despawnPct, `transform: translateX(${ld.despawnDistance.toFixed(1)}px);`)
+    cssRules.push(visibilityKeyframes(laserKfName, [[spawnPct, despawnPct]], laserExtra))
 
     const half = config.laserWidth / 2
-    for (let slot = 0; slot < laserSlots.length; slot++) {
-      const events = laserSlots[slot]!
-      const kfName = `lsr-pool-${slot}`
-      const stops: string[] = [`  0.00% { opacity: 0; }`]
-      for (const ev of events) {
-        stops.push(`  ${Math.max(0, ev.spawnPct - 0.01).toFixed(2)}% { opacity: 0; transform: translate(${ev.screenX.toFixed(1)}px, ${ev.screenY.toFixed(1)}px); }`)
-        stops.push(`  ${ev.spawnPct.toFixed(2)}% { opacity: 1; transform: translate(${ev.screenX.toFixed(1)}px, ${ev.screenY.toFixed(1)}px); }`)
-        stops.push(`  ${ev.despawnPct.toFixed(2)}% { opacity: 1; transform: translate(${(ev.screenX + ev.despawnDistance).toFixed(1)}px, ${ev.screenY.toFixed(1)}px); }`)
-        stops.push(`  ${Math.min(100, ev.despawnPct + 0.01).toFixed(2)}% { opacity: 0; }`)
-      }
-      stops.push(`  100.00% { opacity: 0; }`)
-      cssRules.push(`@keyframes ${kfName} {\n${stops.join('\n')}\n}`)
-
-      if (styled) {
-        elements.push(
-          `<use href="#sprite-laser" x="${-half}" y="${-half}" width="${config.laserWidth}" height="${config.laserWidth}" ` +
-          `opacity="0" style="animation: ${kfName} ${dur}s linear infinite" />`
-        )
-      } else {
-        elements.push(
-          `<rect x="${-half}" y="${-half}" width="${config.laserWidth}" height="${config.laserWidth}" ` +
-          `fill="${LASER_COLOR}" opacity="0" style="animation: ${kfName} ${dur}s linear infinite" />`
-        )
-      }
+    if (styled) {
+      elements.push(
+        `<use href="#sprite-laser" x="${ld.screenX - half}" y="${ld.screenY - half}" width="${config.laserWidth}" height="${config.laserWidth}" ` +
+        `opacity="0" style="animation: ${laserKfName} ${dur}s linear infinite" />`
+      )
+    } else {
+      elements.push(
+        `<rect x="${ld.screenX - half}" y="${ld.screenY - half}" width="${config.laserWidth}" height="${config.laserWidth}" ` +
+        `fill="${LASER_COLOR}" opacity="0" style="animation: ${laserKfName} ${dur}s linear infinite" />`
+      )
     }
   }
 
