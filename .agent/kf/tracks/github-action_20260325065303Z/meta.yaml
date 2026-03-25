@@ -1,8 +1,8 @@
 title: GitHub Action — Delivery, packaging & documentation
-status: pending
+status: completed
 type: feature
 approved: false
 created: '2026-03-25'
-updated: '2026-03-25'
+updated: '2026-03-26'
 deps:
 - svg-sprites_20260326163727Z
