@@ -1,135 +1,96 @@
 id: sim-renderer_20260325065301Z
-title: "Simulation Renderer — Hitbox debug view & validation baseline"
+title: Simulation Renderer — Hitbox debug view & validation baseline
 type: feature
 status: pending
 created: 2026-03-25
-updated: 2026-03-25
+updated: '2026-03-25'
 spec:
-  summary: |
-    Canvas-based hitbox renderer that draws exact AABB geometry from
+  summary: 'Canvas-based hitbox renderer that draws exact AABB geometry from
+
     SimOutput.peek(frame). Flat colored rectangles only — no sprites,
+
     no effects, no polish. Serves as the ground truth for automated
+
     pixel-diff validation against the CSS/SVG renderer.
-  context: |
-    simulate(grid, seed, config) produces a SimOutput with:
-      - peek(frame) → GameState
-      - getInflections(entityId) → InflectionPoint[]
-      - getAllInflections() → Map<string, EntityTimeline>
-      - totalFrames, finalScore, events[]
 
-    This renderer draws the exact physics geometry:
-      - Invaders as filled rects at their AABB position (config.invaderSize)
-      - Lasers as filled rects at their AABB position (config.laserWidth)
-      - Ship as a filled rect at (ship.x, config.shipY)
-      - Grid cells as filled rects at grid positions
-
-    The CSS/SVG track will reproduce this IDENTICAL view using CSS
-    keyframe animations. Playwright pixel-diffs both outputs at every
-    inflection frame. If hitbox rects align pixel-for-pixel, the
-    positioning math is proven correct. Visual polish (sprites, effects,
-    glow) is added in a later track on top of the validated positions.
-
-    Two purposes:
-    1. HUMAN VALIDATION: developer confirms game flow looks correct
-    2. PLAYWRIGHT BASELINE: canvas screenshots become the ground truth
-       for automated CSS/SVG visual regression tests
-  codebase_analysis: |
-    Current API (src/simulator/simulate.ts):
-      simulate(grid: Grid, seed: string, config: SimConfig) → SimOutput
-
-    SimOutput.peek(frame) returns GameState with:
-      - formations[] (each with invaders[], offset, direction, speed)
-      - ship (position)
-      - lasers[] (position, active)
-      - gridCells[] (cell, status)
-      - frame, score, totalInvaders
-
-    SimConfig provides all dimensions needed for drawing:
-      - invaderSize, laserWidth, cellSize, cellGap
-      - playArea, gridArea, shipY
-
-    No separate engine or choreographer — simulate() is the single entry point.
+    '
+  context: "simulate(grid, seed, config) produces a SimOutput with:\n  - peek(frame) → GameState\n  - getInflections(entityId)\
+    \ → InflectionPoint[]\n  - getAllInflections() → Map<string, EntityTimeline>\n  - totalFrames, finalScore, events[]\n\n\
+    This renderer draws the exact physics geometry:\n  - Invaders as filled rects at their AABB position (config.invaderSize)\n\
+    \  - Lasers as filled rects at their AABB position (config.laserWidth)\n  - Ship as a filled rect at (ship.x, config.shipY)\n\
+    \  - Grid cells as filled rects at grid positions\n\nThe CSS/SVG track will reproduce this IDENTICAL view using CSS\n\
+    keyframe animations. Playwright pixel-diffs both outputs at every\ninflection frame. If hitbox rects align pixel-for-pixel,\
+    \ the\npositioning math is proven correct. Visual polish (sprites, effects,\nglow) is added in a later track on top of\
+    \ the validated positions.\n\nTwo purposes:\n1. HUMAN VALIDATION: developer confirms game flow looks correct\n2. PLAYWRIGHT\
+    \ BASELINE: canvas screenshots become the ground truth\n   for automated CSS/SVG visual regression tests\n"
+  codebase_analysis: "Current API (src/simulator/simulate.ts):\n  simulate(grid: Grid, seed: string, config: SimConfig) →\
+    \ SimOutput\n\nSimOutput.peek(frame) returns GameState with:\n  - formations[] (each with invaders[], offset, direction,\
+    \ speed)\n  - ship (position)\n  - lasers[] (position, active)\n  - gridCells[] (cell, status)\n  - frame, score, totalInvaders\n\
+    \nSimConfig provides all dimensions needed for drawing:\n  - invaderSize, laserWidth, cellSize, cellGap\n  - playArea,\
+    \ gridArea, shipY\n\nNo separate engine or choreographer — simulate() is the single entry point.\n"
   acceptance_criteria:
-    - Draws entities as flat colored AABB rects (no sprites, no gradients, no effects)
-    - Invader rects sized exactly config.invaderSize, centered on world position
-    - Laser rects sized exactly config.laserWidth, centered on position
-    - Ship rect at (ship.position.x, config.shipY)
-    - Grid cells as rects at gridArea positions using cellSize and cellGap
-    - Distinct flat colors per entity type (grid=green shades, invader=red, laser=yellow, ship=blue)
-    - Destroyed invaders not drawn
-    - Canvas renderer calls SimOutput.peek(frame) only — no simulation logic
-    - seekToFrame(n) renders any frame instantly
-    - Same frame always produces identical canvas (deterministic)
-    - Playback controls (play, pause, step, scrubber, speed)
-    - HUD overlay (frame, score, wave, invaders remaining)
-    - SimConfig tuning panel — re-runs simulate() on change
-    - Seed input field — re-runs simulate() on change
-    - window.simController API exposed for Playwright
-    - Runs via vite dev server
-  out_of_scope: |
-    Sprites, particle effects, explosions, glow, screen shake.
+  - Draws entities as flat colored AABB rects (no sprites, no gradients, no effects)
+  - Invader rects sized exactly config.invaderSize, centered on world position
+  - Laser rects sized exactly config.laserWidth, centered on position
+  - Ship rect at (ship.position.x, config.shipY)
+  - Grid cells as rects at gridArea positions using cellSize and cellGap
+  - Distinct flat colors per entity type (grid=green shades, invader=red, laser=yellow, ship=blue)
+  - Destroyed invaders not drawn
+  - Canvas renderer calls SimOutput.peek(frame) only — no simulation logic
+  - seekToFrame(n) renders any frame instantly
+  - Same frame always produces identical canvas (deterministic)
+  - Playback controls (play, pause, step, scrubber, speed)
+  - HUD overlay (frame, score, wave, invaders remaining)
+  - SimConfig tuning panel — re-runs simulate() on change
+  - Seed input field — re-runs simulate() on change
+  - window.simController API exposed for Playwright
+  - Runs via vite dev server
+  out_of_scope: 'Sprites, particle effects, explosions, glow, screen shake.
+
     Visual polish (separate track). CSS/SVG generation (separate track).
+
     Automated Playwright tests (CSS track provides those).
-  technical_notes: |
-    Directory structure:
-      dev/
-        sim-viewer/
-          index.html        — page with canvas + controls
-          renderer.ts       — draws GameState as AABB rects to canvas
-          playback.ts       — frame stepping, play/pause, speed
-          main.ts           — calls simulate(), wires controls, exposes API
 
-    Drawing rules (hitbox mode):
-      Each entity drawn as a simple filled rect at its exact AABB bounds.
-      Colors are flat, no alpha blending except destroyed=hidden.
-
-      Grid cells:   fillRect at (gridArea.x + cell.x * stride, gridArea.y + cell.y * stride, cellSize, cellSize)
-                    color: level 0=#1a1a2e, 1=#0e4429, 2=#006d32, 3=#26a641, 4=#39d353
-      Invaders:     fillRect centered on (worldX, worldY), size=invaderSize
-                    color: #ff4444 (alive), not drawn (destroyed)
-      Lasers:       fillRect centered on (pos.x, pos.y), size=laserWidth × laserWidth
-                    color: #ffff00
-      Ship:         fillRect centered on (ship.x, shipY), size=invaderSize (same as invaders for simplicity)
-                    color: #4488ff
-
-    These exact colors and sizes must be replicated in the CSS/SVG
-    renderer so pixel-diff validation works.
-
-    window.simController API:
-      seekToFrame(n)        — output.peek(n) then render
-      play() / pause()      — toggle requestAnimationFrame loop
-      step(delta)           — currentFrame + delta
-      setSpeed(mult)        — playback speed multiplier
-      restart()             — seekToFrame(0)
-      getFrame()            — current frame number
-      getTotalFrames()      — output.totalFrames
-      getState()            — current GameState
-      rerun(config, seed)   — re-run simulate() with new params
+    '
+  technical_notes: "Directory structure:\n  dev/\n    sim-viewer/\n      index.html        — page with canvas + controls\n\
+    \      renderer.ts       — draws GameState as AABB rects to canvas\n      playback.ts       — frame stepping, play/pause,\
+    \ speed\n      main.ts           — calls simulate(), wires controls, exposes API\n\nDrawing rules (hitbox mode):\n  Each\
+    \ entity drawn as a simple filled rect at its exact AABB bounds.\n  Colors are flat, no alpha blending except destroyed=hidden.\n\
+    \n  Grid cells:   fillRect at (gridArea.x + cell.x * stride, gridArea.y + cell.y * stride, cellSize, cellSize)\n     \
+    \           color: level 0=#1a1a2e, 1=#0e4429, 2=#006d32, 3=#26a641, 4=#39d353\n  Invaders:     fillRect centered on (worldX,\
+    \ worldY), size=invaderSize\n                color: #ff4444 (alive), not drawn (destroyed)\n  Lasers:       fillRect centered\
+    \ on (pos.x, pos.y), size=laserWidth × laserWidth\n                color: #ffff00\n  Ship:         fillRect centered on\
+    \ (ship.x, shipY), size=invaderSize (same as invaders for simplicity)\n                color: #4488ff\n\nThese exact colors\
+    \ and sizes must be replicated in the CSS/SVG\nrenderer so pixel-diff validation works.\n\nwindow.simController API:\n\
+    \  seekToFrame(n)        — output.peek(n) then render\n  play() / pause()      — toggle requestAnimationFrame loop\n \
+    \ step(delta)           — currentFrame + delta\n  setSpeed(mult)        — playback speed multiplier\n  restart()     \
+    \        — seekToFrame(0)\n  getFrame()            — current frame number\n  getTotalFrames()      — output.totalFrames\n\
+    \  getState()            — current GameState\n  rerun(config, seed)   — re-run simulate() with new params\n"
 plan:
-  - phase: "Canvas Renderer"
-    tasks:
-      - text: "Create dev/sim-viewer/ with HTML page, canvas, and controls layout"
-        done: false
-      - text: "Implement AABB rect drawing for all entity types (grid, invaders, lasers, ship)"
-        done: false
-      - text: "Implement HUD overlay: frame, total frames, wave, invaders remaining, score"
-        done: false
-  - phase: "Playback & Seek"
-    tasks:
-      - text: "Implement playback controller: play/pause via requestAnimationFrame, configurable speed"
-        done: false
-      - text: "Implement frame stepping: +1, -1, +10, -10 buttons and frame scrubber"
-        done: false
-      - text: "Expose window.simController API with seekToFrame, play, pause, step, getState, rerun"
-        done: false
-  - phase: "Integration & Tuning"
-    tasks:
-      - text: "Wire up: call simulate(grid, seed, config) and pass SimOutput to renderer"
-        done: false
-      - text: "Add seed input field and fixture selector for different Grid inputs"
-        done: false
-      - text: "Add SimConfig tuning panel (sliders for speeds, sizes, hitChance)"
-        done: false
-      - text: "Visually validate game flow and seekToFrame determinism"
-        done: false
+- phase: Canvas Renderer
+  tasks:
+  - text: Create dev/sim-viewer/ with HTML page, canvas, and controls layout
+    done: true
+  - text: Implement AABB rect drawing for all entity types (grid, invaders, lasers, ship)
+    done: true
+  - text: 'Implement HUD overlay: frame, total frames, wave, invaders remaining, score'
+    done: true
+- phase: Playback & Seek
+  tasks:
+  - text: 'Implement playback controller: play/pause via requestAnimationFrame, configurable speed'
+    done: true
+  - text: 'Implement frame stepping: +1, -1, +10, -10 buttons and frame scrubber'
+    done: true
+  - text: Expose window.simController API with seekToFrame, play, pause, step, getState, rerun
+    done: true
+- phase: Integration & Tuning
+  tasks:
+  - text: 'Wire up: call simulate(grid, seed, config) and pass SimOutput to renderer'
+    done: true
+  - text: Add seed input field and fixture selector for different Grid inputs
+    done: true
+  - text: Add SimConfig tuning panel (sliders for speeds, sizes, hitChance)
+    done: true
+  - text: Visually validate game flow and seekToFrame determinism
+    done: true
 extra: {}
