@@ -1,0 +1,94 @@
+id: css-entity-templates_20260325143201Z
+title: "CSS Entity Templates & Base Keyframe Animations"
+type: feature
+status: pending
+created: 2026-03-25
+updated: 2026-03-25
+spec:
+  summary: |
+    Create SVG element templates for each entity type and base CSS
+    @keyframes for each animation pattern. Hitbox mode only — flat
+    colored rects matching the canvas renderer exactly.
+  context: |
+    Each entity type needs an SVG representation and parameterized
+    CSS animations. In hitbox mode, entities are simple rects with
+    flat colors matching the canvas renderer. CSS custom properties
+    drive per-instance timing and positioning.
+
+    Key animation patterns (shared @keyframes):
+    - oscillation: horizontal back-and-forth (formation zigzag)
+    - travel: point-to-point movement (cell grid→formation)
+    - fade: opacity transitions (overlays, endings)
+    - wiggle: per-character vertical sine wave (score text)
+    - constant-velocity: linear movement (lasers)
+
+    Each pattern is defined once as a @keyframes rule, parameterized
+    by CSS custom properties (--start-x, --end-x, --duration, etc).
+    Per-entity instances set these properties via style attributes.
+  acceptance_criteria:
+    - SVG rect templates for each entity type matching canvas hitbox colors
+    - Shared @keyframes for oscillation, travel, fade, wiggle, constant-velocity
+    - CSS custom properties define per-instance animation parameters
+    - Grid cell template with level-based fill colors
+    - Invader template at invaderSize centered on position
+    - Ship template at invaderSize with ship color
+    - Laser template at laserWidth with laser color
+    - Overlay template covering full play area
+    - Formation group template wrapping invader children
+    - Entity templates renderable in isolation (single entity test page)
+  out_of_scope: |
+    Full simulation data binding. Playwright validation (next track).
+    Visual polish (sprites, effects). Inflection point mapping.
+  technical_notes: |
+    Directory: src/animation/
+      entity-templates.ts  — SVG element generators per entity type
+      keyframes.ts         — shared @keyframes CSS strings
+      css-properties.ts    — CSS custom property helpers
+
+    Dev tool: dev/entity-test/
+      index.html           — page showing each entity in isolation
+      Per-entity panels with play/pause/scrub controls
+
+    SVG structure (hitbox mode):
+      <svg>
+        <style> @keyframes oscillate {...} @keyframes travel {...} </style>
+        <rect class="grid-cell" data-level="3" .../>
+        <g class="formation-0" style="--osc-duration:...">
+          <rect class="invader" .../>
+        </g>
+        <rect class="ship" .../>
+        <rect class="laser" .../>
+        <rect class="overlay" .../>
+      </svg>
+plan:
+  - phase: "Entity SVG Templates"
+    tasks:
+      - text: "Create grid cell SVG template with level-based colors"
+        done: false
+      - text: "Create invader SVG template (rect, centered, invaderSize)"
+        done: false
+      - text: "Create ship SVG template (rect, centered, ship color)"
+        done: false
+      - text: "Create laser SVG template (rect, laserWidth)"
+        done: false
+      - text: "Create overlay SVG template (full area rect with opacity)"
+        done: false
+      - text: "Create formation group template wrapping invader children"
+        done: false
+  - phase: "Base Keyframe Animations"
+    tasks:
+      - text: "Implement oscillation @keyframes (horizontal back-and-forth with direction changes)"
+        done: false
+      - text: "Implement travel @keyframes (point-to-point with size interpolation)"
+        done: false
+      - text: "Implement fade @keyframes (opacity 0-1 parameterized)"
+        done: false
+      - text: "Implement constant-velocity @keyframes (laser linear movement)"
+        done: false
+  - phase: "Dev Test Page"
+    tasks:
+      - text: "Create dev/entity-test/ with isolated entity rendering panels"
+        done: false
+      - text: "Add per-entity play/pause/scrub controls for animation preview"
+        done: false
+extra: {}

@@ -1,0 +1,8 @@
+title: Isolated Entity Animation Validation via Playwright
+status: pending
+type: feature
+approved: false
+created: '2026-03-25'
+updated: '2026-03-25'
+deps:
+- css-entity-templates_20260325143201Z

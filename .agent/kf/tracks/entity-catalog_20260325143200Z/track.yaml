@@ -1,0 +1,59 @@
+id: entity-catalog_20260325143200Z
+title: "Entity Catalog & Animation Spec Document"
+type: chore
+status: pending
+created: 2026-03-25
+updated: 2026-03-25
+spec:
+  summary: |
+    Document all animated entities, visual scenes, and CSS animation
+    requirements. Update product.yaml and tech-stack.yaml to reflect
+    the current architecture (horizontal layout, outcome-first solver,
+    time-based physics, per-cell lifecycle, ending sequence, scoreboard).
+  context: |
+    Significant architectural changes have been made since initial tracks:
+    - Unified simulate() replaces separate engine + choreographer
+    - Horizontal layout with 90-degree rotation in renderer
+    - Time-based physics (framesPerSecond + dt)
+    - Per-cell staggered lifecycle (pluck/travel/hatch)
+    - Ending sequence with score display + scoreboard
+    - Scoreboard algorithm with O(N log N) distance filtering
+    - One-hit kills, fire rate limiting, ship Y drift
+    - Per-wave retry with escalating hitChance
+
+    These need to be captured as formal product/tech spec items
+    before CSS animation work begins.
+  acceptance_criteria:
+    - product.yaml updated with current feature set
+    - tech-stack.yaml updated with current architecture
+    - Entity catalog document listing all 12 entity types with their properties, states, and animation requirements
+    - Scene catalog listing all 12 visual phases with timing, visible elements, and transitions
+    - CSS animation requirements table (entity, property, animation type, duration source)
+    - Coordinate system documentation (sim space, screen space, grid layout)
+  out_of_scope: |
+    Implementation of CSS animations. Code changes.
+  technical_notes: |
+    Entity types: GridCell, Invader, Ship, Laser, Formation, WavePhaseLabel,
+    Overlay, ScoreText, Scoreboard, StatusBar, BlackoutOverlay, ResetFade
+
+    Scenes: idle, brightening, plucking, darkening, traveling, hatching,
+    active, clearing, ending_fadeout, ending_score, ending_score_out,
+    ending_board_in, ending_hold, ending_blackout, ending_reset
+plan:
+  - phase: "Spec Updates"
+    tasks:
+      - text: "Update product.yaml with current feature set (horizontal layout, lifecycle, ending, scoreboard)"
+        done: false
+      - text: "Update tech-stack.yaml with current architecture (unified solver, time-based physics, parameterized config)"
+        done: false
+  - phase: "Entity & Scene Catalog"
+    tasks:
+      - text: "Create entity catalog document (.agent/kf/docs/entity-catalog.md) with all 12 entity types"
+        done: false
+      - text: "Create scene catalog document (.agent/kf/docs/scene-catalog.md) with all 12 visual phases"
+        done: false
+      - text: "Create CSS animation requirements table (.agent/kf/docs/css-animation-requirements.md)"
+        done: false
+      - text: "Document coordinate systems and key spatial calculations"
+        done: false
+extra: {}

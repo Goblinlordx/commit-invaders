@@ -1,5 +1,5 @@
 title: CSS/SVG Hitbox Renderer & Automated Visual Validation
-status: pending
+status: archived
 type: feature
 approved: false
 created: '2026-03-25'
@@ -7,3 +7,4 @@ updated: '2026-03-25'
 deps:
 - sim-renderer_20260325065301Z
 - cell-lifecycle_20260325110700Z
+archived_at: '2026-03-25'

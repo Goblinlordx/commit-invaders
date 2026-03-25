@@ -1,8 +1,8 @@
-title: Visual Polish — Sprites, Effects & Final Art
+title: Inflection Point to CSS Animation Data Pipeline
 status: pending
 type: feature
 approved: false
 created: '2026-03-25'
 updated: '2026-03-25'
 deps:
-- inflection-to-css_20260325143203Z
+- entity-validation_20260325143202Z
