@@ -904,7 +904,9 @@ function simulateCore(
   }
 
   function peek(targetFrame: number): GameState {
-    if (targetFrame < 0 || targetFrame >= totalFrames) throw new Error(`Frame ${targetFrame} out of range [0, ${totalFrames})`)
+    if (targetFrame < 0 || targetFrame > totalFrames) throw new Error(`Frame ${targetFrame} out of range [0, ${totalFrames}]`)
+    // Clamp to last valid frame
+    if (targetFrame >= totalFrames) targetFrame = totalFrames - 1
 
     // Check LRU cache first
     const c = lruGet(targetFrame)
