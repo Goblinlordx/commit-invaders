@@ -1,0 +1,81 @@
+id: engine-choreo_20260325073004Z
+title: "Simulation Engine & Choreographer"
+type: feature
+status: pending
+created: 2026-03-25
+updated: 2026-03-25
+spec:
+  summary: |
+    The simulation engine that orchestrates all subsystems (waves, formations,
+    combat) into a complete game, producing a StateHistory with peek() access.
+    The choreographer generates organic ShipScripts using the seeded PRNG.
+  context: |
+    The engine is the orchestrator. It runs the frame loop, calling wave
+    manager, formation, and combat systems each frame, applying ShipScript
+    commands, and recording complete GameState snapshots. The entire
+    simulation is pre-computed up front into a StateHistory array.
+
+    The choreographer is the "solver" — it generates a ShipScript by
+    pre-computing all invader positions (deterministic zigzag) and scheduling
+    ship movements and fires to intercept them. It uses the seeded PRNG to
+    inject organic variance: misses, aim jitter, fire delay variance,
+    unnecessary movements, and reaction delays. The game still completes
+    (all invaders die) but the path looks human, not robotic.
+  acceptance_criteria:
+    - Engine takes (Grid, ShipScript, SimConfig) and produces StateHistory
+    - StateHistory.peek(frame) returns GameState in O(1)
+    - Engine orchestrates: wave spawn → formation move → ship command → laser advance → hit detect
+    - All SimEvents recorded per frame in GameState.events
+    - Score tracked correctly across full game
+    - Choreographer takes (Grid, PRNG, SimConfig) and produces ShipScript
+    - PRNG injects variance: aim jitter, fire delay, miss chance, unnecessary moves, reaction delay
+    - Missed invaders get re-targeted (game always completes)
+    - End-to-end: Grid + seed → choreographer → engine → all invaders destroyed
+    - Final score equals total active commits
+    - Determinism: same (Grid, seed) → identical StateHistory across runs
+  out_of_scope: |
+    Rendering, CSS generation, GitHub Action.
+  technical_notes: |
+    Engine frame loop:
+      1. Check wave spawn (spawn-on-clear + delay)
+      2. Advance active formation (zigzag)
+      3. Apply ShipScript command for this frame (move/fire/stop)
+      4. Advance lasers
+      5. Hit detection + damage + score
+      6. Check wave clear → mark for next wave spawn
+      7. Snapshot full GameState → push to frames[]
+
+    StateHistory: just an array. peek(n) = frames[n]. O(1).
+    Total frames ~500-2000 for typical contribution graph.
+
+    Choreographer:
+      1. Pre-compute all formation paths for each wave
+      2. For each invader, find frame when it's targetable
+      3. Schedule: reaction delay → move to position → fire
+      4. PRNG variance on each step
+      5. On miss: add invader back to target queue
+      6. Continue until all invaders scheduled for destruction
+plan:
+  - phase: "Engine"
+    tasks:
+      - text: "Write tests: Grid + ShipScript → StateHistory with correct frame count and events"
+        done: false
+      - text: "Implement engine frame loop (src/simulator/engine.ts)"
+        done: false
+      - text: "Implement StateHistory with peek() (src/simulator/engine.ts)"
+        done: false
+  - phase: "Choreographer"
+    tasks:
+      - text: "Write tests: choreographer generates ShipScript that clears all waves"
+        done: false
+      - text: "Implement choreographer with PRNG variance (src/simulator/choreographer.ts)"
+        done: false
+      - text: "Write tests: miss recovery — missed invaders get re-targeted"
+        done: false
+  - phase: "Integration"
+    tasks:
+      - text: "Write end-to-end test: fixture Grid + seed → choreographer → engine → all destroyed, score correct"
+        done: false
+      - text: "Write determinism test: same (Grid, seed) → identical StateHistory across runs"
+        done: false
+extra: {}

@@ -1,0 +1,51 @@
+id: combat_20260325073003Z
+title: "Combat System — Lasers, Hits & Score"
+type: feature
+status: pending
+created: 2026-03-25
+updated: 2026-03-25
+spec:
+  summary: |
+    Laser physics, hit detection, health tracking, and score counting.
+    Handles spawning lasers from ship fire commands, advancing them upward,
+    detecting intersections with invaders, applying damage, and tracking
+    the running score.
+  context: |
+    The combat system is stateless logic that operates on positions each
+    frame. Lasers travel upward at fixed speed, hit detection checks
+    laser-invader bounding box intersection, and damage reduces invader HP.
+    Score increments by 1 on each destroy event. Final score equals total
+    active commits in the contribution graph.
+  acceptance_criteria:
+    - Lasers spawn at ship position on fire command
+    - Lasers travel upward at fixed speed per frame
+    - Lasers despawn when out of bounds or on hit
+    - Hit detection: laser bounding box intersects invader bounding box
+    - Damage reduces invader HP by 1 per hit
+    - Invader destroyed when HP reaches 0
+    - Score increments by 1 on each destroy
+    - Multiple lasers can be active simultaneously (configurable max)
+  out_of_scope: |
+    Ship movement (handled by ShipScript in engine). Choreographer. Rendering.
+  technical_notes: |
+    Pure functions:
+      advanceLasers(lasers, speed) → updated lasers (remove out-of-bounds)
+      checkHits(lasers, invaders) → { hits, updatedLasers, updatedInvaders, scoreIncrease }
+
+    Hit detection: simple AABB. Laser width ~2px, invader size ~11px.
+    When laser hits: remove laser, reduce invader HP. If HP=0: mark destroyed,
+    increment score, emit 'destroy' event.
+plan:
+  - phase: "Laser Physics"
+    tasks:
+      - text: "Write tests: laser spawn, travel, despawn on boundary, despawn on hit"
+        done: false
+      - text: "Implement laser management (src/simulator/combat.ts)"
+        done: false
+  - phase: "Hit Detection & Score"
+    tasks:
+      - text: "Write tests: AABB intersection, HP reduction, destroy at 0 HP, score increment"
+        done: false
+      - text: "Implement hit detection, damage, and score tracking"
+        done: false
+extra: {}

@@ -1,0 +1,47 @@
+id: fetcher_20260325073001Z
+title: "Contribution Data Fetcher"
+type: feature
+status: pending
+created: 2026-03-25
+updated: 2026-03-25
+spec:
+  summary: |
+    GitHub GraphQL client that fetches contribution data and maps it to
+    the Grid type. Includes response parsing, error handling, and test
+    fixtures.
+  context: |
+    Fetches contribution calendar data from GitHub's GraphQL API and converts
+    it into our internal Grid representation. This is the data source for
+    the entire simulation pipeline. Must handle common API errors gracefully.
+  acceptance_criteria:
+    - GraphQL query fetches contributionsCollection.contributionCalendar
+    - Response parser maps API data to Grid (cells with x, y, level, date, count)
+    - Level mapping: NONE=0, FIRST_QUARTILE=1, ..., FOURTH_QUARTILE=4
+    - Grid dimensions correct (height=7, width=number of weeks)
+    - Error handling for invalid token, user not found, rate limit
+    - Test fixtures with sample API responses for deterministic testing
+    - No live API calls in tests
+  out_of_scope: |
+    Simulation logic, rendering, multi-year fetching.
+  technical_notes: |
+    Uses @octokit/graphql. Query matches Platane/snk (proven stable).
+    Parser flattens weeks[].contributionDays[] into cells with x=weekIndex, y=weekday.
+    Only cells with level > 0 will become invaders (level 0 = no contribution).
+plan:
+  - phase: "Fixtures & Tests"
+    tasks:
+      - text: "Create test fixture: sample GitHub GraphQL API response JSON"
+        done: false
+      - text: "Write tests for response parsing: correct cell count, dimensions, level mapping"
+        done: false
+      - text: "Write tests for error handling: invalid token, user not found, rate limit responses"
+        done: false
+  - phase: "Implementation"
+    tasks:
+      - text: "Implement GraphQL query client (src/fetcher/graphql.ts)"
+        done: false
+      - text: "Implement response parser: API response to Grid (src/fetcher/parser.ts)"
+        done: false
+      - text: "Verify: all tests pass, typecheck clean"
+        done: false
+extra: {}

@@ -1,0 +1,55 @@
+id: scaffold-types_20260325073000Z
+title: "Project Scaffold, Types & PRNG"
+type: feature
+status: pending
+created: 2026-03-25
+updated: 2026-03-25
+spec:
+  summary: |
+    Bootstrap the project with tooling and define all core types for the
+    simulation engine plus the seeded PRNG.
+  context: |
+    First track — sets up the project foundation that everything else builds
+    on. Includes all shared type definitions so subsequent tracks can import
+    them without circular dependencies. The seeded PRNG is included here
+    because the choreographer (Track 1e) and engine both depend on it.
+  acceptance_criteria:
+    - pnpm project with Node 20 engine, TypeScript strict mode compiles clean
+    - vitest configured and runs, eslint and prettier configured and pass
+    - All core types defined and exported from src/types.ts
+    - Seeded PRNG produces identical sequences from same seed
+    - PRNG supports range(min, max), chance(probability), pick(array)
+    - Directory structure matches spec (src/fetcher/, src/simulator/, etc.)
+  out_of_scope: |
+    Fetcher implementation, simulation logic, rendering.
+  technical_notes: |
+    Types to define:
+      ContributionCell, ContributionLevel, Grid
+      ShipCommand, ShipScript
+      SimEvent, SimEventType
+      GameState (with score), StateHistory
+      CellState, FormationState, ShipState, LaserState, EffectState
+      InvaderState (with hp, maxHp)
+      WaveConfig, SimConfig
+      PRNG interface
+
+    PRNG: simple mulberry32 or similar — seed from hash(username + timestamp).
+    Must be pure, no external state. createPRNG(seed: string) → PRNG.
+plan:
+  - phase: "Scaffold"
+    tasks:
+      - text: "Initialize package.json, tsconfig.json (strict), vitest, eslint, prettier, pnpm install"
+        done: false
+      - text: "Create directory structure: src/types.ts, src/fetcher/, src/simulator/, tests/fixtures/"
+        done: false
+  - phase: "Types & PRNG"
+    tasks:
+      - text: "Define all core types in src/types.ts"
+        done: false
+      - text: "Write tests for PRNG: determinism, range, chance, pick"
+        done: false
+      - text: "Implement seeded PRNG in src/simulator/prng.ts"
+        done: false
+      - text: "Verify: typecheck, lint, format, all tests pass"
+        done: false
+extra: {}

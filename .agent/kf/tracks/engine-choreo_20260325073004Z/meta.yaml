@@ -1,0 +1,10 @@
+title: Simulation Engine & Choreographer
+status: pending
+type: feature
+approved: false
+created: '2026-03-25'
+updated: '2026-03-25'
+deps:
+- fetcher_20260325073001Z
+- wave-formation_20260325073002Z
+- combat_20260325073003Z
