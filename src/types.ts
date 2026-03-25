@@ -28,8 +28,11 @@ export type ShipScript = ShipCommand[]
 // ── Simulation Events ──
 
 export type SimEventType =
-  | 'cell_detach'
-  | 'cell_transform'
+  | 'cell_pluck'
+  | 'cell_travel_start'
+  | 'cell_hatch_start'
+  | 'cell_hatch_complete'
+  | 'wave_phase_change'
   | 'formation_move'
   | 'direction_change'
   | 'fire_laser'
@@ -65,10 +68,19 @@ export interface BoundingBox {
 
 // ── Entity State ──
 
+export type CellStatus =
+  | 'in_grid'
+  | 'plucked'
+  | 'traveling'
+  | 'hatching'
+  | 'transformed'
+  | 'destroyed'
+
 export interface CellState {
   cell: ContributionCell
-  status: 'in_grid' | 'detaching' | 'transformed' | 'destroyed'
-  detachProgress: number // 0-1, used for lerp animation
+  status: CellStatus
+  detachProgress: number // 0-1, position interpolation during travel
+  targetPosition: Position | null // formation position (set at pluck)
 }
 
 export interface InvaderState {
@@ -111,6 +123,18 @@ export interface EffectState {
   duration: number
 }
 
+// ── Wave Phase ──
+
+export type WavePhase =
+  | 'idle'
+  | 'brightening'
+  | 'plucking'
+  | 'darkening'
+  | 'traveling'
+  | 'hatching'
+  | 'active'
+  | 'clearing'
+
 // ── Game State (reconstructable snapshot) ──
 
 export interface GameState {
@@ -124,6 +148,8 @@ export interface GameState {
   effects: EffectState[]
   currentWave: number
   totalWaves: number
+  wavePhase: WavePhase
+  wavePhaseProgress: number // 0-1, progress within current phase
   events: SimEvent[] // events that occurred THIS frame
 }
 
@@ -138,6 +164,12 @@ export type InflectionType =
   | 'hit'
   | 'destroy'
   | 'wave_clear'
+  | 'pluck'
+  | 'travel_start'
+  | 'travel_end'
+  | 'hatch_start'
+  | 'hatch_complete'
+  | 'phase_change'
 
 export interface InflectionPoint {
   frame: number
@@ -169,6 +201,11 @@ export interface SimOutput {
 export interface WaveConfig {
   weeksPerWave: number
   spawnDelay: number // frames between wave clear and next spawn
+  brightenDuration: number // frames for overlay fade-out
+  pluckDuration: number // frames cells show as plucked at grid pos
+  darkenDuration: number // frames for overlay fade-in
+  travelDuration: number // frames for cell position interpolation
+  hatchDuration: number // frames for color transition at destination
 }
 
 export interface SimConfig {

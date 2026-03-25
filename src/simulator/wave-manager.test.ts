@@ -29,6 +29,11 @@ function makeGrid(cells: ContributionCell[], width: number): Grid {
 const defaultConfig: WaveConfig = {
   weeksPerWave: 1,
   spawnDelay: 30,
+  brightenDuration: 0,
+  pluckDuration: 0,
+  darkenDuration: 0,
+  travelDuration: 0,
+  hatchDuration: 0,
 }
 
 describe('WaveManager', () => {
@@ -57,7 +62,7 @@ describe('WaveManager', () => {
         makeCell(3, 0, 4),
       ]
       const grid = makeGrid(cells, 4)
-      const wm = createWaveManager(grid, { weeksPerWave: 2, spawnDelay: 30 })
+      const wm = createWaveManager(grid, { ...defaultConfig, weeksPerWave: 2 })
 
       expect(wm.totalWaves).toBe(2)
       expect(wm.getWave(0).cells).toHaveLength(2)
@@ -72,7 +77,7 @@ describe('WaveManager', () => {
         makeCell(3, 0, 4),
       ]
       const grid = makeGrid(cells, 4)
-      const wm = createWaveManager(grid, { weeksPerWave: 3, spawnDelay: 30 })
+      const wm = createWaveManager(grid, { ...defaultConfig, weeksPerWave: 3 })
 
       // 4 columns / 3 per wave = 2 waves (3 + 1)
       expect(wm.totalWaves).toBe(2)
@@ -155,7 +160,7 @@ describe('WaveManager', () => {
     it('does not spawn next wave before delay elapses', () => {
       const cells = [makeCell(0, 0, 2), makeCell(1, 0, 1)]
       const grid = makeGrid(cells, 2)
-      const wm = createWaveManager(grid, { weeksPerWave: 1, spawnDelay: 30 })
+      const wm = createWaveManager(grid, defaultConfig)
 
       // Spawn first wave
       wm.trySpawnNext(0)
@@ -170,7 +175,7 @@ describe('WaveManager', () => {
     it('spawns next wave after delay elapses from clear', () => {
       const cells = [makeCell(0, 0, 2), makeCell(1, 0, 1)]
       const grid = makeGrid(cells, 2)
-      const wm = createWaveManager(grid, { weeksPerWave: 1, spawnDelay: 30 })
+      const wm = createWaveManager(grid, defaultConfig)
 
       wm.trySpawnNext(0) // spawn wave 0
       wm.markCleared(0, 10) // cleared at frame 10

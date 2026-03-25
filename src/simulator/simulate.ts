@@ -283,13 +283,15 @@ export function simulate(
   function buildGameState(frame: number, frameEvents: SimEvent[]): GameState {
     return {
       frame, score, totalInvaders,
-      gridCells: grid.cells.map((c) => ({ cell: c, status: 'in_grid' as const, detachProgress: 0 })),
+      gridCells: grid.cells.map((c) => ({ cell: c, status: 'in_grid' as const, detachProgress: 0, targetPosition: null })),
       formations: formations.map(cloneFormationState),
       ship: { ...ship, position: { ...ship.position } },
       lasers: lasers.map((l) => ({ ...l, position: { ...l.position } })),
       effects: [],
       currentWave: formations.length,
       totalWaves: simWM.totalWaves,
+      wavePhase: 'active' as const,
+      wavePhaseProgress: 0,
       events: frameEvents,
     }
   }
@@ -559,10 +561,10 @@ function replayToFrame(grid: Grid, config: SimConfig, frameDecisions: Map<number
 
   return {
     frame: targetFrame, score, totalInvaders,
-    gridCells: grid.cells.map(c => ({ cell: c, status: 'in_grid' as const, detachProgress: 0 })),
+    gridCells: grid.cells.map(c => ({ cell: c, status: 'in_grid' as const, detachProgress: 0, targetPosition: null })),
     formations: formations.map(f => f.getState()),
     ship: { ...ship, position: { ...ship.position } },
     lasers: lasers.map(l => ({ ...l, position: { ...l.position } })),
-    effects: [], currentWave: formations.length, totalWaves: wm.totalWaves, events: [],
+    effects: [], currentWave: formations.length, totalWaves: wm.totalWaves, wavePhase: 'active' as const, wavePhaseProgress: 0, events: [],
   }
 }
