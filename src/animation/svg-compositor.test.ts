@@ -93,7 +93,7 @@ describe('svg-compositor', () => {
     const grid = makeGrid(4, 'test-svg')
     const svg = generateAnimatedSvg(grid, 'test', config)
 
-    expect(svg).toContain('class="ship"')
+    expect(svg).toContain('sprite-ship')
     expect(svg).toContain('ship-move')
   })
 

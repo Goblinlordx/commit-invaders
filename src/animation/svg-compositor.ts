@@ -104,10 +104,14 @@ function simToScreen(simX: number, simY: number, config: SimConfig): { sx: numbe
   }
 }
 
+import type { RenderMode } from './sprites.js'
+import { spriteDefs, invaderSpriteId, explosionKeyframes } from './sprites.js'
+
 export interface CompositeSvgOptions {
   grid: Grid
   seed: string
   config: SimConfig
+  renderMode?: RenderMode
   scoreboard?: ScoreboardResult
 }
 
@@ -115,7 +119,8 @@ export interface CompositeSvgOptions {
  * Generate the complete animated SVG from simulation data.
  */
 export function composeSvg(options: CompositeSvgOptions): string {
-  const { grid, seed, config } = options
+  const { grid, seed, config, renderMode = 'styled' } = options
+  const styled = renderMode === 'styled'
   const output = simulate(grid, seed, config)
   const fps = config.framesPerSecond
   const dur = totalDuration(output.totalFrames, fps)
@@ -132,6 +137,10 @@ export function composeSvg(options: CompositeSvgOptions): string {
 
   // ── Shared keyframes ──
   cssRules.push(sharedKeyframes())
+  if (styled) cssRules.push(explosionKeyframes())
+
+  // ── Sprite defs (styled mode only) ──
+  const defsBlock = styled ? spriteDefs(config.invaderSize, config.laserWidth) : ''
 
   // ── Background ──
   elements.push(`<rect width="${screenW}" height="${screenH}" fill="${BG_COLOR}" />`)
@@ -277,10 +286,37 @@ export function composeSvg(options: CompositeSvgOptions): string {
       const invKfName = `inv-${inv.id.replace(/[^a-z0-9]/g, '-')}`
       cssRules.push(visibilityKeyframes(invKfName, [[spawnPct, Math.min(100, destroyPct)]]))
 
-      invaderElements.push(
-        `<rect x="${sx - half}" y="${sy - half}" width="${config.invaderSize}" height="${config.invaderSize}" ` +
-        `fill="${INVADER_COLOR}" opacity="0" style="animation: ${invKfName} ${dur}s linear infinite" />`
-      )
+      if (styled) {
+        const spriteId = invaderSpriteId(inv.cell.level)
+        // Invader sprite + explosion on destroy
+        invaderElements.push(
+          `<use href="#${spriteId}" x="${sx - half}" y="${sy - half}" width="${config.invaderSize}" height="${config.invaderSize}" ` +
+          `opacity="0" style="animation: ${invKfName} ${dur}s linear infinite" />`
+        )
+        // Explosion at destroy frame
+        if (destroyIp) {
+          const explKfName = `exp-${inv.id.replace(/[^a-z0-9]/g, '-')}`
+          const explStartPct = frameToPercent(destroyIp.frame, output.totalFrames)
+          const explEndPct = Math.min(100, explStartPct + (0.3 / dur) * 100) // 0.3s duration
+          cssRules.push(`@keyframes ${explKfName} {
+  0.00% { opacity: 0; transform: scale(1); }
+  ${Math.max(0, explStartPct - 0.01).toFixed(2)}% { opacity: 0; transform: scale(1); }
+  ${explStartPct.toFixed(2)}% { opacity: 1; transform: scale(1); }
+  ${((explStartPct + explEndPct) / 2).toFixed(2)}% { opacity: 0.7; transform: scale(1.8); }
+  ${explEndPct.toFixed(2)}% { opacity: 0; transform: scale(2.5); }
+  100.00% { opacity: 0; }
+}`)
+          invaderElements.push(
+            `<use href="#sprite-explosion" x="${sx - half}" y="${sy - half}" width="${config.invaderSize}" height="${config.invaderSize}" ` +
+            `opacity="0" style="animation: ${explKfName} ${dur}s linear infinite" />`
+          )
+        }
+      } else {
+        invaderElements.push(
+          `<rect x="${sx - half}" y="${sy - half}" width="${config.invaderSize}" height="${config.invaderSize}" ` +
+          `fill="${INVADER_COLOR}" opacity="0" style="animation: ${invKfName} ${dur}s linear infinite" />`
+        )
+      }
     }
 
     // Formation group with oscillation
@@ -302,10 +338,17 @@ export function composeSvg(options: CompositeSvgOptions): string {
     cssRules.push(visibilityKeyframes(laserKfName, [[spawnPct, Math.min(100, despawnPct)]], laserExtra))
 
     const half = config.laserWidth / 2
-    elements.push(
-      `<rect x="${ld.screenX - half}" y="${ld.screenY - half}" width="${config.laserWidth}" height="${config.laserWidth}" ` +
-      `fill="${LASER_COLOR}" opacity="0" style="animation: ${laserKfName} ${dur}s linear infinite" />`
-    )
+    if (styled) {
+      elements.push(
+        `<use href="#sprite-laser" x="${ld.screenX - half}" y="${ld.screenY - half}" width="${config.laserWidth}" height="${config.laserWidth}" ` +
+        `opacity="0" style="animation: ${laserKfName} ${dur}s linear infinite" />`
+      )
+    } else {
+      elements.push(
+        `<rect x="${ld.screenX - half}" y="${ld.screenY - half}" width="${config.laserWidth}" height="${config.laserWidth}" ` +
+        `fill="${LASER_COLOR}" opacity="0" style="animation: ${laserKfName} ${dur}s linear infinite" />`
+      )
+    }
   }
 
   // ── Ship ──
@@ -348,10 +391,17 @@ export function composeSvg(options: CompositeSvgOptions): string {
     cssRules.push(`@keyframes ship-move {\n  ${shipStops.join('\n  ')}\n}`)
 
     const half = config.invaderSize / 2
-    elements.push(
-      `<rect class="ship" x="${-half}" y="${-half}" width="${config.invaderSize}" height="${config.invaderSize}" ` +
-      `fill="${SHIP_COLOR}" style="animation: ship-move ${dur}s linear infinite" />`
-    )
+    if (styled) {
+      elements.push(
+        `<use href="#sprite-ship" x="${-half}" y="${-half}" width="${config.invaderSize}" height="${config.invaderSize}" ` +
+        `style="animation: ship-move ${dur}s linear infinite" />`
+      )
+    } else {
+      elements.push(
+        `<rect class="ship" x="${-half}" y="${-half}" width="${config.invaderSize}" height="${config.invaderSize}" ` +
+        `fill="${SHIP_COLOR}" style="animation: ship-move ${dur}s linear infinite" />`
+      )
+    }
   }
 
   // ── Wave Labels ("WAVE N/M") ──
@@ -659,6 +709,7 @@ export function composeSvg(options: CompositeSvgOptions): string {
   const css = cssRules.join('\n\n')
 
   return `<svg viewBox="0 0 ${screenW} ${screenH}" width="${screenW}" height="${screenH}" xmlns="http://www.w3.org/2000/svg">
+${defsBlock}
 <style>
 ${css}
 </style>
