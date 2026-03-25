@@ -43,7 +43,7 @@ function defaultConfig(): SimConfig {
     shipY: gridH + shipMargin - 4,
     formationBaseSpeed: 60,
     formationMaxSpeed: 240,
-    formationRowDrop: STRIDE,
+    formationRowDrop: 3, // small drop — narrow oscillation axis means frequent bounces
     hitChance: 0.85,
     fireRate: 3, // 3 shots per second
     shipYRange: 30,

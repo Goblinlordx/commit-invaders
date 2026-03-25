@@ -235,15 +235,16 @@ export function simulate(
   let effectiveHitChance = config.hitChance
   const maxRetries = 5
 
-  for (let attempt = 0; attempt < maxRetries; attempt++) {
-    const result = simulateCore(grid, seed, { ...config, hitChance: effectiveHitChance })
+  for (let attempt = 0; attempt <= maxRetries; attempt++) {
+    const hc = attempt === maxRetries ? 1.0 : effectiveHitChance
+    const result = simulateCore(grid, seed, { ...config, hitChance: hc })
     if (result.finalScore >= expectedScore) return result
 
     // Didn't complete — increase hit chance and retry
     effectiveHitChance = Math.min(1.0, effectiveHitChance + (1.0 - effectiveHitChance) * 0.5)
   }
 
-  // Final attempt at 100% hit chance — must complete
+  // Should never reach here — 100% hit chance must complete
   return simulateCore(grid, seed, { ...config, hitChance: 1.0 })
 }
 
