@@ -68,6 +68,7 @@ export function renderFrame(
   ctx.fillRect(0, 0, screen.width, screen.height)
 
   // ── Layer 1: Grid background (in_grid cells only) ──
+  const phase = state.wavePhase
   const stride = config.cellSize + config.cellGap
   const gridScreenOffsetX = screen.width - config.gridArea.height - RENDER_MARGIN
   const gridScreenOffsetY = RENDER_MARGIN + (config.playArea.width - config.gridArea.width) / 2
@@ -96,7 +97,6 @@ export function renderFrame(
   }
 
   // ── Layer 2: Overlay ──
-  const phase = state.wavePhase
   let overlayAlpha = 0
   if (phase === 'idle' || phase === 'ending_reset') overlayAlpha = 0
   else if (phase === 'brightening') overlayAlpha = 0.6 * (1 - state.wavePhaseProgress)
