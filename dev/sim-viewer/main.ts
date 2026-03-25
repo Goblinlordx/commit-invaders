@@ -44,7 +44,7 @@ function defaultConfig(): SimConfig {
     gridArea: { x: PADDING, y: 0, width: 7 * STRIDE, height: gridH },
     cellSize: CELL_SIZE,
     cellGap: CELL_GAP,
-    laserSpeed: 240,
+    laserSpeed: 480,
     laserWidth: 4,
     invaderSize: 9,
     shipSpeed: 180,

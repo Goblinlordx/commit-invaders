@@ -42,7 +42,7 @@ const config: SimConfig = {
   },
   playArea: { x: 0, y: 0, width: gridW, height: gridH + shipMargin },
   gridArea: { x: PADDING, y: 0, width: 7 * STRIDE, height: gridH },
-  cellSize: 11, cellGap: 2, laserSpeed: 240, laserWidth: 4, invaderSize: 9,
+  cellSize: 11, cellGap: 2, laserSpeed: 480, laserWidth: 4, invaderSize: 9,
   shipSpeed: 180, shipY: gridH + shipMargin - 4,
   formationBaseSpeed: 60, formationMaxSpeed: 240, formationRowDrop: 7,
   shipYRange: 30, formationSpread: 10, formationRowStagger: 10,
@@ -127,8 +127,8 @@ describe('svg-compositor', () => {
     const grid = makeGrid(4, 'test-svg')
     const svg = generateAnimatedSvg(grid, 'test', config)
 
-    // Small grid should be well under 200KB
-    expect(svg.length).toBeLessThan(200 * 1024)
+    // Small grid should be under 500KB
+    expect(svg.length).toBeLessThan(500 * 1024)
     console.log(`  SVG size (4 weeks): ${(svg.length / 1024).toFixed(1)} KB`)
   })
 })

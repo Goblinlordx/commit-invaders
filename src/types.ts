@@ -43,6 +43,7 @@ export type SimEventType =
   | 'wave_spawn'
   | 'wave_clear'
   | 'game_end'
+  | 'locked_miss'
 
 export interface SimEvent {
   frame: number

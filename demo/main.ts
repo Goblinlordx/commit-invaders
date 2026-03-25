@@ -28,7 +28,7 @@ function defaultConfig(): SimConfig {
     },
     playArea: { x: 0, y: 0, width: gridW, height: gridH + shipMargin },
     gridArea: { x: PADDING, y: 0, width: 7 * STRIDE, height: gridH },
-    cellSize: CELL_SIZE, cellGap: CELL_GAP, laserSpeed: 240, laserWidth: 4, invaderSize: 9,
+    cellSize: CELL_SIZE, cellGap: CELL_GAP, laserSpeed: 480, laserWidth: 4, invaderSize: 9,
     shipSpeed: 180, shipY: gridH + shipMargin - 4,
     formationBaseSpeed: 60, formationMaxSpeed: 240, formationRowDrop: 14,
     hitChance: 0.85, fireRate: 5, shipYRange: 30, formationSpread: 10, formationRowStagger: 10,
