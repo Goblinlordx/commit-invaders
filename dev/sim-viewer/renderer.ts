@@ -72,18 +72,26 @@ export function renderFrame(
   const gridScreenOffsetX = screen.width - config.gridArea.height - RENDER_MARGIN
   const gridScreenOffsetY = RENDER_MARGIN + (config.playArea.width - config.gridArea.width) / 2
 
+  // During ending_reset, draw all cells at original colors (grid restores)
+  const resetGrid = phase === 'ending_reset'
+
   for (const gc of state.gridCells) {
     const status = gc.status
-    // Background pass: only draw in_grid and transformed/destroyed (as empty)
-    if (status === 'plucked' || status === 'traveling' || status === 'hatching') continue
 
-    const color = (status === 'transformed' || status === 'destroyed')
-      ? GRID_COLORS[0]!
-      : (GRID_COLORS[gc.cell.level] ?? GRID_COLORS[0]!)
+    if (resetGrid) {
+      // Show full original grid
+      ctx.fillStyle = GRID_COLORS[gc.cell.level] ?? GRID_COLORS[0]!
+    } else {
+      // Background pass: only draw in_grid and transformed/destroyed (as empty)
+      if (status === 'plucked' || status === 'traveling' || status === 'hatching') continue
+
+      ctx.fillStyle = (status === 'transformed' || status === 'destroyed')
+        ? GRID_COLORS[0]!
+        : (GRID_COLORS[gc.cell.level] ?? GRID_COLORS[0]!)
+    }
 
     const screenX = gridScreenOffsetX + gc.cell.x * stride
     const screenY = gridScreenOffsetY + gc.cell.y * stride
-    ctx.fillStyle = color
     ctx.fillRect(screenX, screenY, config.cellSize, config.cellSize)
   }
 
