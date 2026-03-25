@@ -6,21 +6,32 @@ import { renderFrame, getScreenSize } from './renderer.js'
 // ── Default config ──
 
 function defaultConfig(): SimConfig {
+  // Grid dimensions: 52 weeks × 7 days, cell 11px + 2px gap = stride 13
+  // After 90° rotation: sim width = screen height, sim height = screen width
+  //   sim X axis (oscillation) → screen Y → 7 days × 13 = 91px
+  //   sim Y axis (fire/travel) → screen X → 52 weeks × 13 + ship margin = ~700px
+  const cellSize = 11
+  const cellGap = 2
+  const stride = cellSize + cellGap
+  const gridW = 7 * stride   // 91 — sim X range (screen Y after rotation)
+  const gridH = 52 * stride  // 676 — sim Y range (screen X after rotation)
+  const shipMargin = 24      // space for ship on left (sim bottom)
+
   return {
     framesPerSecond: 60,
     waveConfig: { weeksPerWave: 4, spawnDelay: 60 },
-    playArea: { x: 0, y: 0, width: 300, height: 400 },
-    gridArea: { x: 10, y: 10, width: 280, height: 100 },
-    cellSize: 11,
-    cellGap: 2,
+    playArea: { x: 0, y: 0, width: gridW, height: gridH + shipMargin },
+    gridArea: { x: 0, y: 0, width: gridW, height: gridH },
+    cellSize,
+    cellGap,
     laserSpeed: 240,
     laserWidth: 2,
-    invaderSize: 11,
+    invaderSize: 7,         // smaller than cells (11px) for oscillation room
     shipSpeed: 180,
-    shipY: 380,
+    shipY: gridH + shipMargin - 4, // near sim bottom → screen left edge
     formationBaseSpeed: 60,
     formationMaxSpeed: 240,
-    formationRowDrop: 20,
+    formationRowDrop: stride, // drop by one row (matches grid stride)
     hitChance: 0.85,
   }
 }

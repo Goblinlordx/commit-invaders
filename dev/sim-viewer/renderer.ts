@@ -60,20 +60,17 @@ export function renderFrame(
   ctx.fillStyle = BG_COLOR
   ctx.fillRect(0, 0, screen.width, screen.height)
 
-  // Grid cells (background)
-  // Grid uses sim coordinates for cell positions, then maps to screen
+  // Grid cells (background) — rendered directly in screen space
+  // Weeks go left→right (screen X), days go top→bottom (screen Y)
+  // Grid fills the background; the ship margin is on the left
   const stride = config.cellSize + config.cellGap
+  const gridScreenOffsetX = screen.width - config.gridArea.height // push grid to right side, leaving ship margin on left
   for (const gc of state.gridCells) {
     const color = GRID_COLORS[gc.cell.level] ?? GRID_COLORS[0]!
-    // Cell sim position: (gridArea.x + col*stride, gridArea.y + row*stride)
-    // But for horizontal layout, we want weeks on X axis:
-    //   screenX for week = map sim gridArea.y position to screen X
-    //   screenY for day = map sim gridArea.x position to screen Y
-    const cellSimX = config.gridArea.x + gc.cell.y * stride
-    const cellSimY = config.gridArea.y + gc.cell.x * stride
-    const { sx, sy } = simToScreen(cellSimX, cellSimY, config)
+    const screenX = gridScreenOffsetX + gc.cell.x * stride // week → screen X
+    const screenY = gc.cell.y * stride                      // day → screen Y
     ctx.fillStyle = color
-    ctx.fillRect(sx, sy, config.cellSize, config.cellSize)
+    ctx.fillRect(screenX, screenY, config.cellSize, config.cellSize)
   }
 
   // Darken overlay during active waves
