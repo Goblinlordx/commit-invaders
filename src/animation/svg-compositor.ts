@@ -439,14 +439,30 @@ export function composeSvg(options: CompositeSvgOptions): string {
   const endingFadeoutStart = gameEndEvent ? gameEndEvent.frame : output.totalFrames
   const endingFadeoutEnd = gameEndEvent ? gameEndEvent.frame + config.waveConfig.endingFadeoutDuration : output.totalFrames
 
+  const fadeoutStartPct = frameToPercent(endingFadeoutStart, output.totalFrames)
+  const fadeoutEndPct = frameToPercent(endingFadeoutEnd, output.totalFrames)
+
   for (let i = 0; i < scoreLayers.length; i++) {
     const layer = scoreLayers[i]!
     const startPct = frameToPercent(layer.startFrame, output.totalFrames)
-    const endPct = frameToPercent(Math.min(layer.endFrame, endingFadeoutEnd), output.totalFrames)
-    // Clamp to ending fadeout
-    if (startPct >= frameToPercent(endingFadeoutEnd, output.totalFrames)) continue
+    const rawEndPct = frameToPercent(layer.endFrame, output.totalFrames)
+    // Skip layers that start after the fadeout
+    if (startPct >= fadeoutEndPct) continue
     const kfName = `score-${i}`
-    cssRules.push(visibilityKeyframes(kfName, [[startPct, endPct]]))
+
+    // If this layer spans the ending fadeout, add a gradual fade-out
+    if (rawEndPct > fadeoutStartPct && gameEndEvent) {
+      cssRules.push(`@keyframes ${kfName} {
+  0.00% { opacity: 0; }
+  ${Math.max(0, startPct - 0.01).toFixed(2)}% { opacity: 0; }
+  ${startPct.toFixed(2)}% { opacity: 1; }
+  ${fadeoutStartPct.toFixed(2)}% { opacity: 1; }
+  ${fadeoutEndPct.toFixed(2)}% { opacity: 0; }
+  100.00% { opacity: 0; }
+}`)
+    } else {
+      cssRules.push(visibilityKeyframes(kfName, [[startPct, Math.min(rawEndPct, fadeoutEndPct)]]))
+    }
     elements.push(
       `<text x="${screenW - 8}" y="${statusY}" text-anchor="end" dominant-baseline="middle" ` +
       `font-family="monospace" font-weight="bold" font-size="12" fill="#39d353" opacity="0" ` +
@@ -476,11 +492,23 @@ export function composeSvg(options: CompositeSvgOptions): string {
       (e) => e.type === 'wave_clear' && (e.data as { waveIndex: number }).waveIndex === wi,
     )
     const clearFrame = waveClear ? waveClear.frame : (gameEndEvent ? gameEndEvent.frame : output.totalFrames)
-    const endFrame = Math.min(clearFrame, endingFadeoutEnd)
     const spawnPct = frameToPercent(spawnFrame, output.totalFrames)
-    const endPct = frameToPercent(endFrame, output.totalFrames)
     const waveKf = `status-wave-${wi}`
-    cssRules.push(visibilityKeyframes(waveKf, [[spawnPct, endPct]]))
+
+    // If this wave is active during ending, fade out gradually
+    if (!waveClear && gameEndEvent) {
+      cssRules.push(`@keyframes ${waveKf} {
+  0.00% { opacity: 0; }
+  ${Math.max(0, spawnPct - 0.01).toFixed(2)}% { opacity: 0; }
+  ${spawnPct.toFixed(2)}% { opacity: 1; }
+  ${fadeoutStartPct.toFixed(2)}% { opacity: 1; }
+  ${fadeoutEndPct.toFixed(2)}% { opacity: 0; }
+  100.00% { opacity: 0; }
+}`)
+    } else {
+      const endPct = frameToPercent(Math.min(clearFrame, endingFadeoutEnd), output.totalFrames)
+      cssRules.push(visibilityKeyframes(waveKf, [[spawnPct, endPct]]))
+    }
     elements.push(
       `<text x="8" y="${statusY}" dominant-baseline="middle" ` +
       `font-family="monospace" font-size="11" fill="#8b949e" opacity="0" ` +
@@ -488,18 +516,29 @@ export function composeSvg(options: CompositeSvgOptions): string {
     )
   }
 
-  // "READY" during ending_reset (fade in with reset)
+  // "READY" during ending_reset (fade in gradually with reset)
   if (gameEndEvent) {
     const resetStartPct = resetRestorePct
     const resetEndPct = Math.min(100, resetRestorePct + (2.5 / dur) * 100)
-    cssRules.push(visibilityKeyframes('status-ready-reset', [[resetEndPct, 100]]))
+    // Fade in from resetStart to resetEnd, stay visible to 100%
+    cssRules.push(`@keyframes status-ready-reset {
+  0.00% { opacity: 0; }
+  ${resetStartPct.toFixed(2)}% { opacity: 0; }
+  ${resetEndPct.toFixed(2)}% { opacity: 1; }
+  100.00% { opacity: 1; }
+}`)
     elements.push(
       `<text x="8" y="${statusY}" dominant-baseline="middle" ` +
       `font-family="monospace" font-size="11" fill="#8b949e" opacity="0" ` +
       `style="animation: status-ready-reset ${dur}s linear infinite">READY</text>`
     )
-    // "0 COMMITS" during reset
-    cssRules.push(visibilityKeyframes('status-score-reset', [[resetEndPct, 100]]))
+    // "0 COMMITS" during reset — same fade
+    cssRules.push(`@keyframes status-score-reset {
+  0.00% { opacity: 0; }
+  ${resetStartPct.toFixed(2)}% { opacity: 0; }
+  ${resetEndPct.toFixed(2)}% { opacity: 1; }
+  100.00% { opacity: 1; }
+}`)
     elements.push(
       `<text x="${screenW - 8}" y="${statusY}" text-anchor="end" dominant-baseline="middle" ` +
       `font-family="monospace" font-weight="bold" font-size="12" fill="#39d353" opacity="0" ` +
@@ -519,30 +558,46 @@ export function composeSvg(options: CompositeSvgOptions): string {
     const blackoutEndFrame = boardEndFrame + wc.endingBlackoutDuration
     const resetEndFrame = blackoutEndFrame + wc.endingResetDuration
 
-    // Score text
-    const scoreStartPct = frameToPercent(scoreStartFrame, output.totalFrames)
-    const scoreEndPct = frameToPercent(scoreEndFrame, output.totalFrames)
-    const scoreOutPct = frameToPercent(scoreOutEndFrame, output.totalFrames)
-    const scoreKf = 'ending-score-text'
-    // Fade in over first 15% of score phase, then hold, then fade out
-    const scoreFadeInPct = scoreStartPct + (scoreEndPct - scoreStartPct) * 0.15
-    cssRules.push(visibilityKeyframes(scoreKf, [[scoreFadeInPct, scoreEndPct]]))
+    // Helper: convert frame to percent
+    const fp = (f: number) => frameToPercent(f, output.totalFrames)
+
+    // Score text — fade in over scoreStart→15% into score phase, hold, fade out over scoreOut
+    const scoreStartPct = fp(scoreStartFrame)
+    const scoreFadeInDonePct = scoreStartPct + (fp(scoreEndFrame) - scoreStartPct) * 0.15
+    const scoreEndPct = fp(scoreEndFrame)
+    const scoreOutPct = fp(scoreOutEndFrame)
+    cssRules.push(`@keyframes ending-score-text {
+  0.00% { opacity: 0; }
+  ${(scoreStartPct - 0.01).toFixed(2)}% { opacity: 0; }
+  ${scoreStartPct.toFixed(2)}% { opacity: 0; }
+  ${scoreFadeInDonePct.toFixed(2)}% { opacity: 1; }
+  ${scoreEndPct.toFixed(2)}% { opacity: 1; }
+  ${scoreOutPct.toFixed(2)}% { opacity: 0; }
+  100.00% { opacity: 0; }
+}`)
     const scoreText = `${fmtScore(finalScore)} COMMITS`
     elements.push(
       `<g style="animation: wiggle-score 0.6s ease-in-out infinite">` +
       `<text x="${screenW / 2}" y="${gameAreaH / 2}" text-anchor="middle" dominant-baseline="middle" ` +
       `font-family="monospace" font-weight="bold" font-size="14" fill="#39d353" opacity="0" ` +
-      `style="animation: ${scoreKf} ${dur}s linear infinite">${scoreText}</text></g>`
+      `style="animation: ending-score-text ${dur}s linear infinite">${scoreText}</text></g>`
     )
 
-    // Scoreboard
+    // Scoreboard — fade in over boardInDuration, hold, fade out over blackoutDuration
     if (options.scoreboard && options.scoreboard.entries.length > 0) {
-      const boardStartPct = frameToPercent(boardInFrame, output.totalFrames)
-      const boardHoldPct = frameToPercent(boardEndFrame, output.totalFrames)
-      const boardFadePct = frameToPercent(boardEndFrame + wc.endingBlackoutDuration, output.totalFrames)
-      const boardKf = 'ending-board'
-      const boardVisiblePct = frameToPercent(boardInFrame + wc.endingBoardInDuration, output.totalFrames)
-      cssRules.push(visibilityKeyframes(boardKf, [[boardVisiblePct, boardHoldPct]]))
+      const boardStartPct = fp(boardInFrame)
+      const boardVisiblePct = fp(boardInFrame + wc.endingBoardInDuration)
+      const boardHoldPct = fp(boardEndFrame)
+      const boardFadePct = fp(boardEndFrame + wc.endingBlackoutDuration)
+      cssRules.push(`@keyframes ending-board {
+  0.00% { opacity: 0; }
+  ${(boardStartPct - 0.01).toFixed(2)}% { opacity: 0; }
+  ${boardStartPct.toFixed(2)}% { opacity: 0; }
+  ${boardVisiblePct.toFixed(2)}% { opacity: 1; }
+  ${boardHoldPct.toFixed(2)}% { opacity: 1; }
+  ${boardFadePct.toFixed(2)}% { opacity: 0; }
+  100.00% { opacity: 0; }
+}`)
 
       const boardElements: string[] = []
       boardElements.push(
@@ -578,19 +633,25 @@ export function composeSvg(options: CompositeSvgOptions): string {
       }
 
       elements.push(
-        `<g opacity="0" style="animation: ${boardKf} ${dur}s linear infinite">${boardElements.join('')}</g>`
+        `<g opacity="0" style="animation: ending-board ${dur}s linear infinite">${boardElements.join('')}</g>`
       )
     }
 
-    // Blackout overlay
-    const blackoutStartPct = frameToPercent(boardEndFrame, output.totalFrames)
-    const blackoutFullPct = frameToPercent(blackoutEndFrame, output.totalFrames)
-    const resetDonePct = frameToPercent(resetEndFrame, output.totalFrames)
-    const blackoutKf = 'ending-blackout'
-    cssRules.push(visibilityKeyframes(blackoutKf, [[blackoutFullPct, Math.min(100, resetDonePct)]]))
+    // Blackout overlay — fade in over blackoutDuration, hold, fade out over resetDuration
+    const blackoutStartPct = fp(boardEndFrame)
+    const blackoutFullPct = fp(blackoutEndFrame)
+    const resetDonePct = fp(resetEndFrame)
+    cssRules.push(`@keyframes ending-blackout {
+  0.00% { opacity: 0; }
+  ${(blackoutStartPct - 0.01).toFixed(2)}% { opacity: 0; }
+  ${blackoutStartPct.toFixed(2)}% { opacity: 0; }
+  ${blackoutFullPct.toFixed(2)}% { opacity: 1; }
+  ${Math.min(100, resetDonePct).toFixed(2)}% { opacity: 0; }
+  100.00% { opacity: 0; }
+}`)
     elements.push(
       `<rect x="0" y="0" width="${screenW}" height="${screenH}" fill="#000000" opacity="0" ` +
-      `style="animation: ${blackoutKf} ${dur}s linear infinite" />`
+      `style="animation: ending-blackout ${dur}s linear infinite" />`
     )
   }
 
