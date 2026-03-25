@@ -1,0 +1,48 @@
+name: 'Commit Invaders'
+description: 'Generate an animated SVG of Space Invaders from your GitHub contribution graph'
+author: 'Goblinlordx'
+branding:
+  icon: 'zap'
+  color: 'green'
+
+inputs:
+  github_token:
+    description: 'GitHub token with read:user scope'
+    required: true
+  github_user_name:
+    description: 'GitHub username to generate the animation for'
+    required: true
+  output_branch:
+    description: 'Branch to commit the SVG to'
+    required: false
+    default: 'output'
+  output_file:
+    description: 'Output SVG filename'
+    required: false
+    default: 'commit-invaders.svg'
+  enable_scoreboard:
+    description: 'Enable high score board (requires contribution history)'
+    required: false
+    default: 'true'
+  scoreboard_years:
+    description: 'Number of years to look back for scoreboard'
+    required: false
+    default: '5'
+  weeks_per_wave:
+    description: 'Number of weeks grouped per wave'
+    required: false
+    default: '4'
+
+outputs:
+  svg_file:
+    description: 'Path to the generated SVG file'
+  svg_size:
+    description: 'Size of the SVG file in bytes'
+  total_commits:
+    description: 'Total number of commits in the contribution graph'
+  animation_duration:
+    description: 'Animation duration in seconds'
+
+runs:
+  using: 'node20'
+  main: 'dist/index.js'

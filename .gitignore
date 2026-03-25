@@ -1,5 +1,5 @@
 node_modules/
-dist/
+# dist/ is committed — GH Action needs the bundle
 *.tsbuildinfo
 
 # Build/test artifacts
