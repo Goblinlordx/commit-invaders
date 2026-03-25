@@ -107,7 +107,10 @@ export function renderFrame(
 
   for (const gc of state.gridCells) {
     const status = gc.status
-    if (status !== 'plucked' && status !== 'traveling' && status !== 'hatching') continue
+    // Draw plucked, traveling, hatching, AND transformed
+    // Transformed cells render as invader-colored rects at invader position —
+    // once the formation exists, invaders draw on top (same pos/size/color = seamless)
+    if (status !== 'plucked' && status !== 'traveling' && status !== 'hatching' && status !== 'transformed') continue
 
     // Grid position (top-left of cell, like the background grid)
     const gridX = gridScreenOffsetX + gc.cell.x * stride
@@ -123,28 +126,29 @@ export function renderFrame(
     }
 
     if (status === 'plucked') {
-      // At grid position, cell size, amber color
+      // At grid position, cell size, amber (plucked from grid)
       ctx.fillStyle = PLUCK_COLOR
       ctx.fillRect(gridX, gridY, config.cellSize, config.cellSize)
     } else if (status === 'traveling') {
-      // Interpolate position from grid to target (centered)
+      // Interpolate: position (grid center → target center), size (cellSize → invaderSize)
       const t = gc.detachProgress
       const gridCenterX = gridX + config.cellSize / 2
       const gridCenterY = gridY + config.cellSize / 2
       const cx = gridCenterX + (targetCenterX - gridCenterX) * t
       const cy = gridCenterY + (targetCenterY - gridCenterY) * t
-      // Interpolate size from cellSize to invaderSize
       const size = config.cellSize + (config.invaderSize - config.cellSize) * t
       const half = size / 2
+      // Color transitions from amber toward invader red during travel
       ctx.fillStyle = PLUCK_COLOR
       ctx.fillRect(cx - half, cy - half, size, size)
     } else if (status === 'hatching') {
-      // At target position (centered like invaders), transitioning color
-      // detachProgress is 1 during hatch, so use a separate progress
-      // We don't have per-cell hatch progress in CellState, so use
-      // a simple color: HATCH_COLOR (midpoint between amber and red)
-      // Final frame of hatch should be INVADER_COLOR
+      // At target position, invader size, transitioning to invader color
       ctx.fillStyle = HATCH_COLOR
+      ctx.fillRect(targetCenterX - invHalf, targetCenterY - invHalf, config.invaderSize, config.invaderSize)
+    } else if (status === 'transformed') {
+      // Fully transformed — draw as invader (exact same appearance)
+      // This covers the frame between transform and formation creation
+      ctx.fillStyle = INVADER_COLOR
       ctx.fillRect(targetCenterX - invHalf, targetCenterY - invHalf, config.invaderSize, config.invaderSize)
     }
   }
