@@ -1,18 +1,18 @@
+/**
+ * Performance benchmark for full GitHub contribution chart simulation.
+ *
+ * Run manually: npx vitest run src/simulator/simulate.perf.test.ts
+ *
+ * Tests a realistic 52-week × 7-day grid (~250 active invaders across
+ * 13 waves) to measure simulation throughput across multiple seeds.
+ */
 import { describe, it, expect } from 'vitest'
 
-import type {
-  Grid,
-  SimConfig,
-  ContributionCell,
-  ContributionLevel,
-} from '../types.js'
-
+import type { Grid, SimConfig, ContributionLevel } from '../types.js'
 import { simulate } from './simulate.js'
 import { createPRNG } from './prng.js'
 
-// ── Factories ──
-
-function makeConfig(overrides: Partial<SimConfig> = {}): SimConfig {
+function makeConfig(): SimConfig {
   return {
     waveConfig: { weeksPerWave: 4, spawnDelay: 10 },
     playArea: { x: 0, y: 0, width: 300, height: 400 },
@@ -28,15 +28,12 @@ function makeConfig(overrides: Partial<SimConfig> = {}): SimConfig {
     formationMaxSpeed: 4,
     formationRowDrop: 20,
     hitChance: 0.85,
-    ...overrides,
   }
 }
 
 /**
  * Generate a realistic full-year GitHub contribution grid.
- * 52 weeks × 7 days = 364 cells.
- * Uses PRNG to assign contribution levels matching typical GitHub activity:
- *   ~30% NONE (level 0), ~30% FIRST_QUARTILE, ~20% SECOND, ~12% THIRD, ~8% FOURTH
+ * Distribution: ~30% NONE, ~30% L1, ~20% L2, ~12% L3, ~8% L4
  */
 function makeFullYearGrid(seed: string): {
   grid: Grid
@@ -44,7 +41,7 @@ function makeFullYearGrid(seed: string): {
   totalHP: number
 } {
   const prng = createPRNG(seed)
-  const cells: ContributionCell[] = []
+  const cells = []
   let activeCount = 0
   let totalHP = 0
 
@@ -58,107 +55,61 @@ function makeFullYearGrid(seed: string): {
       else if (roll < 0.92) level = 3
       else level = 4
 
-      const count = level === 0 ? 0 : Math.floor(level * 3 + prng.next() * 10)
-
       cells.push({
         x: week,
         y: day,
         level,
         date: `2025-${String(Math.floor(week / 4) + 1).padStart(2, '0')}-${String(day + 1).padStart(2, '0')}`,
-        count,
+        count: level === 0 ? 0 : Math.floor(level * 3 + prng.next() * 10),
       })
 
       if (level > 0) {
         activeCount++
-        // HP from wave-manager: level ≤ 2 → 1, level 3 → 2, level 4 → 3
         totalHP += level <= 2 ? 1 : level === 3 ? 2 : 3
       }
     }
   }
 
-  return {
-    grid: { width: 52, height: 7, cells },
-    activeCount,
-    totalHP,
-  }
+  return { grid: { width: 52, height: 7, cells }, activeCount, totalHP }
 }
 
-// ── Performance tests ──
-
-describe('simulate — performance (full year grid)', () => {
-  const { grid, activeCount, totalHP } = makeFullYearGrid('perf-bench-2026')
+describe('simulate — full year performance', () => {
   const config = makeConfig()
 
-  it(`grid stats: ${activeCount} active cells, ${totalHP} total HP, 52×7 = 364 cells`, () => {
-    expect(grid.cells).toHaveLength(364)
-    expect(activeCount).toBeGreaterThan(200)
-    expect(activeCount).toBeLessThan(300)
-  })
-
-  it('completes full-year simulation and destroys all invaders', () => {
-    const start = performance.now()
-    const output = simulate(grid, 'perf-seed-1', config)
-    const elapsed = performance.now() - start
-
-    expect(output.finalScore).toBe(activeCount)
-    expect(output.totalFrames).toBeLessThan(10_000)
-
-    console.log(
-      `\n  Full-year simulation:` +
-        `\n    Active cells:    ${activeCount}` +
-        `\n    Total HP:        ${totalHP}` +
-        `\n    Waves:           ${Math.ceil(52 / config.waveConfig.weeksPerWave)}` +
-        `\n    Final score:     ${output.finalScore}` +
-        `\n    Total frames:    ${output.totalFrames}` +
-        `\n    Total events:    ${output.events.length}` +
-        `\n    Entity timelines: ${output.getAllInflections().size}` +
-        `\n    Elapsed:         ${elapsed.toFixed(1)}ms`,
-    )
-  })
-
-  it('peek() reconstructs mid-game state efficiently', () => {
-    const output = simulate(grid, 'perf-seed-1', config)
-    const midFrame = Math.floor(output.totalFrames / 2)
-
-    const start = performance.now()
-    const state = output.peek(midFrame)
-    const elapsed = performance.now() - start
-
-    expect(state.frame).toBe(midFrame)
-    expect(state.score).toBeGreaterThan(0)
-    expect(state.score).toBeLessThanOrEqual(output.finalScore)
-
-    console.log(
-      `\n  peek(${midFrame}):` +
-        `\n    Score at mid:    ${state.score}/${output.finalScore}` +
-        `\n    Active lasers:   ${state.lasers.length}` +
-        `\n    Elapsed:         ${elapsed.toFixed(1)}ms`,
-    )
-  })
-
-  it('runs 5 different seeds and reports variance', () => {
-    const seeds = ['bench-A', 'bench-B', 'bench-C', 'bench-D', 'bench-E']
+  it('completes a full 52-week grid across 10 seeds', () => {
+    const seeds = Array.from({ length: 10 }, (_, i) => `perf-${i}`)
     const results: Array<{
       seed: string
       ms: number
       frames: number
       events: number
+      fires: number
+      hits: number
+      invaders: number
       score: number
     }> = []
 
-    for (const s of seeds) {
+    for (const seed of seeds) {
+      const { grid, activeCount } = makeFullYearGrid(seed)
       const start = performance.now()
-      const out = simulate(grid, s, config)
+      const out = simulate(grid, seed, config)
       const ms = performance.now() - start
 
+      const fires = out.events.filter((e) => e.type === 'fire_laser').length
+      const hits = out.events.filter((e) => e.type === 'hit').length
+
       results.push({
-        seed: s,
+        seed,
         ms,
         frames: out.totalFrames,
         events: out.events.length,
+        fires,
+        hits,
+        invaders: activeCount,
         score: out.finalScore,
       })
 
+      // Every seed MUST complete
       expect(out.finalScore).toBe(activeCount)
     }
 
@@ -168,17 +119,45 @@ describe('simulate — performance (full year grid)', () => {
     const min = Math.min(...times)
 
     console.log(
-      `\n  5-seed benchmark (${activeCount} invaders):` +
-        `\n    Avg:    ${avg.toFixed(1)}ms` +
-        `\n    Min:    ${min.toFixed(1)}ms` +
-        `\n    Max:    ${max.toFixed(1)}ms` +
-        `\n    Range:  ${(max - min).toFixed(1)}ms`,
+      `\n  Full-year benchmark (10 seeds):` +
+        `\n    Avg time:     ${avg.toFixed(1)}ms` +
+        `\n    Min/Max:      ${min.toFixed(1)}ms / ${max.toFixed(1)}ms` +
+        `\n    Avg invaders: ${(results.reduce((a, r) => a + r.invaders, 0) / results.length).toFixed(0)}` +
+        `\n    Avg frames:   ${(results.reduce((a, r) => a + r.frames, 0) / results.length).toFixed(0)}` +
+        `\n    Avg fires:    ${(results.reduce((a, r) => a + r.fires, 0) / results.length).toFixed(0)}` +
+        `\n    Avg hits:     ${(results.reduce((a, r) => a + r.hits, 0) / results.length).toFixed(0)}` +
+        `\n    Hit rate:     ${((results.reduce((a, r) => a + r.hits, 0) / results.reduce((a, r) => a + r.fires, 0)) * 100).toFixed(1)}%`,
     )
 
     for (const r of results) {
       console.log(
-        `    ${r.seed}: ${r.ms.toFixed(1)}ms, ${r.frames} frames, ${r.events} events`,
+        `    ${r.seed}: ${r.ms.toFixed(0)}ms, ${r.invaders} inv, ${r.frames}f, ${r.fires}F/${r.hits}H`,
       )
     }
+
+    // Performance gate: each seed should complete in under 500ms
+    for (const r of results) {
+      expect(r.ms).toBeLessThan(500)
+    }
+  })
+
+  it('peek() mid-game is fast', () => {
+    const { grid, activeCount } = makeFullYearGrid('peek-bench')
+    const out = simulate(grid, 'peek-bench', config)
+
+    expect(out.finalScore).toBe(activeCount)
+
+    const mid = Math.floor(out.totalFrames / 2)
+    const start = performance.now()
+    const state = out.peek(mid)
+    const ms = performance.now() - start
+
+    console.log(
+      `\n  peek(${mid}/${out.totalFrames}): ${ms.toFixed(1)}ms, score ${state.score}/${out.finalScore}`,
+    )
+
+    expect(state.frame).toBe(mid)
+    expect(state.score).toBeGreaterThan(0)
+    expect(ms).toBeLessThan(200)
   })
 })
