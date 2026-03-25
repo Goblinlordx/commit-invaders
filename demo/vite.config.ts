@@ -3,6 +3,7 @@ import { resolve } from 'node:path'
 
 export default defineConfig({
   root: resolve(__dirname),
+  base: "/commit-invaders/",
   resolve: {
     alias: {
       '../src': resolve(__dirname, '../src'),
