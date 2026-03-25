@@ -201,12 +201,27 @@ input[type="text"]:focus {
   border-radius: 12px;
 }
 
+#preview-canvas {
+  width: 100%;
+  height: auto;
+  display: none;
+  image-rendering: pixelated;
+}
+
+#preview-canvas.active {
+  display: block;
+}
+
 .preview-container {
   width: 100%;
   display: flex;
   align-items: center;
   justify-content: center;
   min-height: 120px;
+}
+
+.preview-container.hidden {
+  display: none;
 }
 
 .preview-container svg {
