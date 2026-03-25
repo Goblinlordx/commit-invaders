@@ -19,6 +19,17 @@ export const HATCH_COLOR = '#e05555' // transitioning to invader red
 export const OVERLAY_COLOR = 'rgba(13, 17, 23, 0.6)'
 export const RENDER_MARGIN = 10 // px padding around play area for centered entities at edges
 
+/** Format large numbers compactly: 999 → "999", 1234 → "1.234k", 1234567 → "1.235M" */
+function formatScore(n: number): string {
+  if (n >= 1e15) return (n / 1e15).toFixed(3).replace(/\.?0+$/, '') + 'Q??'
+  if (n >= 1e12) return (n / 1e12).toFixed(3).replace(/\.?0+$/, '') + 'T'
+  if (n >= 1e9) return (n / 1e9).toFixed(3).replace(/\.?0+$/, '') + 'B'
+  if (n >= 1e6) return (n / 1e6).toFixed(3).replace(/\.?0+$/, '') + 'M'
+  if (n >= 1e4) return (n / 1e3).toFixed(2).replace(/\.?0+$/, '') + 'k'
+  if (n >= 1e3) return (n / 1e3).toFixed(3).replace(/\.?0+$/, '') + 'k'
+  return String(n)
+}
+
 /**
  * Map sim coordinates to screen coordinates (90° CW rotation).
  *
@@ -229,42 +240,49 @@ export function renderFrame(
     ctx.save()
     ctx.globalAlpha = scoreAlpha
 
+    // Scale sizes relative to game area height to fill the space
+    const h = gameAreaH
+    const titleSize = Math.max(10, Math.floor(h * 0.1))
+    const nhsSize = Math.max(8, Math.floor(h * 0.08))
+    const fontSize = Math.max(9, Math.floor(h * 0.09))
+    const rowHeight = Math.floor(h * 0.11)
+
     // Title with wiggle
-    const title = 'HIGHEST COMMIT DESTRUCTION DAYS'
-    const titleY = 12
-    ctx.font = 'bold 9px monospace'
+    const title = 'HIGH SCORES'
+    const titleY = Math.floor(h * 0.08)
+    ctx.font = `bold ${titleSize}px monospace`
     ctx.textAlign = 'center'
     ctx.textBaseline = 'middle'
-    const titleCharW = 5.5
+    const titleCharW = titleSize * 0.62
     const titleStartX = centerX - (title.length * titleCharW) / 2
 
     for (let i = 0; i < title.length; i++) {
-      const wiggle = Math.sin((state.frame * 0.08 + i * 0.4) % (Math.PI * 2)) * 2
+      const wiggle = Math.sin((state.frame * 0.08 + i * 0.4) % (Math.PI * 2)) * 2.5
       ctx.fillStyle = '#39d353'
       ctx.fillText(title[i]!, titleStartX + i * titleCharW, titleY + wiggle)
     }
 
     // "New High Score!" indicator
+    let tableStartY = Math.floor(h * 0.18)
     if (scoreboardData.isNewHighScore) {
-      ctx.font = 'bold 8px monospace'
+      ctx.font = `bold ${nhsSize}px monospace`
       ctx.fillStyle = '#ffff00'
       ctx.textAlign = 'center'
-      const nhsY = 22
+      const nhsY = Math.floor(h * 0.17)
       const nhsText = '★ NEW HIGH SCORE! ★'
-      const nhsCharW = 5
+      const nhsCharW = nhsSize * 0.62
       const nhsStartX = centerX - (nhsText.length * nhsCharW) / 2
       for (let i = 0; i < nhsText.length; i++) {
         const wiggle = Math.sin((state.frame * 0.12 + i * 0.6) % (Math.PI * 2)) * 2
         ctx.fillText(nhsText[i]!, nhsStartX + i * nhsCharW, nhsY + wiggle)
       }
+      tableStartY = Math.floor(h * 0.26)
     }
 
-    // Scoreboard table — 2 columns of 5 entries for larger text
-    const tableTop = scoreboardData.isNewHighScore ? 34 : 26
-    const rowHeight = 13
-    const fontSize = 11
-    const colWidth = screen.width * 0.42
-    const colOffsets = [centerX - colWidth / 2 - colWidth * 0.02, centerX + colWidth / 2 + colWidth * 0.02]
+    // Scoreboard table — 2 columns of 5
+    const colWidth = screen.width * 0.44
+    const colGap = screen.width * 0.04
+    const colOffsets = [centerX - colGap / 2 - colWidth / 2, centerX + colGap / 2 + colWidth / 2]
     ctx.textBaseline = 'middle'
 
     for (let i = 0; i < scoreboardData.entries.length; i++) {
@@ -272,7 +290,7 @@ export function renderFrame(
       const col = i < 5 ? 0 : 1
       const row = i < 5 ? i : i - 5
       const colX = colOffsets[col]!
-      const y = tableTop + row * rowHeight
+      const y = tableStartY + row * rowHeight
       const isCurrent = entry.isCurrent
 
       // Highlight current entry
@@ -287,15 +305,16 @@ export function renderFrame(
       ctx.font = isCurrent ? `bold ${fontSize}px monospace` : `${fontSize}px monospace`
       ctx.fillText(`${String(entry.rank).padStart(2, ' ')}.`, colX - colWidth / 2, y)
 
-      // Date
+      // Date (short: MM-DD)
       ctx.fillStyle = isCurrent ? '#e6edf3' : '#8b949e'
-      ctx.fillText(entry.date, colX - colWidth / 2 + fontSize * 2.5, y)
+      const shortDate = entry.date.slice(5) // "MM-DD" from "YYYY-MM-DD"
+      ctx.fillText(shortDate, colX - colWidth / 2 + fontSize * 2.8, y)
 
-      // Score
+      // Score (formatted)
       ctx.textAlign = 'right'
       ctx.fillStyle = isCurrent ? '#39d353' : '#58a6ff'
       ctx.font = isCurrent ? `bold ${fontSize}px monospace` : `${fontSize}px monospace`
-      ctx.fillText(String(entry.score), colX + colWidth / 2, y)
+      ctx.fillText(formatScore(entry.score), colX + colWidth / 2, y)
     }
 
     ctx.globalAlpha = 1
