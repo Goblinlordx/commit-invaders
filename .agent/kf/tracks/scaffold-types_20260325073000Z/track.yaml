@@ -27,11 +27,26 @@ spec:
       ContributionCell, ContributionLevel, Grid
       ShipCommand, ShipScript
       SimEvent, SimEventType
-      GameState (with score), StateHistory
+      GameState (with score) — reconstructable snapshot, not stored per frame
+      SimOutput — compact event log + per-entity inflection timelines
+      InflectionPoint { frame, position, type }
+      EntityTimeline { entityId, inflections: InflectionPoint[] }
       CellState, FormationState, ShipState, LaserState, EffectState
       InvaderState (with hp, maxHp)
       WaveConfig, SimConfig
       PRNG interface
+
+    SimOutput architecture (compact, queryable):
+      events: SimEvent[]                    — delta log, only state changes
+      entityTimelines: Map<string, EntityTimeline>  — inflection points per entity
+      totalFrames: number
+      peek(frame): GameState               — reconstruct from events (cached every ~100 frames)
+      getInflections(entityId): InflectionPoint[]   — direct query for CSS keyframe generation
+      getAllInflections(): Map<string, InflectionPoint[]>
+
+    Key: inflection points are computed DURING simulation (engine knows
+    when directions change), not as post-processing. This means Track 3
+    (CSS generation) just queries the sim output rather than extracting.
 
     PRNG: simple mulberry32 or similar — seed from hash(username + timestamp).
     Must be pure, no external state. createPRNG(seed: string) → PRNG.

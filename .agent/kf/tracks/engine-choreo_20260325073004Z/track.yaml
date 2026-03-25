@@ -7,32 +7,51 @@ updated: 2026-03-25
 spec:
   summary: |
     The simulation engine that orchestrates all subsystems (waves, formations,
-    combat) into a complete game, producing a StateHistory with peek() access.
+    combat) into a complete game, producing a compact SimOutput with event log,
+    per-entity inflection timelines, and on-demand state reconstruction via peek().
     The choreographer generates organic ShipScripts using the seeded PRNG.
   context: |
     The engine is the orchestrator. It runs the frame loop, calling wave
     manager, formation, and combat systems each frame, applying ShipScript
-    commands, and recording complete GameState snapshots. The entire
-    simulation is pre-computed up front into a StateHistory array.
+    commands. Instead of storing full GameState snapshots per frame (heavy),
+    it records a compact event log (SimEvent[]) and builds per-entity
+    inflection timelines DURING simulation.
+
+    SimOutput is compact and queryable:
+    - events: SimEvent[] — only state changes, not full snapshots
+    - entityTimelines — inflection points per entity (direction changes,
+      spawn, destroy, etc.), computed as the simulation runs
+    - peek(frame) — reconstructs GameState on demand from events, with
+      cached snapshots every ~100 frames for fast seeking
+    - getInflections(entityId) — direct query used by CSS keyframe generator
+      and sim renderer
+
+    Inflection points are NOT post-processed — the engine inherently knows
+    when a formation changes direction, when a laser spawns, when an invader
+    is destroyed. It records these as EntityTimeline entries during the
+    simulation loop. Track 3 (CSS generation) just queries these directly.
 
     The choreographer is the "solver" — it generates a ShipScript by
     pre-computing all invader positions (deterministic zigzag) and scheduling
     ship movements and fires to intercept them. It uses the seeded PRNG to
-    inject organic variance: misses, aim jitter, fire delay variance,
-    unnecessary movements, and reaction delays. The game still completes
-    (all invaders die) but the path looks human, not robotic.
+    inject organic variance. The game still completes but looks human.
   acceptance_criteria:
-    - Engine takes (Grid, ShipScript, SimConfig) and produces StateHistory
-    - StateHistory.peek(frame) returns GameState in O(1)
+    - Engine takes (Grid, ShipScript, SimConfig) and produces SimOutput
+    - SimOutput stores compact event log, not full snapshots per frame
+    - SimOutput.peek(frame) reconstructs GameState from events with LRU cache + anchor snapshots
+    - SimOutput.getInflections(entityId) returns InflectionPoint[] for that entity
+    - SimOutput.getAllInflections() returns all entity timelines
+    - Inflection points recorded DURING simulation (not post-processed)
+    - Inflection points include: direction changes, spawn, transform, destroy, fire, wave clear
     - Engine orchestrates: wave spawn → formation move → ship command → laser advance → hit detect
-    - All SimEvents recorded per frame in GameState.events
+    - All SimEvents recorded as compact deltas (only changes per frame)
     - Score tracked correctly across full game
     - Choreographer takes (Grid, PRNG, SimConfig) and produces ShipScript
     - PRNG injects variance: aim jitter, fire delay, miss chance, unnecessary moves, reaction delay
     - Missed invaders get re-targeted (game always completes)
     - End-to-end: Grid + seed → choreographer → engine → all invaders destroyed
     - Final score equals total active commits
-    - Determinism: same (Grid, seed) → identical StateHistory across runs
+    - Determinism: same (Grid, seed) → identical SimOutput across runs
   out_of_scope: |
     Rendering, CSS generation, GitHub Action.
   technical_notes: |
@@ -43,10 +62,37 @@ spec:
       4. Advance lasers
       5. Hit detection + damage + score
       6. Check wave clear → mark for next wave spawn
-      7. Snapshot full GameState → push to frames[]
+      7. Record SimEvents for any state changes this frame
+      8. Record inflection points for any direction/state changes
 
-    StateHistory: just an array. peek(n) = frames[n]. O(1).
-    Total frames ~500-2000 for typical contribution graph.
+    SimOutput (compact, queryable):
+      events: SimEvent[]
+        — Only records state changes (deltas), not full snapshots
+        — A frame with no changes = zero events
+        — Typical game: ~2000-5000 events total (vs ~1500 full snapshots)
+
+      entityTimelines: Map<string, EntityTimeline>
+        — Built during simulation, not post-processed
+        — Entity types: 'formation-wN', 'ship', 'laser-N', 'invader-N'
+        — Each timeline = sequence of InflectionPoint[]
+        — Formation: start pos, each direction change, final pos
+        — Ship: each move/stop command position
+        — Invaders: spawn, transform, damage, destroy
+
+      peek(frame): GameState
+        — Reconstruct by replaying events from nearest cached snapshot
+        — LRU cache of reconstructed GameStates for efficient forward/backward seeking
+        — On cache miss: find nearest cached state (before or after target),
+          replay events forward or backward to reach target frame
+        — Periodic anchor snapshots every ~100 frames (computed during simulation)
+          provide guaranteed worst-case replay distance
+        — LRU eviction keeps memory bounded while caching hot frames
+        — Used by sim renderer (Track 2) for frame-by-frame playback
+
+      getInflections(entityId): InflectionPoint[]
+        — Direct lookup in entityTimelines map
+        — Used by CSS keyframe generator (Track 3) — no extraction needed
+        — Each point has: { frame, position, eventType }
 
     Choreographer:
       1. Pre-compute all formation paths for each wave
@@ -58,11 +104,15 @@ spec:
 plan:
   - phase: "Engine"
     tasks:
-      - text: "Write tests: Grid + ShipScript → StateHistory with correct frame count and events"
+      - text: "Write tests: Grid + ShipScript → SimOutput with correct totalFrames and event count"
         done: false
-      - text: "Implement engine frame loop (src/simulator/engine.ts)"
+      - text: "Implement engine frame loop with compact event recording (src/simulator/engine.ts)"
         done: false
-      - text: "Implement StateHistory with peek() (src/simulator/engine.ts)"
+      - text: "Implement inflection point recording during simulation (direction changes, spawns, destroys)"
+        done: false
+      - text: "Implement peek(frame) with LRU cache + periodic anchor snapshots"
+        done: false
+      - text: "Write tests: peek() reconstructs correct GameState, getInflections() returns correct points"
         done: false
   - phase: "Choreographer"
     tasks:
@@ -76,6 +126,8 @@ plan:
     tasks:
       - text: "Write end-to-end test: fixture Grid + seed → choreographer → engine → all destroyed, score correct"
         done: false
-      - text: "Write determinism test: same (Grid, seed) → identical StateHistory across runs"
+      - text: "Write test: getInflections returns correct points for formations, ship, invaders"
+        done: false
+      - text: "Write determinism test: same (Grid, seed) → identical SimOutput across runs"
         done: false
 extra: {}

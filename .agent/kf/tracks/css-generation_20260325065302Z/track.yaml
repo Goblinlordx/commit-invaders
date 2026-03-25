@@ -1,18 +1,20 @@
 id: css-generation_20260325065302Z
-title: "Inflection Extraction, CSS Generation & Automated Visual Validation"
+title: "CSS Generation & Automated Visual Validation"
 type: feature
 status: pending
 created: 2026-03-25
 updated: 2026-03-25
 spec:
   summary: |
-    Transform StateHistory into optimized CSS animations. Extract inflection
-    points (direction changes) from state history, generate shared @keyframes
-    templates with per-element CSS variables, compose final animated SVG with
-    sprites and palettes, and validate with Playwright visual regression
-    comparing CSS SVG against simulation renderer screenshots.
+    Query SimOutput inflection timelines, generate data-driven CSS keyframes,
+    compose final animated SVG with sprites and palettes, and validate with
+    Playwright visual regression comparing CSS SVG against simulation renderer.
   context: |
-    Pipeline: StateHistory → inflection extraction → CSS keyframes → SVG
+    Pipeline: SimOutput.getInflections() → CSS keyframes → SVG
+
+    No inflection extraction step — inflection points are already computed
+    by the simulation engine (Track 1e) and stored in SimOutput.entityTimelines.
+    This track just maps them to CSS percentages and emits keyframes.
 
     Data-driven CSS: ~15 shared @keyframes templates parameterized by CSS
     custom properties, plus ~1 formation keyframe per wave. Total ~25 rules
@@ -24,10 +26,12 @@ spec:
     3. Playwright freezes CSS SVG at equivalent time via negative animation-delay
     4. Pixel diff comparison at inflection points — automated, runs in CI
   codebase_analysis: |
-    Builds on Track 1 (StateHistory with peek()) and Track 2 (seekable renderer).
+    Builds on SimOutput (engine track) and sim renderer (Track 2).
+    Inflection points come pre-computed from the simulation — no extraction needed.
     CSS seek via negative animation-delay is a well-known technique.
   acceptance_criteria:
-    - Inflection extractor collapses same-direction movement to 2 endpoints
+    - Reads inflection points from SimOutput.getInflections() (pre-computed by engine)
+    - Maps inflection frame numbers to CSS animation percentages
     - Shared @keyframes for detach, transform, explode, laser (defined once)
     - Per-wave formation @keyframes from inflection points
     - Per-element CSS custom properties as style attributes
@@ -48,8 +52,7 @@ spec:
     Directory structure:
       src/
         animation/
-          inflection.ts       — extracts direction changes from StateHistory
-          keyframe-emitter.ts — shared @keyframes CSS
+          keyframe-emitter.ts — shared @keyframes CSS from SimOutput inflections
           data-emitter.ts     — per-element CSS variable style attributes
           timeline.ts         — frame-to-CSS-percentage mapping
         renderer/
@@ -65,10 +68,10 @@ spec:
         visual/
           simulation-vs-css.spec.ts  — Playwright regression tests
 
-    Inflection extraction:
-      Walks StateHistory frame by frame. For each entity (formation group,
-      ship), detects when movement direction changes. Keeps only the start,
-      end, and turn frames. Maps frame numbers to CSS percentages.
+    Inflection points:
+      Pre-computed by the simulation engine (SimOutput.getInflections()).
+      This track just maps frame numbers to CSS percentages via timeline.ts.
+      No extraction logic needed — just query and transform.
 
     CSS seek for Playwright:
       .seek-mode svg * {
@@ -84,20 +87,12 @@ spec:
       4. Screenshot both, pixel-diff compare
       5. Assert threshold < 5%
 plan:
-  - phase: "Inflection Extraction"
+  - phase: "Timeline Mapping & CSS Keyframe Generation"
     tasks:
-      - text: "Write tests: consecutive same-direction frames collapse to 2 endpoints"
+      - text: "Write tests for timeline mapper: SimOutput inflection frames to CSS percentages"
         done: false
-      - text: "Write tests: edge cases (single-frame, immediate reversal, stationary)"
+      - text: "Implement timeline mapper: queries SimOutput.getInflections(), maps to CSS percentages"
         done: false
-      - text: "Implement inflection extractor from StateHistory"
-        done: false
-      - text: "Write tests for timeline mapper: frame-to-CSS-percentage"
-        done: false
-      - text: "Implement timeline mapper"
-        done: false
-  - phase: "CSS Keyframe Generation"
-    tasks:
       - text: "Write tests for shared keyframe templates (detach, transform, explode, laser)"
         done: false
       - text: "Implement shared keyframe template emitter"
