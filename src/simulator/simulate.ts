@@ -93,53 +93,73 @@ function solveHit(
   // ahead. The laser Y and invader Y must intersect — find the tick count
   // where the laser (traveling from shipY at laserSpeed) reaches the invader.
 
-  for (let extraDelay = 0; extraDelay < 500; extraDelay++) {
+  // Bounds derived from config
+  const maxDelay = Math.ceil(config.playArea.width / config.shipSpeed) + 20
+  const maxLaserTicks = Math.ceil(config.shipY / config.laserSpeed) + 5
+  const halfLaser = config.laserWidth / 2
+  const halfInvader = config.invaderSize / 2
+
+  const fState = target.formation.getState()
+  const alive = fState.invaders.filter((i) => !i.destroyed)
+  const spd = fState.speed
+
+  // Pre-compute the formation path once for (maxDelay + maxLaserTicks) ticks.
+  // This is O(N) instead of O(maxDelay * maxLaserTicks * aliveCount).
+  const pathLen = maxDelay + maxLaserTicks + 1
+  const pathX: number[] = new Array(pathLen)
+  const pathY: number[] = new Array(pathLen)
+
+  let offX = fState.offset.x
+  let offY = fState.offset.y
+  let dir = fState.direction
+
+  pathX[0] = target.invBaseX + offX
+  pathY[0] = target.invBaseY + offY
+
+  for (let t = 1; t < pathLen; t++) {
+    const dx = dir === 'right' ? spd : -spd
+    let wouldExceed = false
+    for (const a of alive) {
+      if (a.position.x + offX + dx < config.playArea.x ||
+          a.position.x + offX + dx >= config.playArea.x + config.playArea.width) {
+        wouldExceed = true; break
+      }
+    }
+    if (wouldExceed) { dir = dir === 'right' ? 'left' : 'right'; offY += config.formationRowDrop }
+    else { offX += dx }
+    pathX[t] = target.invBaseX + offX
+    pathY[t] = target.invBaseY + offY
+  }
+
+  // Search (extraDelay, laserTicks) space using pre-computed path
+  for (let extraDelay = 0; extraDelay < maxDelay; extraDelay++) {
     const fireFrame = currentFrame + extraDelay
     if (fireFrame >= MAX_FRAMES) return null
 
-    // Search for the tick count where laser Y <= invader Y
-    // Laser at tick T (from fire): y = shipY - T * laserSpeed
-    // Invader at tick (extraDelay + T) from now: predictWorldPos(extraDelay + T)
-    // We need: shipY - T * laserSpeed <= invader.y + halfSize (AABB overlap)
-
-    for (let laserTicks = 1; laserTicks < 500; laserTicks++) {
+    for (let laserTicks = 1; laserTicks < maxLaserTicks; laserTicks++) {
       const totalTicks = extraDelay + laserTicks
-      const predicted = predictWorldPos(
-        target.invBaseX,
-        target.invBaseY,
-        target.formation,
-        totalTicks,
-        config.playArea,
-        config.formationRowDrop,
-      )
+      if (totalTicks >= pathLen) break
 
       const laserY = config.shipY - laserTicks * config.laserSpeed
-      if (laserY < 0) break // laser left play area
+      if (laserY < 0) break
 
-      // Check AABB overlap: laser center at (fireX, laserY) size 2x2
-      // vs invader center at (predicted.x, predicted.y) size 11x11
-      const halfLaser = config.laserWidth / 2
-      const halfInvader = config.invaderSize / 2
+      const predX = pathX[totalTicks]!
+      const predY = pathY[totalTicks]!
 
       const yOverlap =
-        laserY - halfLaser < predicted.y + halfInvader &&
-        laserY + halfLaser > predicted.y - halfInvader
+        laserY - halfLaser < predY + halfInvader &&
+        laserY + halfLaser > predY - halfInvader
 
       if (!yOverlap) continue
 
-      // Y overlaps at this tick — use predicted.x as fire position
-      // Check X bounds
-      if (predicted.x < config.playArea.x || predicted.x >= config.playArea.x + config.playArea.width) {
-        continue
-      }
+      if (predX < config.playArea.x || predX >= config.playArea.x + config.playArea.width) continue
 
-      // Ship feasibility: can reach predicted.x by fireFrame?
-      const moveDist = Math.abs(predicted.x - shipX)
+      const moveDist = Math.abs(predX - shipX)
       if (moveDist > extraDelay * config.shipSpeed) {
-        break // need more delay, try next extraDelay
+        break // need more delay
       }
 
-      return { fireFrame, fireX: predicted.x, targetId: target.id }
+      return { fireFrame, fireX: predX, targetId: target.id }
     }
   }
 
@@ -320,11 +340,13 @@ export function simulate(
     // 1. Wave spawning
     const wave = simWM.trySpawnNext(frame)
     if (wave) {
+      // Position invaders relative to wave's first column so they fit in the grid area
+      const minCol = wave.cells.reduce((m, wc) => Math.min(m, wc.cell.x), Infinity)
       const invaders: InvaderState[] = wave.cells.map((wc, i) => ({
         id: `inv-w${wave.waveIndex}-${i}`,
         cell: wc.cell, hp: wc.hp, maxHp: wc.hp,
         position: {
-          x: config.gridArea.x + wc.cell.x * (config.cellSize + config.cellGap),
+          x: config.gridArea.x + (wc.cell.x - minCol) * (config.cellSize + config.cellGap),
           y: config.gridArea.y + wc.cell.y * (config.cellSize + config.cellGap),
         },
         destroyed: false, destroyedAtFrame: null,
@@ -488,9 +510,10 @@ function replayToFrame(grid: Grid, config: SimConfig, frameDecisions: Map<number
   for (let frame = 0; frame <= targetFrame; frame++) {
     const wave = wm.trySpawnNext(frame)
     if (wave) {
+      const mc = wave.cells.reduce((m, wc) => Math.min(m, wc.cell.x), Infinity)
       const invaders: InvaderState[] = wave.cells.map((wc, i) => ({
         id: `inv-w${wave.waveIndex}-${i}`, cell: wc.cell, hp: wc.hp, maxHp: wc.hp,
-        position: { x: config.gridArea.x + wc.cell.x * (config.cellSize + config.cellGap), y: config.gridArea.y + wc.cell.y * (config.cellSize + config.cellGap) },
+        position: { x: config.gridArea.x + (wc.cell.x - mc) * (config.cellSize + config.cellGap), y: config.gridArea.y + wc.cell.y * (config.cellSize + config.cellGap) },
         destroyed: false, destroyedAtFrame: null,
       }))
       totalInvaders += invaders.length

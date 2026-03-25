@@ -62,6 +62,7 @@ export function createWaveManager(grid: Grid, config: WaveConfig): WaveManager {
   }
 
   let nextWaveIndex = 0
+  let lastClearedWave = -1
   let lastClearedFrame: number | null = null
 
   return {
@@ -81,7 +82,8 @@ export function createWaveManager(grid: Grid, config: WaveConfig): WaveManager {
         return waves[nextWaveIndex++]!
       }
 
-      // Subsequent waves require previous cleared + delay elapsed
+      // Subsequent waves require the PREVIOUS wave to be cleared + delay
+      if (lastClearedWave < nextWaveIndex - 1) return null
       if (lastClearedFrame === null) return null
       if (currentFrame < lastClearedFrame + config.spawnDelay) return null
 
@@ -89,8 +91,8 @@ export function createWaveManager(grid: Grid, config: WaveConfig): WaveManager {
     },
 
     markCleared(waveIndex: number, frame: number): void {
-      // Only track the latest clear for spawn delay calculation
-      if (lastClearedFrame === null || frame > lastClearedFrame) {
+      if (waveIndex > lastClearedWave) {
+        lastClearedWave = waveIndex
         lastClearedFrame = frame
       }
     },
