@@ -1,0 +1,58 @@
+id: video-export_20260326163729Z
+title: "Video Export — MP4/WebM via ffmpeg"
+type: feature
+status: pending
+created: 2026-03-26
+updated: 2026-03-26
+spec:
+  summary: |
+    Render SVG frames via Playwright headless, encode to MP4 (H.264) and WebM
+    (VP9) with high compression. Optional CLI flag for sharing.
+  context: |
+    SVG is the primary output for GitHub READMEs, but video formats are better
+    for sharing on social media, project pages, and chat. This track adds
+    optional MP4/WebM export using Playwright for frame capture and ffmpeg
+    for encoding. Target file size 500KB-2MB.
+  codebase_analysis: |
+    - Playwright is already a devDependency (used for visual tests)
+    - scripts/generate.ts is the CLI entry point, needs a --format flag
+    - SVG can be loaded in Playwright page, screenshots taken per frame
+    - ffmpeg called via child_process for encoding
+    - Animation duration known from totalFrames/fps
+  acceptance_criteria:
+    - CLI flag --format mp4|webm|svg (default svg)
+    - Playwright renders SVG frames at target FPS
+    - ffmpeg encodes to MP4 (H.264 CRF 28) and WebM (VP9 CRF 35)
+    - Output file under 2MB for typical full-year grid
+    - Works without ffmpeg installed (graceful error message)
+  out_of_scope: |
+    GIF output. Streaming. Browser-based export. Real-time preview.
+  technical_notes: |
+    Pipeline: generate SVG → load in Playwright → screenshot each frame →
+    pipe frames to ffmpeg stdin → output video file. Frame rate can be
+    reduced (e.g., 15fps) to keep file size down. Temporary frame files
+    stored in OS temp dir, cleaned up after encoding.
+plan:
+  - phase: Frame Capture
+    tasks:
+      - text: Add --format flag to generate.ts CLI
+        done: false
+      - text: Implement Playwright frame capture from SVG (screenshot per frame)
+        done: false
+      - text: Test frame capture produces correct frame count and dimensions
+        done: false
+  - phase: Video Encoding
+    tasks:
+      - text: Implement ffmpeg MP4 encoding (H.264, CRF 28)
+        done: false
+      - text: Implement ffmpeg WebM encoding (VP9, CRF 35)
+        done: false
+      - text: Graceful fallback when ffmpeg is not installed
+        done: false
+  - phase: Integration
+    tasks:
+      - text: Wire frame capture + encoding into generate.ts pipeline
+        done: false
+      - text: Verify output file sizes under 2MB for full-year grid
+        done: false
+extra: {}

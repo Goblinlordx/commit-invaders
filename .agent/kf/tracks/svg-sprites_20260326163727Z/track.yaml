@@ -1,0 +1,81 @@
+id: svg-sprites_20260326163727Z
+title: "SVG Sprites — Ship, Invaders & Effects"
+type: feature
+status: pending
+created: 2026-03-26
+updated: 2026-03-26
+spec:
+  summary: |
+    Replace hitbox rects with SVG symbol sprites for ship, invaders (3+ variants
+    by level), laser glow, and explosion destroy effect. Handles hatcher-to-invader
+    state transition in sprites.
+  context: |
+    The SVG compositor currently renders all entities as flat colored rects (hitbox
+    mode). The animation timing, positioning, and keyframe system are fully validated.
+    This track replaces the visual elements without changing positioning or timing.
+    Score/HUD overlays, wave labels, status bar, scoreboard, and ending sequence
+    are already fully implemented — this track only touches entity visuals.
+  codebase_analysis: |
+    - entity-templates.ts exports color constants and simple rect generators
+    - svg-compositor.ts uses inline rects for all entities
+    - SVG <symbol> + <use> pattern keeps file size small (define once, reference many)
+    - Invader sprites need 3+ variants keyed by contribution level (1-4)
+    - Hatcher state uses PLUCK_COLOR rect then transitions to INVADER_COLOR — sprites
+      need to handle this color/shape transition in the keyframe
+    - Ship is a single entity, laser is small, both are straightforward replacements
+    - Explosion effect needs a new CSS keyframe (scale + fade, or frame sequence)
+    - All sprites must maintain same AABB center as current rects for positioning
+  acceptance_criteria:
+    - Ship SVG sprite replaces ship rect, same AABB center
+    - 3+ invader sprite variants based on contribution level
+    - Hatcher-to-invader visual transition works in lifecycle keyframes
+    - Laser sprite with optional glow effect (CSS filter or gradient)
+    - Explosion CSS keyframe on invader destroy events
+    - All sprites defined as SVG symbols in defs, referenced via use
+    - Existing Playwright entity validation tests still pass in hitbox mode
+    - SVG file size stays under 500KB for full-year grid
+  out_of_scope: |
+    Light/dark palettes (github-action track). Reduced-motion fallback (github-action
+    track). Text overlays (already done). Animation timing changes.
+  technical_notes: |
+    Approach: Add <defs> section with <symbol> elements for each sprite type.
+    Replace inline rects with <use href="#sprite-id"> at same coordinates.
+    Compositor gains a renderMode flag (hitbox vs styled) — hitbox keeps rects
+    for validation, styled uses sprites. Both share the same keyframe animations.
+    Invader variant selection: hash invader ID to pick from level-based sprite set.
+    Explosion: new @keyframes with scale(1)→scale(1.5) + opacity(1)→opacity(0)
+    over ~0.3s, triggered at destroy frame.
+plan:
+  - phase: Sprite Design
+    tasks:
+      - text: Design ship SVG sprite as symbol (pixel-art style, fits invaderSize AABB)
+        done: false
+      - text: Design 3+ invader SVG sprite variants keyed by contribution level
+        done: false
+      - text: Design laser sprite with glow effect (CSS filter or SVG gradient)
+        done: false
+      - text: Design explosion animation frames (scale+fade or particle burst)
+        done: false
+  - phase: Compositor Integration
+    tasks:
+      - text: Add renderMode flag to compositor (hitbox vs styled)
+        done: false
+      - text: Add defs section with symbol definitions to SVG output
+        done: false
+      - text: Replace invader rects with symbol use references (level-based variant)
+        done: false
+      - text: Replace ship rect with symbol use reference
+        done: false
+      - text: Replace laser rects with symbol use + glow effect
+        done: false
+      - text: Add explosion keyframe triggered at invader destroy events
+        done: false
+  - phase: Hatcher Transition
+    tasks:
+      - text: Update lifecycle cell keyframes for hatcher-to-invader sprite transition
+        done: false
+  - phase: Verification
+    tasks:
+      - text: Verify hitbox mode Playwright tests still pass
+        done: false
+extra: {}
