@@ -188,8 +188,10 @@ export interface LaserData {
   spawnTime: number // seconds
   screenX: number // fire position (screen X, constant)
   screenY: number // fire position (screen Y)
-  travelDistance: number // px to travel (screen X direction = rightward)
-  travelDuration: number // seconds
+  travelDistance: number // px to travel if no hit (out of bounds)
+  travelDuration: number // seconds for full travel
+  despawnTime: number // actual despawn time (hit or out of bounds)
+  despawnDistance: number // actual distance traveled before despawn
 }
 
 export function laserTimings(
@@ -219,6 +221,24 @@ export function laserTimings(
     const travelFrames = Math.ceil(travelDistSim / (config.laserSpeed * dt))
     const travelDur = frameToSeconds(travelFrames, fps)
 
+    // Check if this laser hit something (find hit event referencing this laser)
+    const hitEvent = output.events.find(
+      (e) => e.type === 'hit' && (e.data as { laserId?: string })?.laserId === entityId,
+    )
+
+    let despawnTime: number
+    let despawnDistance: number
+    if (hitEvent) {
+      // Laser despawns on hit
+      despawnTime = frameToSeconds(hitEvent.frame, fps)
+      const hitFrames = hitEvent.frame - fire.frame
+      despawnDistance = hitFrames * config.laserSpeed * dt
+    } else {
+      // Laser despawns at out of bounds
+      despawnTime = frameToSeconds(fire.frame, fps) + travelDur
+      despawnDistance = travelDistScreen
+    }
+
     results.push({
       laserId: entityId,
       spawnTime: frameToSeconds(fire.frame, fps),
@@ -226,6 +246,8 @@ export function laserTimings(
       screenY: sy,
       travelDistance: travelDistScreen,
       travelDuration: travelDur,
+      despawnTime,
+      despawnDistance,
     })
   }
 
