@@ -281,6 +281,10 @@ function simulateCore(
   // Solver: committed firing solution
   let solution: FiringSolution | null = null
   let solveCooldown = 0
+  // Target locking: track invaders with lasers in flight aimed at them.
+  // Prevents wasting shots on targets that will be hit by an earlier laser.
+  const lockedTargets = new Set<string>()
+  const laserTargetMap = new Map<string, string>() // laserId → targetId
 
   // Ending sequence state
   let endingPhase: 'none' | 'fadeout' | 'score' | 'score_out' | 'board_in' | 'hold' | 'blackout' | 'reset' | 'done' = 'none'
@@ -442,7 +446,16 @@ function simulateCore(
         ;[targets[i], targets[j]] = [targets[j]!, targets[i]!]
       }
 
-      for (const t of targets) {
+      // Only target invaders not already locked by an in-flight laser
+      const unlocked = targets.filter((t) => !lockedTargets.has(t.id))
+      if (unlocked.length === 0) {
+        // All targets locked — fire a miss to maintain visual fire rate
+        const sol = solveMiss(formations, frame, ship.position.x, config, prng)
+        if (sol) { solution = sol } else { solveCooldown = prng.range(2, 5) }
+        return
+      }
+
+      for (const t of unlocked) {
         const sol = solveHit(t, frame, ship.position.x, ship.position.y, config)
         if (sol) {
           solution = sol
@@ -677,29 +690,9 @@ function simulateCore(
       if (breached) break
     }
     if (breached) {
-      // Emergency: destroy all remaining invaders in the breaching formation
-      // rather than failing. This guarantees the game always completes.
-      for (const formation of formations) {
-        const fState = formation.getState()
-        if (!fState.active) continue
-        for (const inv of fState.invaders) {
-          if (!inv.destroyed) {
-            inv.hp = 0
-            inv.destroyed = true
-            inv.destroyedAtFrame = frame
-            score += inv.cell.count
-            frameEvents.push({ frame, type: 'destroy', entityId: inv.id, position: { ...inv.position } })
-            addInflection(inv.id, 'invader', { frame, position: { ...inv.position }, type: 'destroy' })
-          }
-        }
-        // Mark formation cleared
-        fState.active = false
-        frameEvents.push({
-          frame, type: 'wave_clear', entityId: `formation-${fState.waveIndex}`,
-          position: { x: 0, y: 0 }, data: { waveIndex: fState.waveIndex },
-        })
-      }
-      // Continue simulation — next wave lifecycle will start
+      // Invader reached the ship — abort this attempt.
+      // The outer retry loop will re-run with higher hitChance for the failed wave.
+      break
     }
 
     // 3. Solver: only active when no lifecycle pending (wave must be started)
@@ -749,6 +742,11 @@ function simulateCore(
 
         const laserId = `laser-${laserCounter++}`
         lasers.push(spawnLaser(laserId, ship.position, config.laserSpeed))
+        // Lock target so no other laser targets the same invader
+        if (sol.targetId) {
+          lockedTargets.add(sol.targetId)
+          laserTargetMap.set(laserId, sol.targetId)
+        }
         frameEvents.push({ frame, type: 'fire_laser', entityId: laserId, position: { ...ship.position } })
         addInflection(laserId, 'laser', { frame, position: { ...ship.position }, type: 'fire' })
 
@@ -768,8 +766,21 @@ function simulateCore(
       }
     }
 
-    // 4. Advance lasers
+    // 4. Advance lasers — detect despawned locked lasers (prediction errors)
+    const prevLaserIds = new Set(lasers.map(l => l.id))
     lasers = advanceLasers(lasers, config.playArea, dt)
+    const curLaserIds = new Set(lasers.map(l => l.id))
+    for (const lid of prevLaserIds) {
+      if (!curLaserIds.has(lid)) {
+        const tid = laserTargetMap.get(lid)
+        if (tid) {
+          lockedTargets.delete(tid)
+          laserTargetMap.delete(lid)
+          // Locked miss: laser despawned without hitting its target — prediction error
+          frameEvents.push({ frame, type: 'locked_miss', entityId: lid, position: { x: 0, y: 0 }, data: { targetId: tid } })
+        }
+      }
+    }
 
     // 5. Hit detection
     for (const formation of formations) {
@@ -796,6 +807,12 @@ function simulateCore(
           formation.destroyInvader(hit.invaderId, frame)
           frameEvents.push({ frame, type: 'destroy', entityId: hit.invaderId, position: { ...invader.position } })
           addInflection(hit.invaderId, 'invader', { frame, position: { ...invader.position }, type: 'destroy' })
+          // Unlock target and clean up laser→target mapping
+          lockedTargets.delete(hit.invaderId)
+          // Also remove the laser that hit from the map
+          for (const [lid, tid] of laserTargetMap) {
+            if (tid === hit.invaderId) { laserTargetMap.delete(lid); break }
+          }
           // Invalidate solution if target was destroyed by another laser
           if ((solution as FiringSolution | null)?.targetId === hit.invaderId) { solution = null }
         }
