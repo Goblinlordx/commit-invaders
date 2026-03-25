@@ -38,7 +38,7 @@ function defaultConfig(): SimConfig {
     cellGap: CELL_GAP,
     laserSpeed: 240,
     laserWidth: 4,
-    invaderSize: CELL_SIZE - 1, // 10px — 1px less than cell for slight gap
+    invaderSize: 9,
     shipSpeed: 180,
     shipY: gridH + shipMargin - 4,
     formationBaseSpeed: 60,
@@ -47,8 +47,8 @@ function defaultConfig(): SimConfig {
     hitChance: 0.85,
     fireRate: 3, // 3 shots per second
     shipYRange: 30,
-    formationSpread: 2, // 2px extra gap between invaders
-    formationRowStagger: 3, // 3px offset per row for zigzag look
+    formationSpread: 10,
+    formationRowStagger: 10,
   }
 }
 
