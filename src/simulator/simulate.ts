@@ -38,13 +38,14 @@ function predictWorldPos(
   ticksAhead: number,
   playArea: { x: number; width: number },
   rowDrop: number,
+  dt: number,
 ): { x: number; y: number } {
   const s = formation.getState()
   const alive = s.invaders.filter((i) => !i.destroyed)
   let offX = s.offset.x
   let offY = s.offset.y
   let dir = s.direction
-  const spd = s.speed
+  const spd = s.speed * dt // px/s → px/frame
 
   for (let t = 0; t < ticksAhead; t++) {
     const dx = dir === 'right' ? spd : -spd
@@ -93,18 +94,22 @@ function solveHit(
   // ahead. The laser Y and invader Y must intersect — find the tick count
   // where the laser (traveling from shipY at laserSpeed) reaches the invader.
 
-  // Bounds derived from config
-  const maxDelay = Math.ceil(config.playArea.width / config.shipSpeed) + 20
-  const maxLaserTicks = Math.ceil(config.shipY / config.laserSpeed) + 5
+  // Per-frame speeds (px/s * dt = px/frame)
+  const dt = 1 / config.framesPerSecond
+  const shipSpeedPerFrame = config.shipSpeed * dt
+  const laserSpeedPerFrame = config.laserSpeed * dt
   const halfLaser = config.laserWidth / 2
   const halfInvader = config.invaderSize / 2
 
+  // Bounds derived from per-frame speeds
+  const maxDelay = Math.ceil(config.playArea.width / shipSpeedPerFrame) + 20
+  const maxLaserTicks = Math.ceil(config.shipY / laserSpeedPerFrame) + 5
+
   const fState = target.formation.getState()
   const alive = fState.invaders.filter((i) => !i.destroyed)
-  const spd = fState.speed
+  const spd = fState.speed * dt // px/s → px/frame
 
   // Pre-compute the formation path once for (maxDelay + maxLaserTicks) ticks.
-  // This is O(N) instead of O(maxDelay * maxLaserTicks * aliveCount).
   const pathLen = maxDelay + maxLaserTicks + 1
   const pathX: number[] = new Array(pathLen)
   const pathY: number[] = new Array(pathLen)
@@ -140,7 +145,7 @@ function solveHit(
       const totalTicks = extraDelay + laserTicks
       if (totalTicks >= pathLen) break
 
-      const laserY = config.shipY - laserTicks * config.laserSpeed
+      const laserY = config.shipY - laserTicks * laserSpeedPerFrame
       if (laserY < 0) break
 
       const predX = pathX[totalTicks]!
@@ -155,7 +160,7 @@ function solveHit(
       if (predX < config.playArea.x || predX >= config.playArea.x + config.playArea.width) continue
 
       const moveDist = Math.abs(predX - shipX)
-      if (moveDist > extraDelay * config.shipSpeed) {
+      if (moveDist > extraDelay * shipSpeedPerFrame) {
         break // need more delay
       }
 
@@ -184,17 +189,19 @@ function solveMiss(
     if (!fState.active) continue
     const dist = config.shipY - (fState.invaders[0]?.position.y ?? 0) - fState.offset.y
     if (dist <= 0) continue
-    const travelFrames = Math.ceil(dist / config.laserSpeed)
+    const dt = 1 / config.framesPerSecond
+    const travelFrames = Math.ceil(dist / (config.laserSpeed * dt))
 
     for (const inv of fState.invaders) {
       if (inv.destroyed) continue
-      const futurePos = predictWorldPos(inv.position.x, inv.position.y, f, travelFrames, config.playArea, config.formationRowDrop)
+      const futurePos = predictWorldPos(inv.position.x, inv.position.y, f, travelFrames, config.playArea, config.formationRowDrop, dt)
       const futureX = futurePos.x
       occupiedXs.push(futureX)
     }
   }
 
   // Find a gap
+  const dt = 1 / config.framesPerSecond
   for (let attempt = 0; attempt < 20; attempt++) {
     const candidate = prng.float(
       config.playArea.x + 10,
@@ -202,7 +209,7 @@ function solveMiss(
     )
     if (occupiedXs.every((ox) => Math.abs(ox - candidate) > config.invaderSize + 2)) {
       const moveDist = Math.abs(candidate - shipX)
-      const moveFrames = Math.ceil(moveDist / config.shipSpeed)
+      const moveFrames = Math.ceil(moveDist / (config.shipSpeed * dt))
       return {
         fireFrame: currentFrame + moveFrames,
         fireX: candidate,
@@ -222,10 +229,12 @@ export function simulate(
   config: SimConfig,
 ): SimOutput {
   const prng = createPRNG(seed)
+  const dt = 1 / config.framesPerSecond
   const formationConfig = {
     baseSpeed: config.formationBaseSpeed,
     maxSpeed: config.formationMaxSpeed,
     rowDrop: config.formationRowDrop,
+    dt,
   }
 
   const allEvents: SimEvent[] = []
@@ -401,7 +410,7 @@ export function simulate(
         // Move toward fire position
         const dx = sol.fireX - ship.position.x
         if (Math.abs(dx) > 0.5) {
-          const step = Math.min(Math.abs(dx), config.shipSpeed) * Math.sign(dx)
+          const step = Math.min(Math.abs(dx), config.shipSpeed * dt) * Math.sign(dx)
           ship.position.x += step
           record(frame, { type: 'move', x: ship.position.x })
           addInflection('ship', 'ship', { frame, position: { ...ship.position }, type: 'move_start' })
@@ -410,7 +419,7 @@ export function simulate(
     }
 
     // 4. Advance lasers
-    lasers = advanceLasers(lasers, config.playArea)
+    lasers = advanceLasers(lasers, config.playArea, dt)
 
     // 5. Hit detection
     for (const formation of formations) {
@@ -502,7 +511,8 @@ export function simulate(
 
 function replayToFrame(grid: Grid, config: SimConfig, frameDecisions: Map<number, Decision[]>, targetFrame: number): GameState {
   const wm = createWaveManager(grid, config.waveConfig)
-  const fc = { baseSpeed: config.formationBaseSpeed, maxSpeed: config.formationMaxSpeed, rowDrop: config.formationRowDrop }
+  const replayDt = 1 / config.framesPerSecond
+  const fc = { baseSpeed: config.formationBaseSpeed, maxSpeed: config.formationMaxSpeed, rowDrop: config.formationRowDrop, dt: replayDt }
   let score = 0, totalInvaders = 0, laserCounter = 0, lasers: LaserState[] = []
   const formations: Formation[] = []
   const ship: ShipState = { position: { x: config.playArea.width / 2, y: config.shipY }, targetX: null }
@@ -527,7 +537,7 @@ function replayToFrame(grid: Grid, config: SimConfig, frameDecisions: Map<number
       else lasers.push(spawnLaser(`laser-${laserCounter++}`, ship.position, config.laserSpeed))
     }
 
-    lasers = advanceLasers(lasers, config.playArea)
+    lasers = advanceLasers(lasers, config.playArea, replayDt)
     for (const f of formations) {
       const s = f.getState(); if (!s.active) continue
       const wi = s.invaders.map(inv => ({ ...inv, position: { x: inv.position.x + s.offset.x, y: inv.position.y + s.offset.y } }))

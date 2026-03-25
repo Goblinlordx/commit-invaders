@@ -38,6 +38,7 @@ const defaultFormationConfig = {
   baseSpeed: 1,
   maxSpeed: 4,
   rowDrop: 20,
+  dt: 1, // 1 fps — keeps legacy test values (speed in px/frame)
 }
 
 describe('Formation', () => {

@@ -172,18 +172,19 @@ export interface WaveConfig {
 }
 
 export interface SimConfig {
+  framesPerSecond: number // simulation tick rate — physics use dt = 1/fps
   waveConfig: WaveConfig
   playArea: BoundingBox
   gridArea: BoundingBox
   cellSize: number
   cellGap: number
-  laserSpeed: number
+  laserSpeed: number // px/s
   laserWidth: number
   invaderSize: number
-  shipSpeed: number
+  shipSpeed: number // px/s
   shipY: number
-  formationBaseSpeed: number
-  formationMaxSpeed: number
+  formationBaseSpeed: number // px/s
+  formationMaxSpeed: number // px/s
   formationRowDrop: number
   hitChance: number // 0-1, probability each shot is a hit vs miss
 }

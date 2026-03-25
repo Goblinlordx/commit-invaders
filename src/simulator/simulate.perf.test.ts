@@ -14,6 +14,7 @@ import { createPRNG } from './prng.js'
 
 function makeConfig(): SimConfig {
   return {
+    framesPerSecond: 1,
     waveConfig: { weeksPerWave: 4, spawnDelay: 10 },
     playArea: { x: 0, y: 0, width: 300, height: 400 },
     gridArea: { x: 10, y: 10, width: 280, height: 100 },

@@ -16,7 +16,7 @@ const PLAY_AREA: BoundingBox = { x: 0, y: 0, width: 300, height: 400 }
 const SHIP_Y = 380
 const LASER_SPEED = 4
 const INVADER_SIZE = 11
-const FC = { baseSpeed: 1, maxSpeed: 4, rowDrop: 20 }
+const FC = { baseSpeed: 1, maxSpeed: 4, rowDrop: 20, dt: 1 }
 
 function makeInvader(id: string, x: number, y: number, hp = 1): InvaderState {
   return {
@@ -34,7 +34,7 @@ function predictWorldPos(
   const s = formation.getState()
   const alive = s.invaders.filter((i) => !i.destroyed)
   let offX = s.offset.x, offY = s.offset.y, dir = s.direction
-  const spd = s.speed
+  const spd = s.speed * FC.dt
 
   for (let t = 0; t < ticksAhead; t++) {
     const dx = dir === 'right' ? spd : -spd
@@ -122,7 +122,7 @@ function verifyHit(
   // Advance laser + formation until hit or laser exits
   for (let t = 0; t < 500; t++) {
     simFormation.tick(startFrame + sol.fireFrame + t)
-    const advanced = advanceLasers([laser], PLAY_AREA)
+    const advanced = advanceLasers([laser], PLAY_AREA, FC.dt)
     if (advanced.length === 0) {
       return { solved: true, hit: false, fireX: sol.fireX, details: `laser exited at tick ${t}` }
     }

@@ -7,9 +7,10 @@ import type {
 } from '../types.js'
 
 export interface FormationConfig {
-  baseSpeed: number
-  maxSpeed: number
+  baseSpeed: number // px/s
+  maxSpeed: number // px/s
   rowDrop: number
+  dt: number // seconds per frame (1 / framesPerSecond)
 }
 
 export interface Formation {
@@ -73,7 +74,8 @@ export function createFormation(
       if (!state.active) return []
 
       const events: SimEvent[] = []
-      const dx = state.direction === 'right' ? state.speed : -state.speed
+      const speedPerFrame = state.speed * config.dt
+      const dx = state.direction === 'right' ? speedPerFrame : -speedPerFrame
 
       if (wouldExceedBoundary(dx)) {
         // Direction change + row drop

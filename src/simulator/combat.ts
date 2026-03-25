@@ -39,13 +39,14 @@ export function spawnLaser(
 export function advanceLasers(
   lasers: readonly LaserState[],
   playArea: BoundingBox,
+  dt: number = 1,
 ): LaserState[] {
   const result: LaserState[] = []
 
   for (const laser of lasers) {
     if (!laser.active) continue
 
-    const newY = laser.position.y - laser.speed
+    const newY = laser.position.y - laser.speed * dt
 
     if (newY < playArea.y) continue
 
