@@ -3,7 +3,7 @@ title: Demo Page — Interactive GitHub Pages Showcase
 type: feature
 status: pending
 created: 2026-03-26
-updated: '2026-03-25'
+updated: '2026-03-26'
 spec:
   summary: 'GitHub Pages demo site with live SVG preview, light/dark toggle, debug mode
 
@@ -86,19 +86,19 @@ plan:
 - phase: Debug Mode
   tasks:
   - text: Collapsible debug panel with all SimConfig parameter sliders
-    done: false
+    done: true
   - text: Live re-render on parameter change (debounced)
-    done: false
+    done: true
   - text: Parameter reset to defaults button
-    done: false
+    done: true
   - text: Show generation stats (frame count, file size, entity counts)
-    done: false
+    done: true
 - phase: Polish & Deploy
   tasks:
   - text: Add repo links, setup instructions, action badge
-    done: false
+    done: true
   - text: Mobile responsive testing and fixes
-    done: false
+    done: true
   - text: Configure GitHub Pages deployment
-    done: false
+    done: true
 extra: {}
