@@ -512,6 +512,36 @@ function simulateCore(
     if (lifecyclePhase !== 'idle' && pendingWave) {
       lifecycleFramesLeft--
 
+      if (lifecyclePhase === 'plucking') {
+        // Stagger plucks across the pluck duration
+        // Each frame, pluck the next batch of cells
+        const total = lifecycleCells.length
+        const duration = wc.pluckDuration
+        const elapsed = duration - lifecycleFramesLeft
+        // How many should be plucked by now (linearly distributed)
+        const targetPlucked = duration > 0 ? Math.ceil((elapsed / duration) * total) : total
+
+        let pluckedSoFar = 0
+        for (const lc of lifecycleCells) {
+          if (lc.cellIndex >= 0 && gridCellStates[lc.cellIndex]!.status === 'plucked') {
+            pluckedSoFar++
+          }
+        }
+
+        // Pluck new cells up to target
+        for (const lc of lifecycleCells) {
+          if (pluckedSoFar >= targetPlucked) break
+          if (lc.cellIndex >= 0 && gridCellStates[lc.cellIndex]!.status === 'in_grid') {
+            gridCellStates[lc.cellIndex]!.status = 'plucked'
+            const cell = grid.cells[lc.cellIndex]!
+            const cellId = `cell-${cell.x}-${cell.y}`
+            frameEvents.push({ frame, type: 'cell_pluck', entityId: cellId, position: { x: cell.x, y: cell.y } })
+            addInflection(cellId, 'cell', { frame, position: { x: cell.x, y: cell.y }, type: 'pluck' })
+            pluckedSoFar++
+          }
+        }
+      }
+
       if (lifecyclePhase === 'traveling') {
         // Interpolate cell positions
         const totalTravel = wc.travelDuration
@@ -529,16 +559,12 @@ function simulateCore(
           {
             from: 'brightening', to: 'plucking', duration: wc.pluckDuration,
             onEnter: () => {
-              // Mark cells as plucked
-              for (const lc of lifecycleCells) {
-                if (lc.cellIndex >= 0) {
-                  gridCellStates[lc.cellIndex]!.status = 'plucked'
-                  const cell = grid.cells[lc.cellIndex]!
-                  const cellId = `cell-${cell.x}-${cell.y}`
-                  frameEvents.push({ frame, type: 'cell_pluck', entityId: cellId, position: { x: cell.x, y: cell.y } })
-                  addInflection(cellId, 'cell', { frame, position: { x: cell.x, y: cell.y }, type: 'pluck' })
-                }
+              // Shuffle lifecycleCells for random pluck order
+              for (let i = lifecycleCells.length - 1; i > 0; i--) {
+                const j = prng.range(0, i)
+                ;[lifecycleCells[i], lifecycleCells[j]] = [lifecycleCells[j]!, lifecycleCells[i]!]
               }
+              // Don't pluck all at once — the per-frame stagger above handles it
             },
           },
           {
