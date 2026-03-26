@@ -116,12 +116,25 @@ function invaderSymbolL4(size: number): string {
 
 // ── Laser Sprite ──
 // Glowing projectile, fits laserWidth×laserWidth AABB
-function laserSymbol(width: number): string {
+// Color is parameterized — highlight is derived by blending with white at 50%
+function laserSymbol(width: number, color: string): string {
   const h = width / 2
+  const highlight = lightenHex(color, 0.5)
   return `<symbol id="sprite-laser" viewBox="${-h} ${-h} ${width} ${width}">
-  <rect x="${-h}" y="${-h * 0.5}" width="${width}" height="${width * 0.5}" fill="#ffff00" rx="1" />
-  <rect x="${-h * 0.6}" y="${-h * 0.3}" width="${width * 0.6}" height="${width * 0.3}" fill="#ffffaa" />
+  <rect x="${-h}" y="${-h * 0.5}" width="${width}" height="${width * 0.5}" fill="${color}" rx="1" />
+  <rect x="${-h * 0.6}" y="${-h * 0.3}" width="${width * 0.6}" height="${width * 0.3}" fill="${highlight}" />
 </symbol>`
+}
+
+/** Lighten a hex color by blending toward white. factor=0 → original, factor=1 → white. */
+function lightenHex(hex: string, factor: number): string {
+  const r = parseInt(hex.slice(1, 3), 16)
+  const g = parseInt(hex.slice(3, 5), 16)
+  const b = parseInt(hex.slice(5, 7), 16)
+  const lr = Math.round(r + (255 - r) * factor)
+  const lg = Math.round(g + (255 - g) * factor)
+  const lb = Math.round(b + (255 - b) * factor)
+  return `#${lr.toString(16).padStart(2, '0')}${lg.toString(16).padStart(2, '0')}${lb.toString(16).padStart(2, '0')}`
 }
 
 // ── Explosion Effect ──
@@ -147,14 +160,18 @@ export type RenderMode = 'hitbox' | 'styled'
  * Generate the <defs> block with all sprite symbols.
  * Only included when renderMode is 'styled'.
  */
-export function spriteDefs(invaderSize: number, laserWidth: number): string {
+export function spriteDefs(
+  invaderSize: number,
+  laserWidth: number,
+  laserColor: string = '#ffff00',
+): string {
   return `<defs>
 ${shipSymbol(invaderSize)}
 ${invaderSymbolL1(invaderSize)}
 ${invaderSymbolL2(invaderSize)}
 ${invaderSymbolL3(invaderSize)}
 ${invaderSymbolL4(invaderSize)}
-${laserSymbol(laserWidth)}
+${laserSymbol(laserWidth, laserColor)}
 ${explosionSymbol(invaderSize)}
 </defs>`
 }

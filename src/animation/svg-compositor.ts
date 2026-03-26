@@ -166,7 +166,7 @@ export function composeSvg(options: CompositeSvgOptions): string {
   }
 
   // ── Sprite defs (styled mode only) ──
-  const defsBlock = styled ? spriteDefs(config.invaderSize, config.laserWidth) : ''
+  const defsBlock = styled ? spriteDefs(config.invaderSize, config.laserWidth, LASER_COLOR) : ''
 
   // ── Background ──
   elements.push(`<rect width="${screenW}" height="${screenH}" fill="${BG_COLOR}" />`)
