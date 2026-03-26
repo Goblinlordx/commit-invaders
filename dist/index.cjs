@@ -22955,29 +22955,44 @@ function composeSvg(options) {
   ${boardFadeOutPct.toFixed(2)}% { opacity: 0; }
   100.00% { opacity: 0; }
 }`);
+    const boardPad = 10;
+    const hasBanner = options.scoreboard.isNewHighScore;
+    const headerRows = hasBanner ? 2 : 1;
+    const entryRows = 5;
+    const totalRows = headerRows + entryRows;
+    const rowPitch = (screenH - boardPad * 2) / totalRows;
+    const titleFontSize = Math.min(16, Math.round(rowPitch * 0.6));
+    const bannerFontSize = Math.min(12, Math.round(rowPitch * 0.45));
+    const entryFontSize = Math.min(12, Math.round(rowPitch * 0.5));
     const boardElements = [];
+    let curY = boardPad + rowPitch * 0.5;
     boardElements.push(
-      `<text x="${screenW / 2}" y="12" text-anchor="middle" dominant-baseline="middle" font-family="monospace" font-weight="bold" font-size="10" fill="${pal.scoreText}">HIGH SCORES</text>`
+      `<text x="${screenW / 2}" y="${curY.toFixed(1)}" text-anchor="middle" dominant-baseline="middle" font-family="monospace" font-weight="bold" font-size="${titleFontSize}" fill="${pal.scoreText}">HIGH SCORES</text>`
     );
-    if (options.scoreboard.isNewHighScore) {
+    curY += rowPitch;
+    if (hasBanner) {
       boardElements.push(
-        `<text x="${screenW / 2}" y="24" text-anchor="middle" dominant-baseline="middle" font-family="monospace" font-weight="bold" font-size="8" fill="${pal.laser}">\u2605 NEW HIGH SCORE! \u2605</text>`
+        `<text x="${screenW / 2}" y="${curY.toFixed(1)}" text-anchor="middle" dominant-baseline="middle" font-family="monospace" font-weight="bold" font-size="${bannerFontSize}" fill="${pal.laser}">\u2605 NEW HIGH SCORE! \u2605</text>`
       );
+      curY += rowPitch;
     }
-    const entryStartY = options.scoreboard.isNewHighScore ? 36 : 26;
+    const entryStartY = curY;
+    const rankOff = entryFontSize * 6.2;
+    const dateOff = entryFontSize * 4.4;
+    const scoreOff = entryFontSize * 6.9;
     for (let i = 0; i < options.scoreboard.entries.length; i++) {
       const entry = options.scoreboard.entries[i];
       const col = i < 5 ? 0 : 1;
       const row = i < 5 ? i : i - 5;
       const colX = col === 0 ? screenW * 0.35 : screenW * 0.65;
-      const y = entryStartY + row * 11;
+      const y = entryStartY + row * rowPitch;
       const isCurrent = entry.isCurrent;
       const rankColor = isCurrent ? pal.laser : pal.textMuted;
       const dateColor = isCurrent ? pal.text : pal.textMuted;
       const scoreColor = isCurrent ? pal.scoreText : pal.ship;
       const fw = isCurrent ? "bold" : "normal";
       boardElements.push(
-        `<text x="${colX - 50}" y="${y}" font-family="monospace" font-weight="${fw}" font-size="8" fill="${rankColor}">${String(entry.rank).padStart(2, " ")}.</text><text x="${colX - 35}" y="${y}" font-family="monospace" font-weight="${fw}" font-size="8" fill="${dateColor}">${entry.date}</text><text x="${colX + 55}" y="${y}" text-anchor="end" font-family="monospace" font-weight="${fw}" font-size="8" fill="${scoreColor}">${fmtScore(entry.score)}</text>`
+        `<text x="${(colX - rankOff).toFixed(1)}" y="${y.toFixed(1)}" font-family="monospace" font-weight="${fw}" font-size="${entryFontSize}" fill="${rankColor}">${String(entry.rank).padStart(2, " ")}.</text><text x="${(colX - dateOff).toFixed(1)}" y="${y.toFixed(1)}" font-family="monospace" font-weight="${fw}" font-size="${entryFontSize}" fill="${dateColor}">${entry.date}</text><text x="${(colX + scoreOff).toFixed(1)}" y="${y.toFixed(1)}" text-anchor="end" font-family="monospace" font-weight="${fw}" font-size="${entryFontSize}" fill="${scoreColor}">${fmtScore(entry.score)}</text>`
       );
     }
     elements.push(
