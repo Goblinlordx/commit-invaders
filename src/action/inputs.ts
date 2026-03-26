@@ -12,11 +12,9 @@ export interface ActionInputs {
   /** Optional: fetch historical data for scoreboard (requires token with full repo access) */
   noScoreboard: boolean
   /** Number of years to look back for scoreboard historical data */
-  scoreboardYears: number
   /** Animation duration override (0 = auto) */
   animationDuration: number
   /** Weeks per wave */
-  weeksPerWave: number
 }
 
 export function parseInputs(): ActionInputs {
