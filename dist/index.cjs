@@ -22860,7 +22860,7 @@ function composeSvg(options) {
       );
       if (options.scoreboard.isNewHighScore) {
         boardElements.push(
-          `<text x="${screenW / 2}" y="24" text-anchor="middle" dominant-baseline="middle" font-family="monospace" font-weight="bold" font-size="8" fill="#ffff00">\u2605 NEW HIGH SCORE! \u2605</text>`
+          `<text x="${screenW / 2}" y="24" text-anchor="middle" dominant-baseline="middle" font-family="monospace" font-weight="bold" font-size="8" fill="${pal.laser}">\u2605 NEW HIGH SCORE! \u2605</text>`
         );
       }
       const entryStartY = options.scoreboard.isNewHighScore ? 36 : 26;
@@ -22871,9 +22871,9 @@ function composeSvg(options) {
         const colX = col === 0 ? screenW * 0.25 : screenW * 0.75;
         const y = entryStartY + row * 11;
         const isCurrent = entry.isCurrent;
-        const rankColor = isCurrent ? "${pal.laser}" : "${pal.textMuted}";
-        const dateColor = isCurrent ? "${pal.text}" : "${pal.textMuted}";
-        const scoreColor = isCurrent ? "${pal.scoreText}" : "${pal.ship}";
+        const rankColor = isCurrent ? pal.laser : pal.textMuted;
+        const dateColor = isCurrent ? pal.text : pal.textMuted;
+        const scoreColor = isCurrent ? pal.scoreText : pal.ship;
         const fw = isCurrent ? "bold" : "normal";
         boardElements.push(
           `<text x="${colX - 50}" y="${y}" font-family="monospace" font-weight="${fw}" font-size="8" fill="${rankColor}">${String(entry.rank).padStart(2, " ")}.</text><text x="${colX - 35}" y="${y}" font-family="monospace" font-weight="${fw}" font-size="8" fill="${dateColor}">${entry.date}</text><text x="${colX + 55}" y="${y}" text-anchor="end" font-family="monospace" font-weight="${fw}" font-size="8" fill="${scoreColor}">${fmtScore(entry.score)}</text>`

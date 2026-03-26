@@ -760,7 +760,7 @@ export function composeSvg(options: CompositeSvgOptions): string {
       if (options.scoreboard.isNewHighScore) {
         boardElements.push(
           `<text x="${screenW / 2}" y="24" text-anchor="middle" dominant-baseline="middle" ` +
-          `font-family="monospace" font-weight="bold" font-size="8" fill="#ffff00">★ NEW HIGH SCORE! ★</text>`
+          `font-family="monospace" font-weight="bold" font-size="8" fill="${pal.laser}">★ NEW HIGH SCORE! ★</text>`
         )
       }
 
@@ -772,9 +772,9 @@ export function composeSvg(options: CompositeSvgOptions): string {
         const colX = col === 0 ? screenW * 0.25 : screenW * 0.75
         const y = entryStartY + row * 11
         const isCurrent = entry.isCurrent
-        const rankColor = isCurrent ? '${pal.laser}' : '${pal.textMuted}'
-        const dateColor = isCurrent ? '${pal.text}' : '${pal.textMuted}'
-        const scoreColor = isCurrent ? '${pal.scoreText}' : '${pal.ship}'
+        const rankColor = isCurrent ? pal.laser : pal.textMuted
+        const dateColor = isCurrent ? pal.text : pal.textMuted
+        const scoreColor = isCurrent ? pal.scoreText : pal.ship
         const fw = isCurrent ? 'bold' : 'normal'
 
         boardElements.push(
