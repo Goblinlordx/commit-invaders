@@ -196,6 +196,46 @@ export function composeSvg(options: CompositeSvgOptions): string {
     pluckTimeByCell.set(`${parts[1]},${parts[2]}`, cd.pluckTime)
   }
 
+  // Transition point: grid fades from hidden→visible at a fixed frame.
+  // With intro scoreboard: synced to scoreboard fade-out.
+  // Without intro: a brief fade-in at the start (0.5s).
+  const gridFadeFrames = introTotal > 0
+    ? config.waveConfig.introScoreboardFadeOut
+    : Math.min(30, Math.floor(output.totalFrames * 0.01))
+  const gridVisibleFrame = introTotal > 0 ? introTotal : gridFadeFrames
+  const gridFadeInStartPct = frameToPercent(gridVisibleFrame - gridFadeFrames, output.totalFrames)
+  const gridVisiblePct = frameToPercent(gridVisibleFrame, output.totalFrames)
+
+  // Grid wrapper: fades entire grid in at transition point, out at reset
+  const gridResetFadeStartPct = gameEndEvent
+    ? frameToPercent(
+        gameEndEvent.frame + config.waveConfig.endingFadeoutDuration +
+        config.waveConfig.endingScoreDuration + config.waveConfig.endingScoreOutDuration +
+        config.waveConfig.endingBoardInDuration + config.waveConfig.endingHoldDuration,
+        output.totalFrames)
+    : 100
+  const gridResetFadeEndPct = gameEndEvent
+    ? frameToPercent(
+        gameEndEvent.frame + config.waveConfig.endingFadeoutDuration +
+        config.waveConfig.endingScoreDuration + config.waveConfig.endingScoreOutDuration +
+        config.waveConfig.endingBoardInDuration + config.waveConfig.endingHoldDuration +
+        config.waveConfig.endingBlackoutDuration,
+        output.totalFrames)
+    : 100
+
+  cssRules.push(`@keyframes grid-fade {
+  0.00% { opacity: 0; }
+  ${gridFadeInStartPct.toFixed(2)}% { opacity: 0; }
+  ${gridVisiblePct.toFixed(2)}% { opacity: 1; }
+  ${gridResetFadeStartPct.toFixed(2)}% { opacity: 1; }
+  ${gridResetFadeEndPct.toFixed(2)}% { opacity: 0; }
+  100.00% { opacity: 0; }
+}`)
+
+  const gridGroupOpen = `<g ${anim(`grid-fade ${dur}s linear infinite`)}>`
+  const gridGroupClose = `</g>`
+  elements.push(gridGroupOpen)
+
   for (const cell of grid.cells) {
     const color = GRID_COLORS[cell.level] ?? GRID_COLORS[0]!
     const x = gridOffX + cell.x * stride
@@ -224,6 +264,8 @@ export function composeSvg(options: CompositeSvgOptions): string {
       elements.push(`<rect class="gc" x="${x}" y="${y}" width="${config.cellSize}" height="${config.cellSize}" fill="${color}" />`)
     }
   }
+
+  elements.push(gridGroupClose)
 
   // ── Overlay ──
   const overlayStops = overlayKeyframeStops(output, config)
@@ -463,24 +505,20 @@ export function composeSvg(options: CompositeSvgOptions): string {
     const shipInitX = RENDER_MARGIN + config.playArea.height - config.shipY
     const shipInitY = RENDER_MARGIN + config.playArea.width / 2
 
-    // Build movement keyframe stops with opacity for intro/ending transitions
+    // Build movement keyframe stops with opacity for transitions.
+    // Ship always starts hidden, fades in at the transition point (same as grid),
+    // and stays hidden through ending reset (loops back to hidden start).
     const shipStops: string[] = []
     const initTransform = `translate(${shipInitX.toFixed(1)}px, ${shipInitY.toFixed(1)}px)`
 
-    // When intro scoreboard is active, ship starts hidden and fades in after it
+    // Start hidden, fade in at transition point (synced with grid fade-in)
     const firstPoint = shipKfPoints[0]!
     const firstPct = (firstPoint.time / dur) * 100
-    if (introTotal > 0) {
-      const introEndPct = frameToPercent(introTotal, output.totalFrames)
-      const shipFadeInPct = Math.min(introEndPct + (1.0 / dur) * 100, firstPct - 0.01)
-      shipStops.push(`0% { transform: ${initTransform}; opacity: 0; }`)
-      shipStops.push(`${introEndPct.toFixed(2)}% { transform: ${initTransform}; opacity: 0; }`)
-      shipStops.push(`${shipFadeInPct.toFixed(2)}% { transform: ${initTransform}; opacity: 1; }`)
-      if (firstPct > shipFadeInPct + 0.02) {
-        shipStops.push(`${(firstPct - 0.01).toFixed(2)}% { transform: ${initTransform}; opacity: 1; }`)
-      }
-    } else if (firstPct > 0.02) {
-      shipStops.push(`0% { transform: ${initTransform}; opacity: 1; }`)
+    const shipFadeInPct = Math.min(gridVisiblePct + (1.0 / dur) * 100, firstPct - 0.01)
+    shipStops.push(`0% { transform: ${initTransform}; opacity: 0; }`)
+    shipStops.push(`${gridFadeInStartPct.toFixed(2)}% { transform: ${initTransform}; opacity: 0; }`)
+    shipStops.push(`${shipFadeInPct.toFixed(2)}% { transform: ${initTransform}; opacity: 1; }`)
+    if (firstPct > shipFadeInPct + 0.02) {
       shipStops.push(`${(firstPct - 0.01).toFixed(2)}% { transform: ${initTransform}; opacity: 1; }`)
     }
 
@@ -490,23 +528,14 @@ export function composeSvg(options: CompositeSvgOptions): string {
       shipStops.push(`${pct.toFixed(2)}% { transform: translate(${p.screenX.toFixed(1)}px, ${p.screenY.toFixed(1)}px); opacity: 1; }`)
     }
 
-    // Ending fade: ship fades out during ending_fadeout
+    // Ending fade: ship fades out during ending_fadeout, stays hidden through reset
     if (gameEndEvent) {
       const ewc = config.waveConfig
       const fadeStartPct = frameToPercent(gameEndEvent.frame, output.totalFrames)
       const fadeEndPct = frameToPercent(gameEndEvent.frame + ewc.endingFadeoutDuration, output.totalFrames)
       shipStops.push(`${fadeStartPct.toFixed(2)}% { opacity: 1; }`)
       shipStops.push(`${fadeEndPct.toFixed(2)}% { opacity: 0; transform: ${initTransform}; }`)
-      if (introTotal > 0) {
-        // Stay hidden through reset — loops back to intro scoreboard
-        shipStops.push(`100% { opacity: 0; transform: ${initTransform}; }`)
-      } else {
-        // No intro: restore ship at reset for seamless loop
-        const resetStartPct = resetRestorePct
-        const resetEndPct = Math.min(100, resetRestorePct + (2.5 / dur) * 100)
-        shipStops.push(`${resetStartPct.toFixed(2)}% { opacity: 0; transform: ${initTransform}; }`)
-        shipStops.push(`${resetEndPct.toFixed(2)}% { opacity: 1; transform: ${initTransform}; }`)
-      }
+      shipStops.push(`100% { opacity: 0; transform: ${initTransform}; }`)
     }
 
     cssRules.push(`@keyframes ship-move {\n  ${shipStops.join('\n  ')}\n}`)
@@ -615,7 +644,8 @@ export function composeSvg(options: CompositeSvgOptions): string {
 
   for (let i = 0; i < scoreLayers.length; i++) {
     const layer = scoreLayers[i]!
-    const startPct = frameToPercent(layer.startFrame, output.totalFrames)
+    // Clamp score visibility to transition point (hidden during intro/fade-in)
+    const startPct = Math.max(gridVisiblePct, frameToPercent(layer.startFrame, output.totalFrames))
     const rawEndPct = frameToPercent(layer.endFrame, output.totalFrames)
     // Skip layers that start after the fadeout
     if (startPct >= fadeoutEndPct) continue
@@ -700,9 +730,9 @@ export function composeSvg(options: CompositeSvgOptions): string {
     ? Math.max(0, waveSpawnFrames[0]! - (config.waveConfig.brightenDuration + config.waveConfig.pluckDuration +
         config.waveConfig.darkenDuration + config.waveConfig.travelDuration + config.waveConfig.hatchDuration))
     : output.totalFrames
-  const readyStartPct = introTotal > 0 ? frameToPercent(introTotal, output.totalFrames) : 0
+  const readyStartPct = gridVisiblePct // READY appears at transition point (same as grid/ship)
   const readyEndPct = frameToPercent(firstWaveLifecycleStart, output.totalFrames)
-  cssRules.push(visibilityKeyframes('status-ready-start', [[0, readyEndPct]]))
+  cssRules.push(visibilityKeyframes('status-ready-start', [[readyStartPct, readyEndPct]]))
   elements.push(
     `<text x="8" y="${statusY}" dominant-baseline="middle" ` +
     `font-family="monospace" font-size="11" fill="${pal.textMuted}" ` +
@@ -740,37 +770,8 @@ export function composeSvg(options: CompositeSvgOptions): string {
     )
   }
 
-  // "READY" during ending_reset (fade in gradually with reset)
-  // When intro scoreboard is active, don't restore — the next loop iteration
-  // shows intro scoreboard first, then READY appears via status-ready-start
-  if (gameEndEvent && introTotal === 0) {
-    const resetStartPct = resetRestorePct
-    const resetEndPct = Math.min(100, resetRestorePct + (2.5 / dur) * 100)
-    // Fade in from resetStart to resetEnd, stay visible to 100%
-    cssRules.push(`@keyframes status-ready-reset {
-  0.00% { opacity: 0; }
-  ${resetStartPct.toFixed(2)}% { opacity: 0; }
-  ${resetEndPct.toFixed(2)}% { opacity: 1; }
-  100.00% { opacity: 1; }
-}`)
-    elements.push(
-      `<text x="8" y="${statusY}" dominant-baseline="middle" ` +
-      `font-family="monospace" font-size="11" fill="${pal.textMuted}" opacity="0" ` +
-      `${anim(`status-ready-reset ${dur}s linear infinite`)}>READY</text>`
-    )
-    // "0 COMMITS" during reset — same fade
-    cssRules.push(`@keyframes status-score-reset {
-  0.00% { opacity: 0; }
-  ${resetStartPct.toFixed(2)}% { opacity: 0; }
-  ${resetEndPct.toFixed(2)}% { opacity: 1; }
-  100.00% { opacity: 1; }
-}`)
-    elements.push(
-      `<text x="${screenW - 8}" y="${statusY}" text-anchor="end" dominant-baseline="middle" ` +
-      `font-family="monospace" font-weight="bold" font-size="12" fill="${pal.scoreText}" opacity="0" ` +
-      `${anim(`status-score-reset ${dur}s linear infinite`)}>0 COMMITS</text>`
-    )
-  }
+  // No reset READY/"0 COMMITS" needed — everything loops back to hidden
+  // at the end, then fades in at the transition point in the next iteration
 
   // ── Ending: Score Display ("N COMMITS") ──
   if (gameEndEvent) {
