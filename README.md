@@ -1,4 +1,4 @@
-# Commit Invaders 👾
+# 👾 Commit Invaders 👾
 
 [![GitHub Workflow Status](https://img.shields.io/github/actions/workflow/status/Goblinlordx/commit-invaders/ci.yml?label=action&style=flat-square)](https://github.com/Goblinlordx/commit-invaders/actions/workflows/ci.yml)
 [![GitHub release](https://img.shields.io/github/release/Goblinlordx/commit-invaders.svg?style=flat-square)](https://github.com/Goblinlordx/commit-invaders/releases/latest)
