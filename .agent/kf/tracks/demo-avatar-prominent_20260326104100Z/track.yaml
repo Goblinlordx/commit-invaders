@@ -1,52 +1,68 @@
 id: demo-avatar-prominent_20260326104100Z
-title: "Prominent avatar + username display on demo page"
+title: Prominent avatar + username display on demo page
 type: feature
 status: pending
 created: 2026-03-26
-updated: 2026-03-26
+updated: '2026-03-26'
 spec:
-  summary: |
-    After generation, show a large centered circular avatar (~80px) with the
+  summary: 'After generation, show a large centered circular avatar (~80px) with the
+
     username as a clickable GitHub profile link, above the contribution grid.
-  context: |
-    The snk demo (platane.github.io/snk) shows a prominent ~80px circular
+
+    '
+  context: 'The snk demo (platane.github.io/snk) shows a prominent ~80px circular
+
     avatar centered above the grid with the username as a clickable link
+
     after submitting. Our current implementation has a tiny 32px avatar
+
     tucked next to the input field — easy to miss.
-  codebase_analysis: |
-    - demo/index.html:33-35 has avatar-wrapper + img#gh-avatar in input-row
+
+    '
+  codebase_analysis: '- demo/index.html:33-35 has avatar-wrapper + img#gh-avatar in input-row
+
     - demo/style.css:107-129 styles avatar at 32px with opacity transition
+
     - demo/main.ts:349-372 loads avatar via github.com/{user}.png debounced
+
     - Preview area is in demo/index.html section.preview with iframe#preview
+
     - Generation callback is in demo/main.ts doGenerate() function
+
+    '
   acceptance_criteria:
-    - Large (~80px) circular avatar displayed centered above the preview
-    - Username shown as clickable link to github.com/{username} below avatar
-    - Profile display appears after successful generation
-    - Graceful fallback when avatar fails to load (placeholder or hidden)
-    - Existing small avatar next to input can be kept or removed
-  out_of_scope: |
-    Replacing the input form entirely. Fetching additional profile data
+  - Large (~80px) circular avatar displayed centered above the preview
+  - Username shown as clickable link to github.com/{username} below avatar
+  - Profile display appears after successful generation
+  - Graceful fallback when avatar fails to load (placeholder or hidden)
+  - Existing small avatar next to input can be kept or removed
+  out_of_scope: 'Replacing the input form entirely. Fetching additional profile data
+
     beyond avatar. Changing the generation flow.
-  technical_notes: |
-    Add a profile-display div between controls and preview sections in
+
+    '
+  technical_notes: 'Add a profile-display div between controls and preview sections in
+
     index.html. Show/hide via CSS class toggled in doGenerate(). Reuse
+
     the github.com/{username}.png URL pattern. Link to github.com/{username}.
+
+    '
 plan:
-  - phase: "Core implementation"
-    tasks:
-      - text: Add profile display section (avatar + username link) between controls and preview in index.html
-        done: false
-      - text: Style profile display — ~80px centered circle avatar with border/shadow, username link below
-        done: false
-      - text: Wire up profile display in main.ts — show after generation, update avatar src and username link
-        done: false
-      - text: Graceful fallback — hide profile display if avatar fails to load
-        done: false
-      - text: Decide whether to keep or remove the small 32px input-row avatar
-        done: false
-  - phase: "Verification"
-    tasks:
-      - text: Verify avatar loads for valid users, hides for invalid, displays correctly across themes
-        done: false
+- phase: Core implementation
+  tasks:
+  - text: Add profile display section (avatar + username link) between controls and preview in index.html
+    done: true
+  - text: Style profile display — ~80px centered circle avatar with border/shadow, username link below
+    done: true
+  - text: Wire up profile display in main.ts — show after generation, update avatar src and username link
+    done: true
+  - text: Graceful fallback — hide profile display if avatar fails to load
+    done: true
+  - text: Decide whether to keep or remove the small 32px input-row avatar
+    done: true
+- phase: Verification
+  tasks:
+  - text: Verify avatar loads for valid users, hides for invalid, displays correctly across themes
+    done: true
 extra: {}
