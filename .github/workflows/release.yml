@@ -1,22 +1,44 @@
-# Release workflow — DISABLED
-#
-# Publishing is done manually:
-#   1. pnpm build && git add dist/ && git commit
-#   2. npm version patch
-#   3. git push origin main --tags
-#   4. gh release create vX.Y.Z --generate-notes
-#   5. git tag -fa v1 -m "v1" && git push origin v1 --force
-#
-# This workflow previously auto-published on tag push but caused
-# duplicate failures when tags were force-updated.
-
-name: Release (disabled)
+name: Release
 
 on:
-  workflow_dispatch: # manual-only, not triggered by tag push
+  push:
+    tags:
+      - 'v[0-9]+.[0-9]+.[0-9]+'  # semver only — ignores v1 major tag
 
 jobs:
-  noop:
+  publish:
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      id-token: write
     steps:
-      - run: echo "Release workflow is disabled. See file comments for manual release steps."
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+          registry-url: 'https://registry.npmjs.org'
+      - run: npm install -g npm@^11.10.0
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm typecheck
+      - run: pnpm test
+      - run: pnpm build
+
+      # Publish to npm (skip if version already exists)
+      - name: Publish to npm
+        run: npm publish --access public || echo "::warning::npm publish skipped — version may already exist"
+
+      # Create GitHub release (auto-updates Marketplace listing)
+      - uses: softprops/action-gh-release@v2
+        with:
+          generate_release_notes: true
+
+      # Update v1 major tag
+      - run: |
+          git config user.name "commit-invaders[bot]"
+          git config user.email "commit-invaders[bot]@users.noreply.github.com"
+          git tag -fa v1 -m "v1"
+          git push origin v1 --force
