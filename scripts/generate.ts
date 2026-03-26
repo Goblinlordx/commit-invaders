@@ -9,9 +9,12 @@
  */
 
 import { writeFileSync } from 'node:fs'
-import { fetchContributions } from '../src/fetcher/graphql.js'
-import { parseContributionResponse } from '../src/fetcher/parser.js'
-import { generateAnimatedSvg } from '../src/animation/svg-compositor.js'
+import { fetchContributions, fetchContributionHistory } from '../src/fetcher/graphql.js'
+import { parseContributionResponse, parseMultiYearResponses } from '../src/fetcher/parser.js'
+import { composeSvg } from '../src/animation/svg-compositor.js'
+import { simulate } from '../src/simulator/simulate.js'
+import { computeScoreboard } from '../src/scoreboard.js'
+import { PALETTE_DARK } from '../src/animation/entity-templates.js'
 import type { SimConfig } from '../src/types.js'
 
 const STRIDE = 13
@@ -42,6 +45,7 @@ const defaultConfig: SimConfig = {
 async function main() {
   const username = process.argv[2]
   const outputFile = process.argv[3] ?? 'commit-invaders.svg'
+  const noScoreboard = process.argv.includes('--no-scoreboard')
 
   if (!username) {
     console.error('Usage: GITHUB_TOKEN=ghp_... npx tsx scripts/generate.ts <username> [output.svg]')
@@ -64,9 +68,21 @@ async function main() {
   const totalCommits = grid.cells.reduce((sum, c) => sum + c.count, 0)
   console.log(`Active cells: ${activeCells}, Total commits: ${totalCommits}`)
 
+  // Fetch historical data for scoreboard
+  let scoreboard
+  if (!noScoreboard) {
+    console.log('Fetching contribution history for scoreboard...')
+    const historyResponses = await fetchContributionHistory(token, username, 10)
+    const historyGrid = parseMultiYearResponses(historyResponses)
+    console.log(`History: ${historyGrid.cells.length} days across ${historyResponses.length} years`)
+    const lastDate = grid.cells.reduce((max, c) => (c.date > max ? c.date : max), '')
+    scoreboard = computeScoreboard(historyGrid, lastDate, grid.width * 7, 10)
+    console.log(`Scoreboard: ${scoreboard.entries.length} entries, high score: ${scoreboard.isNewHighScore}`)
+  }
+
   console.log('Generating SVG...')
   const seed = `${username}-${new Date().toISOString().slice(0, 10)}`
-  const svg = generateAnimatedSvg(grid, seed, defaultConfig)
+  const svg = composeSvg({ grid, seed, config: defaultConfig, scoreboard, palette: PALETTE_DARK })
 
   writeFileSync(outputFile, svg)
   console.log(`Written: ${outputFile} (${(svg.length / 1024).toFixed(1)} KB)`)

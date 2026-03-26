@@ -44,3 +44,54 @@ export function parseContributionResponse(
     cells,
   }
 }
+
+/**
+ * Parse multiple yearly responses into a single combined grid.
+ * Used for scoreboard historical data.
+ */
+export function parseMultiYearResponses(responses: import('./fixtures.js').GitHubGraphQLResponse[]): import('../types.js').Grid {
+  const allCells: import('../types.js').Grid['cells'] = []
+  const seenDates = new Set<string>()
+
+  for (const response of responses) {
+    const calendar = response.user.contributionsCollection.contributionCalendar
+    for (const week of calendar.weeks) {
+      for (const day of week.contributionDays) {
+        if (seenDates.has(day.date)) continue
+        seenDates.add(day.date)
+        allCells.push({
+          x: 0, // will be recomputed
+          y: 0,
+          level: dayLevelToContributionLevel(day.contributionLevel),
+          date: day.date,
+          count: day.contributionCount,
+        })
+      }
+    }
+  }
+
+  // Sort by date and assign x/y grid positions
+  allCells.sort((a, b) => a.date.localeCompare(b.date))
+  if (allCells.length === 0) return { width: 0, height: 7, cells: [] }
+
+  const startDate = new Date(allCells[0]!.date)
+  for (const cell of allCells) {
+    const d = new Date(cell.date)
+    const diffDays = Math.round((d.getTime() - startDate.getTime()) / 86400000)
+    cell.x = Math.floor(diffDays / 7)
+    cell.y = diffDays % 7
+  }
+
+  const maxWeek = Math.max(...allCells.map(c => c.x)) + 1
+  return { width: maxWeek, height: 7, cells: allCells }
+}
+
+function dayLevelToContributionLevel(level: string): import('../types.js').ContributionLevel {
+  switch (level) {
+    case 'FIRST_QUARTILE': return 1
+    case 'SECOND_QUARTILE': return 2
+    case 'THIRD_QUARTILE': return 3
+    case 'FOURTH_QUARTILE': return 4
+    default: return 0
+  }
+}

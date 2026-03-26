@@ -8,8 +8,8 @@ import * as core from '@actions/core'
 import * as exec from '@actions/exec'
 import { writeFileSync } from 'node:fs'
 import { parseInputs, buildConfig } from './inputs.js'
-import { fetchContributions } from '../fetcher/graphql.js'
-import { parseContributionResponse } from '../fetcher/parser.js'
+import { fetchContributions, fetchContributionHistory } from '../fetcher/graphql.js'
+import { parseContributionResponse, parseMultiYearResponses } from '../fetcher/parser.js'
 import { composeSvg } from '../animation/svg-compositor.js'
 import { simulate } from '../simulator/simulate.js'
 import { computeScoreboard, type ScoreboardResult } from '../scoreboard.js'
@@ -31,9 +31,14 @@ async function run(): Promise<void> {
 
     let scoreboard: ScoreboardResult | undefined
     if (!inputs.noScoreboard) {
-      const lastDate = grid.cells.reduce((max, c) => (c.date > max ? c.date : max), '')
-      scoreboard = computeScoreboard(grid, lastDate, grid.width * 7, 10)
+      core.info("Fetching contribution history for scoreboard...")
+      const historyResponses = await fetchContributionHistory(inputs.githubToken, inputs.username, 10)
+      const historyGrid = parseMultiYearResponses(historyResponses)
+      core.info(`History: ${historyGrid.cells.length} days across ${historyResponses.length} years`)
+      const lastDate = grid.cells.reduce((max, c) => (c.date > max ? c.date : max), "")
+      scoreboard = computeScoreboard(historyGrid, lastDate, grid.width * 7, 10)
       core.info(`Scoreboard: ${scoreboard.entries.length} entries`)
+    }
     }
 
     core.info('Generating SVGs...')

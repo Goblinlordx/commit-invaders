@@ -85,3 +85,55 @@ export async function fetchContributions(
     throw classifyError(error)
   }
 }
+
+const CONTRIBUTION_HISTORY_QUERY = `
+  query ($login: String!, $from: DateTime!, $to: DateTime!) {
+    user(login: $login) {
+      contributionsCollection(from: $from, to: $to) {
+        contributionCalendar {
+          totalContributions
+          weeks {
+            contributionDays {
+              contributionCount
+              contributionLevel
+              date
+            }
+          }
+        }
+      }
+    }
+  }
+`
+
+/**
+ * Fetch contribution history for multiple years.
+ * Returns an array of yearly responses, newest first.
+ */
+export async function fetchContributionHistory(
+  token: string,
+  username: string,
+  years: number = 5,
+): Promise<GitHubGraphQLResponse[]> {
+  const results: GitHubGraphQLResponse[] = []
+  const currentYear = new Date().getFullYear()
+
+  for (let i = 0; i < years; i++) {
+    const year = currentYear - i
+    try {
+      const response = await graphql<GitHubGraphQLResponse>(CONTRIBUTION_HISTORY_QUERY, {
+        login: username,
+        from: `${year}-01-01T00:00:00Z`,
+        to: `${year + 1}-01-01T00:00:00Z`,
+        headers: {
+          authorization: `token ${token}`,
+        },
+      })
+      results.push(response)
+    } catch {
+      // Stop on error (e.g., account didn't exist yet)
+      break
+    }
+  }
+
+  return results
+}
