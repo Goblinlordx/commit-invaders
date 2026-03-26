@@ -33,7 +33,7 @@ const gridW = 7 * STRIDE + PADDING * 2, gridH = 52 * STRIDE, shipMargin = 24
 const config: SimConfig = {
   framesPerSecond: 60, hitChance: 0.85, fireRate: 5,
   waveConfig: {
-    weeksPerWave: 4, startDelay: 10, spawnDelay: 0,
+    weeksPerWave: 4, startDelay: 10, introScoreboardFadeIn: 0, introScoreboardHold: 0, introScoreboardFadeOut: 0, spawnDelay: 0,
     brightenDuration: 10, pluckDuration: 10, darkenDuration: 10,
     travelDuration: 10, hatchDuration: 10,
     endingFadeoutDuration: 10, endingScoreDuration: 10,

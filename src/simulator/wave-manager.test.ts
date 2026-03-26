@@ -29,6 +29,9 @@ function makeGrid(cells: ContributionCell[], width: number): Grid {
 const defaultConfig: WaveConfig = {
   weeksPerWave: 1,
   startDelay: 0,
+  introScoreboardFadeIn: 0,
+  introScoreboardHold: 0,
+  introScoreboardFadeOut: 0,
   spawnDelay: 30,
   brightenDuration: 0,
   pluckDuration: 0,
