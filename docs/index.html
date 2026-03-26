@@ -4,11 +4,12 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Commit Invaders — Demo</title>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>👾</text></svg>" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet" />
-  <script type="module" crossorigin src="/commit-invaders/assets/index-BwtmVYWC.js"></script>
-  <link rel="stylesheet" crossorigin href="/commit-invaders/assets/index-vTTR4iPZ.css">
+  <script type="module" crossorigin src="/commit-invaders/assets/index-DxO0bZJT.js"></script>
+  <link rel="stylesheet" crossorigin href="/commit-invaders/assets/index-DhIJ4wec.css">
 </head>
 <body>
   <div id="app">
@@ -31,6 +32,9 @@
       <div class="input-group">
         <label for="username">GitHub Username</label>
         <div class="input-row">
+          <div class="avatar-wrapper">
+            <img id="gh-avatar" class="avatar" alt="" />
+          </div>
           <input type="search" id="gh-contributor" name="gh-contributor" autocomplete="off" data-1p-ignore data-lpignore="true" data-bwignore placeholder="Goblinlordx" value="Goblinlordx" />
           <button id="generate-btn" class="btn btn-primary">Generate</button>
         </div>
@@ -43,6 +47,12 @@
           <button class="btn btn-theme" data-theme="classic">Classic</button>
         </div>
       </div>
+    </section>
+
+    <!-- Profile Display (shown after generation) -->
+    <section class="profile-display" id="profile-display" style="display:none">
+      <img id="profile-avatar" class="profile-avatar" alt="" />
+      <a id="profile-username" class="profile-username" target="_blank" rel="noopener"></a>
     </section>
 
     <!-- Preview -->
