@@ -560,10 +560,10 @@ export function composeSvg(options: CompositeSvgOptions): string {
   const waveSpawnFrames = waveSpawns.map((ws) => ws.frame)
   for (let wi = 0; wi < waveSpawns.length; wi++) {
     const spawnFrame = waveSpawnFrames[wi]!
-    // Start: after previous wave clear (or frame 0 for wave 1)
+    // Start: after previous wave clear (or transition point for wave 1)
     let labelStart: number
     if (wi === 0) {
-      labelStart = 0
+      labelStart = gridVisibleFrame
     } else {
       const prevClear = output.events.find(
         (e) => e.type === 'wave_clear' && (e.data as { waveIndex: number }).waveIndex === wi - 1,
