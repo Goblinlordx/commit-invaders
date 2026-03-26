@@ -1,107 +1,124 @@
 id: full-history-zero-flow_20260326071200Z
-title: "Full contribution history + zero-contribution graceful flow"
+title: Full contribution history + zero-contribution graceful flow
 type: bug
 status: pending
 created: 2026-03-26
-updated: 2026-03-26
+updated: '2026-03-26'
 spec:
-  summary: |
-    Use GitHub's contributionYears field to fetch ALL available history
+  summary: 'Use GitHub''s contributionYears field to fetch ALL available history
+
     (not just hardcoded 10 years) with concurrent API requests. Add graceful
+
     zero-contribution flow: ship fadein, score "0 Commits", scoreboard, loop.
-  context: |
-    The scoreboard fetches contribution history via fetchContributionHistory()
-    which is hardcoded to 10 years (action) or 5 years (default). GitHub's
+
+    '
+  context: 'The scoreboard fetches contribution history via fetchContributionHistory()
+
+    which is hardcoded to 10 years (action) or 5 years (default). GitHub''s
+
     GraphQL API has no limit on how far back you can query — contributionYears
+
     returns the exact list of years with data (even pre-2008 imported git
+
     history). The current sequential year-by-year loop is also unnecessarily
+
     slow — all year fetches are independent and should run concurrently.
 
+
     Additionally, when a user has zero active contribution cells (all level 0),
+
     the simulation never fires a game_end event, causing the animation to idle
+
     forever with a static ship. This needs a graceful flow.
-  codebase_analysis: |
-    - fetchContributionHistory (src/fetcher/graphql.ts:112) loops sequentially
-      with a years count parameter — should use contributionYears + Promise.all
-    - Action hardcodes 10 (src/action/index.ts:35)
-    - CLI doesn't fetch history at all (bin/commit-invaders.js:100)
-    - GitHubGraphQLResponse type (src/fetcher/fixtures.ts:23) lacks createdAt
-      and contributionYears fields
-    - Wave manager (src/simulator/wave-manager.ts:30-40) filters to level > 0;
-      zero active cells means totalWaves = 0
-    - simulate.ts line 857: allCleared requires formations.length > 0, so
-      game_end never fires with zero waves
-    - svg-compositor.ts line 694: ending phases only render if gameEndEvent exists
-    - svg-compositor.ts line 751: scoreboard already guards entries.length > 0
-    - GitHub API confirmed: contributionYears returns exact years with data,
-      no limit on historical queries, 1-year max span per query (already handled)
+
+    '
+  codebase_analysis: "- fetchContributionHistory (src/fetcher/graphql.ts:112) loops sequentially\n  with a years count parameter\
+    \ — should use contributionYears + Promise.all\n- Action hardcodes 10 (src/action/index.ts:35)\n- CLI doesn't fetch history\
+    \ at all (bin/commit-invaders.js:100)\n- GitHubGraphQLResponse type (src/fetcher/fixtures.ts:23) lacks createdAt\n  and\
+    \ contributionYears fields\n- Wave manager (src/simulator/wave-manager.ts:30-40) filters to level > 0;\n  zero active\
+    \ cells means totalWaves = 0\n- simulate.ts line 857: allCleared requires formations.length > 0, so\n  game_end never\
+    \ fires with zero waves\n- svg-compositor.ts line 694: ending phases only render if gameEndEvent exists\n- svg-compositor.ts\
+    \ line 751: scoreboard already guards entries.length > 0\n- GitHub API confirmed: contributionYears returns exact years\
+    \ with data,\n  no limit on historical queries, 1-year max span per query (already handled)\n"
   acceptance_criteria:
-    - Fetch 100% of contribution history using contributionYears field
-    - All year fetches run concurrently via Promise.all (not sequential loop)
-    - Zero active cells triggers game_end immediately after ship fadein
-    - Score screen shows "0 Commits" for zero-contribution current year
-    - Scoreboard shows historical high scores or empty board if none
-    - CLI fetches full history when scoreboard is enabled
-    - No hardcoded year limits anywhere
-  out_of_scope: |
-    Changing scoreboard algorithm or display layout. Rate limiting for
+  - Fetch 100% of contribution history using contributionYears field
+  - All year fetches run concurrently via Promise.all (not sequential loop)
+  - Zero active cells triggers game_end immediately after ship fadein
+  - Score screen shows "0 Commits" for zero-contribution current year
+  - Scoreboard shows historical high scores or empty board if none
+  - CLI fetches full history when scoreboard is enabled
+  - No hardcoded year limits anywhere
+  out_of_scope: 'Changing scoreboard algorithm or display layout. Rate limiting for
+
     accounts with 20+ contribution years (unlikely, can address later).
-  technical_notes: |
-    Phase 1 approach: Add contributionYears to the existing CONTRIBUTION_QUERY
+
+    '
+  technical_notes: 'Phase 1 approach: Add contributionYears to the existing CONTRIBUTION_QUERY
+
     (no extra API call). Then refactor fetchContributionHistory to accept a
+
     years[] array and Promise.all the fetches. Phase 2: In simulate.ts, detect
+
     totalWaves === 0 after wave manager init and immediately emit game_end
+
     with score 0. Ship still fades in/out for visual continuity.
+
+    '
 plan:
-  - phase: "API — contributionYears + concurrent fetch"
-    tasks:
-      - text: >
-          Add contributionYears to CONTRIBUTION_QUERY GraphQL response
-          (user.contributionsCollection.contributionYears: number[])
-        done: false
-      - text: >
-          Update GitHubGraphQLResponse type in fixtures.ts to include
-          contributionYears on contributionsCollection
-        done: false
-      - text: >
-          Refactor fetchContributionHistory: accept years: number[] array,
-          fetch all years concurrently via Promise.all instead of sequential loop
-        done: false
-      - text: >
-          Keep try/catch per-year so one failed year doesn't abort all fetches
-        done: false
-  - phase: "Zero-contribution simulation flow"
-    tasks:
-      - text: >
-          In simulate.ts: detect totalWaves === 0 after wave manager init,
-          emit game_end event immediately after ship start delay
-        done: false
-      - text: >
-          Ensure SimOutput has finalScore = 0, totalWaves = 0, ship still
-          has fadein/fadeout inflections for CSS keyframes
-        done: false
-      - text: >
-          Score screen displays "0 Commits"; scoreboard shows historical
-          entries or empty board
-        done: false
-  - phase: "Integration"
-    tasks:
-      - text: >
-          Update action/index.ts: extract contributionYears from initial
-          fetchContributions response, pass array to fetchContributionHistory
-        done: false
-      - text: >
-          Update CLI (bin/commit-invaders.js): fetch full history when
-          scoreboard is enabled (currently only uses current-year grid)
-        done: false
-  - phase: "Verification"
-    tasks:
-      - text: >
-          Update docs/scoreboard.md: remove "10 years" references, document
-          contributionYears-based fetch and zero-contribution behavior
-        done: false
-      - text: >
-          Add tests: contributionYears extraction, concurrent fetch,
-          zero-wave game_end trigger, zero-contribution scoreboard
-        done: false
+- phase: API — contributionYears + concurrent fetch
+  tasks:
+  - text: 'Add contributionYears to CONTRIBUTION_QUERY GraphQL response (user.contributionsCollection.contributionYears: number[])
+
+      '
+    done: true
+  - text: 'Update GitHubGraphQLResponse type in fixtures.ts to include contributionYears on contributionsCollection
+
+      '
+    done: true
+  - text: 'Refactor fetchContributionHistory: accept years: number[] array, fetch all years concurrently via Promise.all instead
+      of sequential loop
+
+      '
+    done: true
+  - text: 'Keep try/catch per-year so one failed year doesn''t abort all fetches
+
+      '
+    done: true
+- phase: Zero-contribution simulation flow
+  tasks:
+  - text: 'In simulate.ts: detect totalWaves === 0 after wave manager init, emit game_end event immediately after ship start
+      delay
+
+      '
+    done: true
+  - text: 'Ensure SimOutput has finalScore = 0, totalWaves = 0, ship still has fadein/fadeout inflections for CSS keyframes
+
+      '
+    done: true
+  - text: 'Score screen displays "0 Commits"; scoreboard shows historical entries or empty board
+
+      '
+    done: true
+- phase: Integration
+  tasks:
+  - text: 'Update action/index.ts: extract contributionYears from initial fetchContributions response, pass array to fetchContributionHistory
+
+      '
+    done: true
+  - text: 'Update CLI (bin/commit-invaders.js): fetch full history when scoreboard is enabled (currently only uses current-year
+      grid)
+
+      '
+    done: true
+- phase: Verification
+  tasks:
+  - text: 'Update docs/scoreboard.md: remove "10 years" references, document contributionYears-based fetch and zero-contribution
+      behavior
+
+      '
+    done: true
+  - text: 'Add tests: contributionYears extraction, concurrent fetch, zero-wave game_end trigger, zero-contribution scoreboard
+
+      '
+    done: true
 extra: {}
