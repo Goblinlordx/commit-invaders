@@ -26,12 +26,14 @@ const shipMargin = 24
 const defaultConfig: SimConfig = {
   framesPerSecond: 60,
   waveConfig: {
-    weeksPerWave: 4, startDelay: 60, spawnDelay: 0,
+    weeksPerWave: 4,
+    introScoreboardFadeIn: 30, introScoreboardHold: 300, introScoreboardFadeOut: 30,
+    startDelay: 360, spawnDelay: 0,
     brightenDuration: 60, pluckDuration: 20, darkenDuration: 60,
     travelDuration: 40, hatchDuration: 20,
     endingFadeoutDuration: 60, endingScoreDuration: 180,
-    endingScoreOutDuration: 30, endingBoardInDuration: 30,
-    endingHoldDuration: 300, endingBlackoutDuration: 60, endingResetDuration: 60,
+    endingScoreOutDuration: 30, endingBoardInDuration: 0,
+    endingHoldDuration: 0, endingBlackoutDuration: 60, endingResetDuration: 60,
   },
   playArea: { x: 0, y: 0, width: gridW, height: gridH + shipMargin },
   gridArea: { x: PADDING, y: 0, width: 7 * STRIDE, height: gridH },
