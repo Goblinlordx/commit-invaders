@@ -7,7 +7,7 @@ Because the board is recomputed each time the animation is generated, **scores a
 ## Data Flow
 
 ```
-GitHub GraphQL API  ──>  10 years of contribution data
+GitHub GraphQL API  ──>  all contribution years (via contributionYears)
                               │
                               ▼
                      computeScoreboard()
@@ -26,7 +26,7 @@ GitHub GraphQL API  ──>  10 years of contribution data
                      + ending score display
 ```
 
-1. **Fetch** -- The GitHub Action fetches up to 10 years of contribution history via the GraphQL API.
+1. **Fetch** -- The GitHub Action queries `contributionYears` to discover all years with data, then fetches them all concurrently (with exponential backoff retries).
 2. **Score** -- `computeScoreboard()` computes the top 10 non-overlapping contribution windows.
 3. **Render** -- The SVG compositor draws the scoreboard as an intro overlay and the final score as an ending display.
 
@@ -105,13 +105,17 @@ After all waves are cleared, the ending sequence shows the final commit score:
 
 The score counter during gameplay also tracks commits in real-time in the status bar, updating as each invader is destroyed.
 
+## Zero Contributions
+
+When the grid has no active cells (all contribution levels are 0), the game runs normally with 0 waves. The ending sequence displays "0 COMMITS" and loops as usual.
+
 ## Configuration
 
 ### `--no-scoreboard` Flag
 
 Pass `no_scoreboard: true` in the GitHub Action (or `--no-scoreboard` via npx) to disable the scoreboard entirely. This:
 
-- Skips fetching 10 years of historical data (faster)
+- Skips fetching historical contribution data (faster)
 - Removes the intro scoreboard overlay
 - Reduces the start delay from 480 frames (8s) to 90 frames (1.5s)
 - The ending score display still shows the current run's commit total
@@ -138,4 +142,4 @@ All timing values are in frames (default 60 FPS). These are configurable in `Sim
 | `src/scoreboard.test.ts` | Test suite (edge cases, performance, ranking) |
 | `src/animation/svg-compositor.ts` | SVG rendering (intro board, ending score, blackout) |
 | `src/action/inputs.ts` | Configuration and `noScoreboard` flag |
-| `src/action/index.ts` | Historical data fetching (10 years via GraphQL) |
+| `src/action/index.ts` | Historical data fetching (all years via GraphQL contributionYears) |

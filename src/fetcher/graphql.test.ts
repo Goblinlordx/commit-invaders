@@ -6,7 +6,7 @@ import {
   FIXTURE_ERROR_USER_NOT_FOUND,
   FIXTURE_SMALL,
 } from './fixtures.js'
-import { fetchContributions, FetchError } from './graphql.js'
+import { fetchContributions, fetchContributionHistory, FetchError } from './graphql.js'
 
 // Mock @octokit/graphql
 vi.mock('@octokit/graphql', () => ({
@@ -125,5 +125,50 @@ describe('fetchContributions', () => {
         expect((e as FetchError).code).toBe('unknown')
       }
     })
+  })
+})
+
+describe('fetchContributionHistory', () => {
+  it('fetches all specified years concurrently', async () => {
+    const mockGraphql = await getMockedGraphql()
+    mockGraphql.mockResolvedValue(FIXTURE_SMALL)
+
+    const results = await fetchContributionHistory('ghp_token', 'testuser', [2024, 2025, 2026])
+
+    expect(results).toHaveLength(3)
+    expect(mockGraphql).toHaveBeenCalledTimes(3)
+  })
+
+  it('returns results sorted newest first', async () => {
+    const mockGraphql = await getMockedGraphql()
+    const calls: string[] = []
+    mockGraphql.mockImplementation((_query: string, opts: { from: string }) => {
+      calls.push(opts.from)
+      return Promise.resolve(FIXTURE_SMALL)
+    })
+
+    await fetchContributionHistory('ghp_token', 'testuser', [2020, 2025, 2022])
+
+    expect(calls[0]).toContain('2025')
+    expect(calls[1]).toContain('2022')
+    expect(calls[2]).toContain('2020')
+  })
+
+  it('returns empty array for empty years list', async () => {
+    const results = await fetchContributionHistory('ghp_token', 'testuser', [])
+
+    expect(results).toHaveLength(0)
+  })
+
+  it('retries on transient failure then succeeds', async () => {
+    const mockGraphql = await getMockedGraphql()
+    mockGraphql
+      .mockRejectedValueOnce(new Error('network error'))
+      .mockResolvedValueOnce(FIXTURE_SMALL)
+
+    const results = await fetchContributionHistory('ghp_token', 'testuser', [2025])
+
+    expect(results).toHaveLength(1)
+    expect(mockGraphql).toHaveBeenCalledTimes(2)
   })
 })

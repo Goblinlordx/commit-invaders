@@ -223,6 +223,32 @@ describe('simulate', () => {
     })
   })
 
+  describe('zero waves', () => {
+    it('emits game_end with score 0 when grid has no active cells', () => {
+      const grid = makeGrid([
+        { x: 0, y: 0, level: 0, date: '2026-01-01', count: 0 } as ContributionCell,
+        { x: 0, y: 1, level: 0, date: '2026-01-02', count: 0 } as ContributionCell,
+      ])
+      const output = simulate(grid, 'zero-seed', makeConfig())
+
+      expect(output.finalScore).toBe(0)
+      const gameEnd = output.events.find(e => e.type === 'game_end')
+      expect(gameEnd).toBeDefined()
+      expect(gameEnd!.data!.score).toBe(0)
+    })
+
+    it('records ship inflection for compositor rendering', () => {
+      const grid = makeGrid([
+        { x: 0, y: 0, level: 0, date: '2026-01-01', count: 0 } as ContributionCell,
+      ])
+      const output = simulate(grid, 'zero-ship-seed', makeConfig())
+      const shipTimeline = output.getAllInflections().get('ship')
+
+      expect(shipTimeline).toBeDefined()
+      expect(shipTimeline!.inflections.length).toBeGreaterThan(0)
+    })
+  })
+
   describe('peek', () => {
     it('reconstructs GameState at a given frame', () => {
       const output = simulate(SIMPLE_GRID, 'peek-seed', makeConfig())
