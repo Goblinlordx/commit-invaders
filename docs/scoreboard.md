@@ -32,40 +32,48 @@ GitHub GraphQL API  ──>  all contribution years (via contributionYears)
 
 ## Algorithm
 
-### Step 1: Window Scores + Run Map + Max-Heap (single pass)
+### Step 1: Prefix Sums
 
-A single pass over all dates computes three things simultaneously:
+All dates from the contribution history are sorted chronologically and mapped to contiguous indices `0..N-1`. A prefix sum array is built over daily commit counts, enabling any trailing window sum in O(1):
 
-1. **Window score** for each day: total commits in the trailing 364 days (52 weeks), computed in O(1) via a prefix sum array:
+```
+prefix[0] = 0
+prefix[i] = prefix[i-1] + commits[i-1]
 
-   ```
-   score = prefix[day + 1] - prefix[day - windowSize + 1]
-   ```
+window_score(day) = prefix[day + 1] - prefix[day - windowSize + 1]
+```
 
-2. **Run map**: each date index maps to a shared `Set` of all indices in its consecutive same-score run. Adjacent days often share the same window score (the window shifts by one day, adding/removing the same 0-contribution day). The shared Set enables O(1) lookup and bulk consumption during filtering.
+### Step 2: Window Scores + RunTracker
 
-3. **Max-heap**: non-zero-score records are pushed into a binary max-heap keyed by score. Windows with score 0 are excluded -- no contributions in that period.
+A single pass over all N days computes:
 
-After the pass, the heap is drained into a score-descending array for the distance filter.
+1. **Window score** for each day -- total commits in the trailing 364 days (52 weeks). Days with score 0 (no contributions in that trailing window) are excluded from further consideration.
 
-### Step 2: Distance Filtering via Binary Search
+2. **RunTracker** -- built from the scores array in two linear passes (forward for run starts, backward for run ends). Adjacent days often share the same window score because the sliding window shifts by one day, adding/removing a single day's commits. The RunTracker identifies these consecutive same-score runs using flat `Int32Array` boundaries (`runStart[i]`, `runEnd[i]`) and tracks consumption via a `Uint8Array` flag per index -- all O(1) operations with no hash overhead.
 
-The sorted records often have many entries clustered around the same peak period. To produce a diverse top-10 list, the algorithm enforces a **minimum distance** (in days) between selected entries.
+Non-zero records are collected and sorted by score descending.
 
-The optimal distance is found via **binary search**:
+### Step 3: Run-Aware Distance Filtering via Binary Search
 
-1. Binary search over candidate distances from 0 to N (total days)
-2. For each candidate distance, greedily select the highest-scoring windows that are at least that many days apart
-3. When a date is selected, **consume its entire run** via the run map -- all dates in the same consecutive same-score run are skipped for future candidates
+The sorted list has many entries clustered around peak periods. To produce a diverse top-10, the algorithm enforces a **minimum distance** (in days) between selected entries, with the RunTracker ensuring no two entries come from the same consecutive same-score run.
+
+The optimal distance is found via **binary search over distance thresholds**:
+
+1. Search candidate distances from 0 to N
+2. For each candidate, greedily iterate the score-descending records:
+   - **Skip** if the RunTracker marks this index as already consumed
+   - **Skip** if a binary search of the `used` array finds a previously selected index within the minimum distance
+   - **Select** otherwise: add to results, record the index, and tell the RunTracker to consume the entire run (`runStart[i]..runEnd[i]` are all flagged in the `Uint8Array`)
+3. The RunTracker resets its consumed flags between binary search iterations
 4. Find the **largest** distance that still yields >= 10 entries
 
-The greedy selection maintains a **sorted array** of already-chosen indices. For each candidate window, a binary search checks whether any previously selected window is within the minimum distance. O(log K) per proximity check, where K is the number of accepted entries (at most 10).
+O(log K) per proximity check (K = accepted entries, at most 10). Run consumption is amortized O(N) total since each index is consumed at most once per iteration.
 
-**Complexity: O(N log N)** -- heap drain dominates. Binary search runs O(log N) iterations, each filtering in O(N log K). Run consumption is amortized O(N) total since each index is consumed at most once.
+**Overall complexity: O(N log N)** -- dominated by the initial sort. The binary search runs O(log N) iterations, each filtering in O(N log K).
 
-### Current Day Detection
+### Step 4: Current Day Detection
 
-After filtering, the algorithm checks whether the current day's window score matches any entry on the board. If the current score ties or beats the #1 entry, `isNewHighScore` is set to `true`, and the first matching entry is marked as the current day's entry for highlighting.
+The current day's window score is computed independently. If it ties or beats the #1 entry on the board, `isNewHighScore` is set. The first board entry matching the current score is marked `isCurrent` for highlight rendering.
 
 ## Score Formatting
 
