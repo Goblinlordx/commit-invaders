@@ -1,0 +1,17 @@
+# Track Dependency Graph
+#
+# PROTOCOL:
+#   Canonical source for track dependency ordering (adjacency list).
+#   Each key is a track ID; its value is a list of prerequisite track IDs.
+#
+# RULES:
+#   - Only pending/in-progress tracks listed. Completed tracks pruned on cleanup.
+#   - Architect appends entries when creating tracks.
+#   - Developer checks deps before claiming: all deps must be [x] completed.
+#   - Cycles are forbidden.
+#
+# UPDATED: 2026-03-26T07:12:00Z
+
+video-export_20260326163729Z: []
+
+full-history-zero-flow_20260326071200Z: []
