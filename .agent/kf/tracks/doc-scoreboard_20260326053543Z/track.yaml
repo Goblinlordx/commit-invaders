@@ -32,19 +32,19 @@ spec:
   technical_notes: 'Create docs/scoreboard.md as a standalone Markdown document. Cover: overview, data flow (fetch -> score
     -> render), algorithm details (prefix sums, window scoring, binary search distance filtering), the ending animation sequence,
     and configuration options. Add a link in the README ''How It Works'' section. Keep the tone technical but accessible.'
-plan: []
-extra: {}
 plan:
-  - phase: Documentation
-    tasks:
-      - text: "Create docs/scoreboard.md covering: overview, data flow, sliding-window algorithm with prefix sums, binary-search distance filtering, score formatting, SVG rendering (intro board + ending sequence), and configuration options (noScoreboard, timing fields)"
-        done: false
-      - text: "Add a link to docs/scoreboard.md in README.md under the How It Works section"
-        done: false
-  - phase: Verification
-    tasks:
-      - text: "Review doc for technical accuracy against src/scoreboard.ts and src/animation/svg-compositor.ts"
-        done: false
-      - text: "Verify README link is correct and renders properly in Markdown"
-        done: false
+- phase: Documentation
+  tasks:
+  - text: 'Create docs/scoreboard.md covering: overview, data flow, sliding-window algorithm with prefix sums, binary-search
+      distance filtering, score formatting, SVG rendering (intro board + ending sequence), and configuration options (noScoreboard,
+      timing fields)'
+    done: true
+  - text: Add a link to docs/scoreboard.md in README.md under the How It Works section
+    done: true
+- phase: Verification
+  tasks:
+  - text: Review doc for technical accuracy against src/scoreboard.ts and src/animation/svg-compositor.ts
+    done: true
+  - text: Verify README link is correct and renders properly in Markdown
+    done: true
 extra: {}
