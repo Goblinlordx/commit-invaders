@@ -2,6 +2,8 @@
 
 The high score board ranks the top 10 contribution windows from your GitHub history. It appears at the start of the animation (before gameplay) and highlights your current window if it qualifies.
 
+Because the board is recomputed each time the animation is generated, **scores and dates on the board will shift over time**. As new contributions are added and old ones fall outside the 52-week windows, entries may appear, move, or drop off entirely. This is expected -- the board is designed to give a well-distributed snapshot of your most active contribution periods on GitHub, not a fixed historical record.
+
 ## Data Flow
 
 ```
