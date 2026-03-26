@@ -20744,18 +20744,10 @@ function classifyError(error2) {
       );
     }
     if (statusError.status === 403 || /rate limit/i.test(error2.message)) {
-      return new FetchError(
-        "GitHub API rate limit exceeded. Try again later.",
-        "rate_limit",
-        error2
-      );
+      return new FetchError("GitHub API rate limit exceeded. Try again later.", "rate_limit", error2);
     }
     if (/not.found/i.test(error2.message) || statusError.status === 404) {
-      return new FetchError(
-        "GitHub user not found. Check the username.",
-        "not_found",
-        error2
-      );
+      return new FetchError("GitHub user not found. Check the username.", "not_found", error2);
     }
     return new FetchError(error2.message, "unknown", error2);
   }
@@ -21168,9 +21160,7 @@ function checkHits(lasers, invaders, laserWidth = DEFAULT_LASER_WIDTH, invaderSi
       }
     }
   }
-  const updatedLasers = lasers.filter(
-    (l) => l.active && !consumedLaserIds.has(l.id)
-  );
+  const updatedLasers = lasers.filter((l) => l.active && !consumedLaserIds.has(l.id));
   let scoreIncrease = 0;
   const updatedInvaders = invaders.map((inv) => {
     const damage = damagedInvaders.get(inv.id);
@@ -21293,7 +21283,9 @@ function simulate(grid, seed, config) {
     const current = waveHitChances.get(failedWave) ?? config.hitChance;
     waveHitChances.set(failedWave, Math.min(1, current + (1 - current) * 0.5));
   }
-  const totalWaves = Math.ceil(grid.cells.filter((c) => c.level > 0).length / (config.waveConfig.weeksPerWave * 7));
+  const totalWaves = Math.ceil(
+    grid.cells.filter((c) => c.level > 0).length / (config.waveConfig.weeksPerWave * 7)
+  );
   for (let w = 0; w < totalWaves + 1; w++) waveHitChances.set(w, 1);
   const finalResult = simulateCore(grid, seed, config, waveHitChances);
   if (finalResult.events.some((e) => e.type === "game_end")) return finalResult;
@@ -21351,13 +21343,25 @@ function simulateCore(grid, seed, config, waveHitChances = /* @__PURE__ */ new M
   let cellSchedules = [];
   let brightenStartFrame = -1;
   let lifecycleEndFrame = -1;
-  const gridCellStates = grid.cells.map(() => ({ status: "in_grid", detachProgress: 0, targetPosition: null }));
+  const gridCellStates = grid.cells.map(() => ({
+    status: "in_grid",
+    detachProgress: 0,
+    targetPosition: null
+  }));
   function getWavePhase() {
     if (pendingWave !== null && cellSchedules.length > 0) {
-      const anyInGrid = cellSchedules.some((cs) => cs.cellIndex >= 0 && gridCellStates[cs.cellIndex].status === "in_grid");
-      const anyPlucked = cellSchedules.some((cs) => cs.cellIndex >= 0 && gridCellStates[cs.cellIndex].status === "plucked");
-      const anyTraveling = cellSchedules.some((cs) => cs.cellIndex >= 0 && gridCellStates[cs.cellIndex].status === "traveling");
-      const anyHatching = cellSchedules.some((cs) => cs.cellIndex >= 0 && gridCellStates[cs.cellIndex].status === "hatching");
+      const anyInGrid = cellSchedules.some(
+        (cs) => cs.cellIndex >= 0 && gridCellStates[cs.cellIndex].status === "in_grid"
+      );
+      const anyPlucked = cellSchedules.some(
+        (cs) => cs.cellIndex >= 0 && gridCellStates[cs.cellIndex].status === "plucked"
+      );
+      const anyTraveling = cellSchedules.some(
+        (cs) => cs.cellIndex >= 0 && gridCellStates[cs.cellIndex].status === "traveling"
+      );
+      const anyHatching = cellSchedules.some(
+        (cs) => cs.cellIndex >= 0 && gridCellStates[cs.cellIndex].status === "hatching"
+      );
       if (anyInGrid && !anyPlucked && !anyTraveling && !anyHatching) return "brightening";
       if (anyInGrid) return "plucking";
       if (anyPlucked && !anyTraveling && !anyHatching) return "darkening";
@@ -21414,7 +21418,11 @@ function simulateCore(grid, seed, config, waveHitChances = /* @__PURE__ */ new M
     return {
       ...s,
       offset: { ...s.offset },
-      invaders: s.invaders.map((inv) => ({ ...inv, position: { ...inv.position }, cell: { ...inv.cell } }))
+      invaders: s.invaders.map((inv) => ({
+        ...inv,
+        position: { ...inv.position },
+        cell: { ...inv.cell }
+      }))
     };
   }
   function buildGameState(frame, frameEvents) {
@@ -21515,12 +21523,24 @@ function simulateCore(grid, seed, config, waveHitChances = /* @__PURE__ */ new M
             destroyedAtFrame: null
           }));
           totalInvaders += invaders.length;
-          formations.push(createFormation(invaders, wave.waveIndex, config.playArea, formationConfig));
+          formations.push(
+            createFormation(invaders, wave.waveIndex, config.playArea, formationConfig)
+          );
           const fid = `formation-${wave.waveIndex}`;
-          frameEvents.push({ frame, type: "wave_spawn", entityId: fid, position: { x: 0, y: 0 }, data: { waveIndex: wave.waveIndex, invaderCount: invaders.length } });
+          frameEvents.push({
+            frame,
+            type: "wave_spawn",
+            entityId: fid,
+            position: { x: 0, y: 0 },
+            data: { waveIndex: wave.waveIndex, invaderCount: invaders.length }
+          });
           addInflection(fid, "formation", { frame, position: { x: 0, y: 0 }, type: "spawn" });
           for (const inv of invaders) {
-            addInflection(inv.id, "invader", { frame, position: { ...inv.position }, type: "spawn" });
+            addInflection(inv.id, "invader", {
+              frame,
+              position: { ...inv.position },
+              type: "spawn"
+            });
           }
         } else {
           pendingWave = wave;
@@ -21534,19 +21554,24 @@ function simulateCore(grid, seed, config, waveHitChances = /* @__PURE__ */ new M
           }
           for (let i = availableIndices.length - 1; i > 0; i--) {
             const j = prng.range(0, i);
-            [availableIndices[i], availableIndices[j]] = [availableIndices[j], availableIndices[i]];
+            [availableIndices[i], availableIndices[j]] = [
+              availableIndices[j],
+              availableIndices[i]
+            ];
           }
           const selectedIndices = availableIndices.slice(0, waveSize);
           const maxFormationWidth = config.playArea.width - formationStride * 2;
           const maxCols = Math.max(1, Math.floor(maxFormationWidth / formationStride));
-          const cells = selectedIndices.map((ci, i) => {
-            const cell = grid.cells[ci];
-            const row = Math.floor(i / maxCols);
-            const col = i % maxCols;
-            const targetPos = invaderPosition(col, row, 0, maxCols);
-            gridCellStates[ci].targetPosition = { ...targetPos };
-            return { cellIndex: ci, targetPos };
-          });
+          const cells = selectedIndices.map(
+            (ci, i) => {
+              const cell = grid.cells[ci];
+              const row = Math.floor(i / maxCols);
+              const col = i % maxCols;
+              const targetPos = invaderPosition(col, row, 0, maxCols);
+              gridCellStates[ci].targetPosition = { ...targetPos };
+              return { cellIndex: ci, targetPos };
+            }
+          );
           const pluckSpread = wc.pluckDuration;
           const n = cells.length;
           cellSchedules = cells.map((c, i) => {
@@ -21557,8 +21582,18 @@ function simulateCore(grid, seed, config, waveHitChances = /* @__PURE__ */ new M
             return { ...c, pluckFrame, travelStartFrame, hatchStartFrame, transformFrame };
           });
           lifecycleEndFrame = Math.max(...cellSchedules.map((cs) => cs.transformFrame));
-          frameEvents.push({ frame, type: "wave_phase_change", entityId: "lifecycle", position: { x: 0, y: 0 }, data: { phase: "brightening" } });
-          addInflection("lifecycle", "cell", { frame, position: { x: 0, y: 0 }, type: "phase_change" });
+          frameEvents.push({
+            frame,
+            type: "wave_phase_change",
+            entityId: "lifecycle",
+            position: { x: 0, y: 0 },
+            data: { phase: "brightening" }
+          });
+          addInflection("lifecycle", "cell", {
+            frame,
+            position: { x: 0, y: 0 },
+            type: "phase_change"
+          });
         }
       }
     }
@@ -21573,16 +21608,35 @@ function simulateCore(grid, seed, config, waveHitChances = /* @__PURE__ */ new M
           state.status = "plucked";
           const cell = grid.cells[cs.cellIndex];
           const cellId = `cell-${cell.x}-${cell.y}`;
-          frameEvents.push({ frame, type: "cell_pluck", entityId: cellId, position: { x: cell.x, y: cell.y } });
-          addInflection(cellId, "cell", { frame, position: { x: cell.x, y: cell.y }, type: "pluck" });
+          frameEvents.push({
+            frame,
+            type: "cell_pluck",
+            entityId: cellId,
+            position: { x: cell.x, y: cell.y }
+          });
+          addInflection(cellId, "cell", {
+            frame,
+            position: { x: cell.x, y: cell.y },
+            type: "pluck"
+          });
         }
         if (frame === cs.travelStartFrame && state.status === "plucked") {
           state.status = "traveling";
           state.detachProgress = 0;
           const cell = grid.cells[cs.cellIndex];
           const cellId = `cell-${cell.x}-${cell.y}`;
-          frameEvents.push({ frame, type: "cell_travel_start", entityId: cellId, position: { x: cell.x, y: cell.y }, data: { targetX: cs.targetPos.x, targetY: cs.targetPos.y } });
-          addInflection(cellId, "cell", { frame, position: { x: cell.x, y: cell.y }, type: "travel_start" });
+          frameEvents.push({
+            frame,
+            type: "cell_travel_start",
+            entityId: cellId,
+            position: { x: cell.x, y: cell.y },
+            data: { targetX: cs.targetPos.x, targetY: cs.targetPos.y }
+          });
+          addInflection(cellId, "cell", {
+            frame,
+            position: { x: cell.x, y: cell.y },
+            type: "travel_start"
+          });
         }
         if (state.status === "traveling" && frame >= cs.travelStartFrame && frame < cs.hatchStartFrame) {
           const elapsed = frame - cs.travelStartFrame;
@@ -21593,7 +21647,12 @@ function simulateCore(grid, seed, config, waveHitChances = /* @__PURE__ */ new M
           state.detachProgress = 0;
           const cellId = `cell-${grid.cells[cs.cellIndex].x}-${grid.cells[cs.cellIndex].y}`;
           addInflection(cellId, "cell", { frame, position: cs.targetPos, type: "travel_end" });
-          frameEvents.push({ frame, type: "cell_hatch_start", entityId: cellId, position: cs.targetPos });
+          frameEvents.push({
+            frame,
+            type: "cell_hatch_start",
+            entityId: cellId,
+            position: cs.targetPos
+          });
           addInflection(cellId, "cell", { frame, position: cs.targetPos, type: "hatch_start" });
         }
         if (state.status === "hatching" && frame >= cs.hatchStartFrame && frame < cs.transformFrame) {
@@ -21608,7 +21667,12 @@ function simulateCore(grid, seed, config, waveHitChances = /* @__PURE__ */ new M
           if (cs.cellIndex >= 0) {
             gridCellStates[cs.cellIndex].status = "transformed";
             const cellId = `cell-${grid.cells[cs.cellIndex].x}-${grid.cells[cs.cellIndex].y}`;
-            frameEvents.push({ frame, type: "cell_hatch_complete", entityId: cellId, position: cs.targetPos });
+            frameEvents.push({
+              frame,
+              type: "cell_hatch_complete",
+              entityId: cellId,
+              position: cs.targetPos
+            });
             addInflection(cellId, "cell", { frame, position: cs.targetPos, type: "hatch_complete" });
           }
         }
@@ -21629,7 +21693,13 @@ function simulateCore(grid, seed, config, waveHitChances = /* @__PURE__ */ new M
         totalInvaders += invaders.length;
         formations.push(createFormation(invaders, wave.waveIndex, config.playArea, formationConfig));
         const fid = `formation-${wave.waveIndex}`;
-        frameEvents.push({ frame, type: "wave_spawn", entityId: fid, position: { x: 0, y: 0 }, data: { waveIndex: wave.waveIndex, invaderCount: invaders.length } });
+        frameEvents.push({
+          frame,
+          type: "wave_spawn",
+          entityId: fid,
+          position: { x: 0, y: 0 },
+          data: { waveIndex: wave.waveIndex, invaderCount: invaders.length }
+        });
         addInflection(fid, "formation", { frame, position: { x: 0, y: 0 }, type: "spawn" });
         for (const inv of invaders) {
           addInflection(inv.id, "invader", { frame, position: { ...inv.position }, type: "spawn" });
@@ -21646,7 +21716,11 @@ function simulateCore(grid, seed, config, waveHitChances = /* @__PURE__ */ new M
       const prevDir = fState.direction;
       const fEvents = formation.tick(frame);
       if (fState.direction !== prevDir) {
-        addInflection(`formation-${fState.waveIndex}`, "formation", { frame, position: { ...fState.offset }, type: "direction_change" });
+        addInflection(`formation-${fState.waveIndex}`, "formation", {
+          frame,
+          position: { ...fState.offset },
+          type: "direction_change"
+        });
       }
       frameEvents.push(...fEvents);
     }
@@ -21674,18 +21748,39 @@ function simulateCore(grid, seed, config, waveHitChances = /* @__PURE__ */ new M
             inv.destroyed = true;
             inv.destroyedAtFrame = frame;
             score += inv.cell.count;
-            frameEvents.push({ frame, type: "destroy", entityId: inv.id, position: { ...inv.position } });
-            addInflection(inv.id, "invader", { frame, position: { ...inv.position }, type: "destroy" });
+            frameEvents.push({
+              frame,
+              type: "destroy",
+              entityId: inv.id,
+              position: { ...inv.position }
+            });
+            addInflection(inv.id, "invader", {
+              frame,
+              position: { ...inv.position },
+              type: "destroy"
+            });
           }
         }
         fState.active = false;
-        frameEvents.push({ frame, type: "wave_clear", entityId: `formation-${fState.waveIndex}`, position: { x: 0, y: 0 }, data: { waveIndex: fState.waveIndex } });
+        frameEvents.push({
+          frame,
+          type: "wave_clear",
+          entityId: `formation-${fState.waveIndex}`,
+          position: { x: 0, y: 0 },
+          data: { waveIndex: fState.waveIndex }
+        });
       }
       if (endingPhase === "none") {
         endingPhase = "fadeout";
         endingPhaseStart = frame;
         endingPhaseFramesLeft = wc.endingFadeoutDuration;
-        allEvents.push({ frame, type: "game_end", entityId: "game", position: { x: 0, y: 0 }, data: { score, totalFrames: frame } });
+        allEvents.push({
+          frame,
+          type: "game_end",
+          entityId: "game",
+          position: { x: 0, y: 0 },
+          data: { score, totalFrames: frame }
+        });
       }
     }
     if (pendingWave) {
@@ -21735,7 +21830,12 @@ function simulateCore(grid, seed, config, waveHitChances = /* @__PURE__ */ new M
           lockedTargets.add(sol.targetId);
           laserTargetMap.set(laserId, sol.targetId);
         }
-        frameEvents.push({ frame, type: "fire_laser", entityId: laserId, position: { ...ship.position } });
+        frameEvents.push({
+          frame,
+          type: "fire_laser",
+          entityId: laserId,
+          position: { ...ship.position }
+        });
         addInflection(laserId, "laser", { frame, position: { ...ship.position }, type: "fire" });
         solution = null;
         const minCooldown = Math.ceil(config.framesPerSecond / config.fireRate);
@@ -21746,7 +21846,11 @@ function simulateCore(grid, seed, config, waveHitChances = /* @__PURE__ */ new M
           const step = Math.min(Math.abs(dx), config.shipSpeed * dt) * Math.sign(dx);
           ship.position.x += step;
           record(frame, { type: "move", x: ship.position.x });
-          addInflection("ship", "ship", { frame, position: { ...ship.position }, type: "move_start" });
+          addInflection("ship", "ship", {
+            frame,
+            position: { ...ship.position },
+            type: "move_start"
+          });
         }
       }
     }
@@ -21759,7 +21863,13 @@ function simulateCore(grid, seed, config, waveHitChances = /* @__PURE__ */ new M
         if (tid) {
           lockedTargets.delete(tid);
           laserTargetMap.delete(lid);
-          frameEvents.push({ frame, type: "locked_miss", entityId: lid, position: { x: 0, y: 0 }, data: { targetId: tid } });
+          frameEvents.push({
+            frame,
+            type: "locked_miss",
+            entityId: lid,
+            position: { x: 0, y: 0 },
+            data: { targetId: tid }
+          });
         }
       }
     }
@@ -21774,14 +21884,33 @@ function simulateCore(grid, seed, config, waveHitChances = /* @__PURE__ */ new M
       for (const hit of hitResult.hits) {
         const invader = worldInvaders.find((i) => i.id === hit.invaderId);
         const updated = hitResult.updatedInvaders.find((i) => i.id === hit.invaderId);
-        frameEvents.push({ frame, type: "hit", entityId: hit.invaderId, position: { ...invader.position }, data: { laserId: hit.laserId, hp: updated.hp } });
-        addInflection(hit.invaderId, "invader", { frame, position: { ...invader.position }, type: "hit" });
+        frameEvents.push({
+          frame,
+          type: "hit",
+          entityId: hit.invaderId,
+          position: { ...invader.position },
+          data: { laserId: hit.laserId, hp: updated.hp }
+        });
+        addInflection(hit.invaderId, "invader", {
+          frame,
+          position: { ...invader.position },
+          type: "hit"
+        });
         const orig = fState.invaders.find((i) => i.id === hit.invaderId);
         orig.hp = updated.hp;
         if (updated.destroyed) {
           formation.destroyInvader(hit.invaderId, frame);
-          frameEvents.push({ frame, type: "destroy", entityId: hit.invaderId, position: { ...invader.position } });
-          addInflection(hit.invaderId, "invader", { frame, position: { ...invader.position }, type: "destroy" });
+          frameEvents.push({
+            frame,
+            type: "destroy",
+            entityId: hit.invaderId,
+            position: { ...invader.position }
+          });
+          addInflection(hit.invaderId, "invader", {
+            frame,
+            position: { ...invader.position },
+            type: "destroy"
+          });
           lockedTargets.delete(hit.invaderId);
           for (const [lid, tid] of laserTargetMap) {
             if (tid === hit.invaderId) {
@@ -21801,12 +21930,23 @@ function simulateCore(grid, seed, config, waveHitChances = /* @__PURE__ */ new M
       const fState = formation.getState();
       if (fState.clearedAtFrame === frame) {
         simWM.markCleared(fState.waveIndex, frame);
-        frameEvents.push({ frame, type: "wave_clear", entityId: `formation-${fState.waveIndex}`, position: { x: 0, y: 0 }, data: { waveIndex: fState.waveIndex } });
-        addInflection(`formation-${fState.waveIndex}`, "formation", { frame, position: { ...fState.offset }, type: "wave_clear" });
+        frameEvents.push({
+          frame,
+          type: "wave_clear",
+          entityId: `formation-${fState.waveIndex}`,
+          position: { x: 0, y: 0 },
+          data: { waveIndex: fState.waveIndex }
+        });
+        addInflection(`formation-${fState.waveIndex}`, "formation", {
+          frame,
+          position: { ...fState.offset },
+          type: "wave_clear"
+        });
       }
     }
     allEvents.push(...frameEvents);
-    if (frame % ANCHOR_INTERVAL === 0 || frame === stopAtFrame - 1) anchorSnapshots.set(frame, buildGameState(frame, frameEvents));
+    if (frame % ANCHOR_INTERVAL === 0 || frame === stopAtFrame - 1)
+      anchorSnapshots.set(frame, buildGameState(frame, frameEvents));
     totalFrames = frame + 1;
     const allSpawned = formations.length === simWM.totalWaves;
     const noWaves = simWM.totalWaves === 0 && frame >= wc.startDelay;
@@ -21818,7 +21958,13 @@ function simulateCore(grid, seed, config, waveHitChances = /* @__PURE__ */ new M
       endingPhase = "fadeout";
       endingPhaseStart = frame;
       endingPhaseFramesLeft = wc.endingFadeoutDuration;
-      allEvents.push({ frame, type: "game_end", entityId: "game", position: { x: 0, y: 0 }, data: { score, totalFrames: frame } });
+      allEvents.push({
+        frame,
+        type: "game_end",
+        entityId: "game",
+        position: { x: 0, y: 0 },
+        data: { score, totalFrames: frame }
+      });
     }
     if (endingPhase !== "none") {
       endingPhaseFramesLeft--;
@@ -22251,7 +22397,9 @@ function overlayKeyframeStops(output, config) {
 // src/animation/keyframes.ts
 function oscillationKeyframes(name, points) {
   if (points.length === 0) return "";
-  const stops = points.map((p) => `  ${p.percent.toFixed(2)}% { transform: translate(${p.x.toFixed(1)}px, ${p.y.toFixed(1)}px); }`).join("\n");
+  const stops = points.map(
+    (p) => `  ${p.percent.toFixed(2)}% { transform: translate(${p.x.toFixed(1)}px, ${p.y.toFixed(1)}px); }`
+  ).join("\n");
   return `@keyframes ${name} {
 ${stops}
 }`;
@@ -22544,7 +22692,9 @@ function composeSvg(options) {
     const duration = parts[1] ?? "0s";
     const timing = parts[2] ?? "linear";
     const iteration = parts[3] ?? "infinite";
-    cssRules.push(`.${cls} { animation-name: ${name}; animation-duration: ${duration}; animation-timing-function: ${timing}; animation-iteration-count: ${iteration}; animation-fill-mode: both; }`);
+    cssRules.push(
+      `.${cls} { animation-name: ${name}; animation-duration: ${duration}; animation-timing-function: ${timing}; animation-iteration-count: ${iteration}; animation-fill-mode: both; }`
+    );
     return extraClasses ? `class="${extraClasses} ${cls}"` : `class="${cls}"`;
   }
   cssRules.push(sharedKeyframes());
@@ -22596,7 +22746,9 @@ function composeSvg(options) {
         `<rect x="${x}" y="${y}" width="${config.cellSize}" height="${config.cellSize}" fill="${color}" ${anim(`${gcKfName} ${dur}s linear infinite`, "gc")} />`
       );
     } else {
-      elements.push(`<rect class="gc" x="${x}" y="${y}" width="${config.cellSize}" height="${config.cellSize}" fill="${color}" />`);
+      elements.push(
+        `<rect class="gc" x="${x}" y="${y}" width="${config.cellSize}" height="${config.cellSize}" fill="${color}" />`
+      );
     }
   }
   const overlayStops = overlayKeyframeStops(output, config);
@@ -22793,16 +22945,23 @@ function composeSvg(options) {
     shipStops.push(`${gridFadeInStartPct.toFixed(2)}% { transform: ${initTransform}; opacity: 0; }`);
     shipStops.push(`${shipFadeInPct.toFixed(2)}% { transform: ${initTransform}; opacity: 1; }`);
     if (firstPct > shipFadeInPct + 0.02) {
-      shipStops.push(`${(firstPct - 0.01).toFixed(2)}% { transform: ${initTransform}; opacity: 1; }`);
+      shipStops.push(
+        `${(firstPct - 0.01).toFixed(2)}% { transform: ${initTransform}; opacity: 1; }`
+      );
     }
     for (const p of shipKfPoints) {
       const pct = p.time / dur * 100;
-      shipStops.push(`${pct.toFixed(2)}% { transform: translate(${p.screenX.toFixed(1)}px, ${p.screenY.toFixed(1)}px); opacity: 1; }`);
+      shipStops.push(
+        `${pct.toFixed(2)}% { transform: translate(${p.screenX.toFixed(1)}px, ${p.screenY.toFixed(1)}px); opacity: 1; }`
+      );
     }
     if (gameEndEvent) {
       const ewc = config.waveConfig;
       const fadeStartPct = frameToPercent(gameEndEvent.frame, output.totalFrames);
-      const fadeEndPct = frameToPercent(gameEndEvent.frame + ewc.endingFadeoutDuration, output.totalFrames);
+      const fadeEndPct = frameToPercent(
+        gameEndEvent.frame + ewc.endingFadeoutDuration,
+        output.totalFrames
+      );
       shipStops.push(`${fadeStartPct.toFixed(2)}% { opacity: 1; }`);
       shipStops.push(`${fadeEndPct.toFixed(2)}% { opacity: 0; transform: ${initTransform}; }`);
       shipStops.push(`100% { opacity: 0; transform: ${initTransform}; }`);
@@ -22845,7 +23004,9 @@ function composeSvg(options) {
   }
   const statusY = gameAreaH + STATUS_BAR_HEIGHT / 2 + 1;
   const finalScore = output.finalScore;
-  elements.push(`<rect x="0" y="${gameAreaH}" width="${screenW}" height="${STATUS_BAR_HEIGHT}" fill="${pal.bg}" />`);
+  elements.push(
+    `<rect x="0" y="${gameAreaH}" width="${screenW}" height="${STATUS_BAR_HEIGHT}" fill="${pal.bg}" />`
+  );
   const scoreChangeFrames = [];
   scoreChangeFrames.push({ frame: 0, score: 0 });
   for (const ev of output.events) {
@@ -23059,8 +23220,14 @@ async function run() {
     let scoreboard;
     if (!inputs.noScoreboard) {
       const contributionYears = response.user.contributionsCollection.contributionYears ?? [];
-      info(`Fetching contribution history for scoreboard (${contributionYears.length} years)...`);
-      const historyResponses = await fetchContributionHistory(inputs.githubToken, inputs.username, contributionYears);
+      info(
+        `Fetching contribution history for scoreboard (${contributionYears.length} years)...`
+      );
+      const historyResponses = await fetchContributionHistory(
+        inputs.githubToken,
+        inputs.username,
+        contributionYears
+      );
       const historyGrid = parseMultiYearResponses(historyResponses);
       info(`History: ${historyGrid.cells.length} days across ${historyResponses.length} years`);
       const lastDate = grid.cells.reduce((max, c) => c.date > max ? c.date : max, "");
@@ -23072,7 +23239,9 @@ async function run() {
     const output = simulate(grid, seed, config);
     const svgDark = composeSvg({ grid, seed, config, scoreboard, palette: PALETTE_DARK });
     const svgLight = composeSvg({ grid, seed, config, scoreboard, palette: PALETTE_LIGHT });
-    info(`Animation: ${output.totalFrames} frames (${(output.totalFrames / config.framesPerSecond).toFixed(1)}s)`);
+    info(
+      `Animation: ${output.totalFrames} frames (${(output.totalFrames / config.framesPerSecond).toFixed(1)}s)`
+    );
     const baseName = inputs.outputFile.replace(/\.svg$/, "");
     const darkFile = `${baseName}-dark.svg`;
     const lightFile = `${baseName}.svg`;
@@ -23108,7 +23277,11 @@ async function commitToOutputBranch(branch, files, username) {
   }
   for (const f of files) await exec("git", ["add", f]);
   try {
-    await exec("git", ["commit", "-m", `chore: update commit-invaders animation for ${username}`]);
+    await exec("git", [
+      "commit",
+      "-m",
+      `chore: update commit-invaders animation for ${username}`
+    ]);
   } catch {
     info("No changes to commit");
     return;

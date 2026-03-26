@@ -1,10 +1,6 @@
 import { describe, it, expect } from 'vitest'
 
-import {
-  frameToSeconds,
-  frameToPercent,
-  totalDuration,
-} from './timeline-mapper.js'
+import { frameToSeconds, frameToPercent, totalDuration } from './timeline-mapper.js'
 
 describe('timeline-mapper', () => {
   it('frameToSeconds converts correctly', () => {

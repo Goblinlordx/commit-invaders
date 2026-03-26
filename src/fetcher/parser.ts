@@ -1,14 +1,8 @@
 import type { ContributionCell, ContributionLevel, Grid } from '../types.js'
 
-import type {
-  GitHubContributionDay,
-  GitHubGraphQLResponse,
-} from './fixtures.js'
+import type { GitHubContributionDay, GitHubGraphQLResponse } from './fixtures.js'
 
-const LEVEL_MAP: Record<
-  GitHubContributionDay['contributionLevel'],
-  ContributionLevel
-> = {
+const LEVEL_MAP: Record<GitHubContributionDay['contributionLevel'], ContributionLevel> = {
   NONE: 0,
   FIRST_QUARTILE: 1,
   SECOND_QUARTILE: 2,
@@ -16,11 +10,8 @@ const LEVEL_MAP: Record<
   FOURTH_QUARTILE: 4,
 }
 
-export function parseContributionResponse(
-  response: GitHubGraphQLResponse,
-): Grid {
-  const { weeks } =
-    response.user.contributionsCollection.contributionCalendar
+export function parseContributionResponse(response: GitHubGraphQLResponse): Grid {
+  const { weeks } = response.user.contributionsCollection.contributionCalendar
 
   const cells: ContributionCell[] = []
 
@@ -49,7 +40,9 @@ export function parseContributionResponse(
  * Parse multiple yearly responses into a single combined grid.
  * Used for scoreboard historical data.
  */
-export function parseMultiYearResponses(responses: import('./fixtures.js').GitHubGraphQLResponse[]): import('../types.js').Grid {
+export function parseMultiYearResponses(
+  responses: import('./fixtures.js').GitHubGraphQLResponse[],
+): import('../types.js').Grid {
   const allCells: import('../types.js').Grid['cells'] = []
   const seenDates = new Set<string>()
 
@@ -82,16 +75,21 @@ export function parseMultiYearResponses(responses: import('./fixtures.js').GitHu
     cell.y = diffDays % 7
   }
 
-  const maxWeek = Math.max(...allCells.map(c => c.x)) + 1
+  const maxWeek = Math.max(...allCells.map((c) => c.x)) + 1
   return { width: maxWeek, height: 7, cells: allCells }
 }
 
 function dayLevelToContributionLevel(level: string): import('../types.js').ContributionLevel {
   switch (level) {
-    case 'FIRST_QUARTILE': return 1
-    case 'SECOND_QUARTILE': return 2
-    case 'THIRD_QUARTILE': return 3
-    case 'FOURTH_QUARTILE': return 4
-    default: return 0
+    case 'FIRST_QUARTILE':
+      return 1
+    case 'SECOND_QUARTILE':
+      return 2
+    case 'THIRD_QUARTILE':
+      return 3
+    case 'FOURTH_QUARTILE':
+      return 4
+    default:
+      return 0
   }
 }

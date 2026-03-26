@@ -105,10 +105,7 @@ export interface CellLifecycleData {
 /**
  * Extract cell lifecycle timing from inflection points.
  */
-export function cellLifecycleTimings(
-  output: SimOutput,
-  config: SimConfig,
-): CellLifecycleData[] {
+export function cellLifecycleTimings(output: SimOutput, config: SimConfig): CellLifecycleData[] {
   const fps = config.framesPerSecond
   const results: CellLifecycleData[] = []
   const stride = config.cellSize + config.cellGap
@@ -172,10 +169,7 @@ export interface ShipKeyframePoint {
   screenY: number
 }
 
-export function shipKeyframes(
-  output: SimOutput,
-  config: SimConfig,
-): ShipKeyframePoint[] {
+export function shipKeyframes(output: SimOutput, config: SimConfig): ShipKeyframePoint[] {
   const fps = config.framesPerSecond
   const RENDER_MARGIN = 10
   const timeline = output.getInflections('ship')
@@ -207,10 +201,7 @@ export interface LaserData {
   despawnDistance: number // actual distance traveled before despawn
 }
 
-export function laserTimings(
-  output: SimOutput,
-  config: SimConfig,
-): LaserData[] {
+export function laserTimings(output: SimOutput, config: SimConfig): LaserData[] {
   const fps = config.framesPerSecond
   const dt = 1 / fps
   const RENDER_MARGIN = 10
@@ -274,10 +265,7 @@ export interface OverlayStop {
   opacity: number
 }
 
-export function overlayKeyframeStops(
-  output: SimOutput,
-  config: SimConfig,
-): OverlayStop[] {
+export function overlayKeyframeStops(output: SimOutput, config: SimConfig): OverlayStop[] {
   const total = output.totalFrames
   const stops: OverlayStop[] = []
 
@@ -289,7 +277,12 @@ export function overlayKeyframeStops(
   // Add wave phase change events + intermediate samples within transition phases
   const phaseChangeFrames: number[] = []
   for (const ev of output.events) {
-    if (ev.type === 'wave_phase_change' || ev.type === 'wave_spawn' || ev.type === 'wave_clear' || ev.type === 'game_end') {
+    if (
+      ev.type === 'wave_phase_change' ||
+      ev.type === 'wave_spawn' ||
+      ev.type === 'wave_clear' ||
+      ev.type === 'game_end'
+    ) {
       samplePoints.add(ev.frame)
       if (ev.frame > 0) samplePoints.add(ev.frame - 1)
       if (ev.frame < total - 1) samplePoints.add(ev.frame + 1)
@@ -301,9 +294,10 @@ export function overlayKeyframeStops(
   for (const startFrame of phaseChangeFrames) {
     const state = output.peek(startFrame)
     if (state.wavePhase === 'brightening' || state.wavePhase === 'darkening') {
-      const phaseDur = state.wavePhase === 'brightening'
-        ? config.waveConfig.brightenDuration
-        : config.waveConfig.darkenDuration
+      const phaseDur =
+        state.wavePhase === 'brightening'
+          ? config.waveConfig.brightenDuration
+          : config.waveConfig.darkenDuration
       for (let s = 1; s <= 10; s++) {
         const f = startFrame + Math.floor((phaseDur * s) / 10)
         if (f < total) samplePoints.add(f)
@@ -335,8 +329,7 @@ export function overlayKeyframeStops(
         // Subsequent waves: overlay was already at 0.6, fade to 0
         alpha = 0.6 * (1 - progress)
       }
-    }
-    else if (phase === 'plucking') alpha = 0
+    } else if (phase === 'plucking') alpha = 0
     else if (phase === 'darkening') alpha = 0.6 * progress
     else if (phase === 'ending_blackout') alpha = 0
     else alpha = 0.6

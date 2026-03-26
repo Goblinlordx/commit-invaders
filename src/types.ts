@@ -135,13 +135,13 @@ export type WavePhase =
   | 'hatching'
   | 'active'
   | 'clearing'
-  | 'ending_fadeout'    // ship fades out, lasers fly away
-  | 'ending_score'      // "N COMMITS" fades in + holds
-  | 'ending_score_out'  // score text fades out
-  | 'ending_board_in'   // scoreboard fades in
-  | 'ending_hold'       // scoreboard holds
-  | 'ending_blackout'   // fade to black
-  | 'ending_reset'      // fade back to initial state
+  | 'ending_fadeout' // ship fades out, lasers fly away
+  | 'ending_score' // "N COMMITS" fades in + holds
+  | 'ending_score_out' // score text fades out
+  | 'ending_board_in' // scoreboard fades in
+  | 'ending_hold' // scoreboard holds
+  | 'ending_blackout' // fade to black
+  | 'ending_reset' // fade back to initial state
 
 // ── Game State (reconstructable snapshot) ──
 

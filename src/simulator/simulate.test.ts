@@ -1,20 +1,12 @@
 import { describe, it, expect } from 'vitest'
 
-import type {
-  Grid,
-  SimConfig,
-  ContributionCell,
-} from '../types.js'
+import type { Grid, SimConfig, ContributionCell } from '../types.js'
 
 import { simulate } from './simulate.js'
 
 // ── Factories ──
 
-function makeCell(
-  x: number,
-  y: number,
-  level: 1 | 2 | 3 | 4 = 1,
-): ContributionCell {
+function makeCell(x: number, y: number, level: 1 | 2 | 3 | 4 = 1): ContributionCell {
   return { x, y, level, date: '2026-01-01', count: level }
 }
 
@@ -26,7 +18,26 @@ function makeGrid(cells: ContributionCell[]): Grid {
 function makeConfig(overrides: Partial<SimConfig> = {}): SimConfig {
   return {
     framesPerSecond: 1, // dt=1 — keeps legacy test values (speed in px/frame)
-    waveConfig: { weeksPerWave: 4, startDelay: 0, introScoreboardFadeIn: 0, introScoreboardHold: 0, introScoreboardFadeOut: 0, spawnDelay: 10, brightenDuration: 0, pluckDuration: 0, darkenDuration: 0, travelDuration: 0, hatchDuration: 0, endingFadeoutDuration: 0, endingScoreDuration: 0, endingScoreOutDuration: 0, endingBoardInDuration: 0, endingHoldDuration: 0, endingBlackoutDuration: 0, endingResetDuration: 0 },
+    waveConfig: {
+      weeksPerWave: 4,
+      startDelay: 0,
+      introScoreboardFadeIn: 0,
+      introScoreboardHold: 0,
+      introScoreboardFadeOut: 0,
+      spawnDelay: 10,
+      brightenDuration: 0,
+      pluckDuration: 0,
+      darkenDuration: 0,
+      travelDuration: 0,
+      hatchDuration: 0,
+      endingFadeoutDuration: 0,
+      endingScoreDuration: 0,
+      endingScoreOutDuration: 0,
+      endingBoardInDuration: 0,
+      endingHoldDuration: 0,
+      endingBlackoutDuration: 0,
+      endingResetDuration: 0,
+    },
     playArea: { x: 0, y: 0, width: 300, height: 400 },
     gridArea: { x: 10, y: 10, width: 280, height: 100 },
     cellSize: 11,
@@ -70,10 +81,7 @@ const HIGH_HP_GRID = makeGrid([
 ])
 
 // Spread-out invaders (harder to hit, tests miss recovery)
-const SPREAD_GRID = makeGrid([
-  makeCell(0, 0),
-  makeCell(0, 6),
-])
+const SPREAD_GRID = makeGrid([makeCell(0, 0), makeCell(0, 6)])
 
 describe('simulate', () => {
   describe('output structure', () => {
@@ -161,9 +169,7 @@ describe('simulate', () => {
       // Scores should match (both complete the game) but timelines differ
       expect(a.finalScore).toBe(b.finalScore)
       // At least totalFrames or event count should differ
-      const differs =
-        a.totalFrames !== b.totalFrames ||
-        a.events.length !== b.events.length
+      const differs = a.totalFrames !== b.totalFrames || a.events.length !== b.events.length
       expect(differs).toBe(true)
     })
   })
@@ -180,9 +186,7 @@ describe('simulate', () => {
       expect(formationTimeline!.inflections.length).toBeGreaterThan(0)
 
       // Should have spawn inflection
-      const spawn = formationTimeline!.inflections.find(
-        (p) => p.type === 'spawn',
-      )
+      const spawn = formationTimeline!.inflections.find((p) => p.type === 'spawn')
       expect(spawn).toBeDefined()
     })
 
@@ -200,9 +204,7 @@ describe('simulate', () => {
       const allTimelines = output.getAllInflections()
 
       // Find an invader timeline
-      const invTimelines = [...allTimelines.values()].filter(
-        (t) => t.entityType === 'invader',
-      )
+      const invTimelines = [...allTimelines.values()].filter((t) => t.entityType === 'invader')
       expect(invTimelines.length).toBeGreaterThan(0)
 
       // Each invader should have spawn and destroy
@@ -232,7 +234,7 @@ describe('simulate', () => {
       const output = simulate(grid, 'zero-seed', makeConfig())
 
       expect(output.finalScore).toBe(0)
-      const gameEnd = output.events.find(e => e.type === 'game_end')
+      const gameEnd = output.events.find((e) => e.type === 'game_end')
       expect(gameEnd).toBeDefined()
       expect(gameEnd!.data!.score).toBe(0)
     })

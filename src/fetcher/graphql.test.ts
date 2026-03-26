@@ -58,9 +58,7 @@ describe('fetchContributions', () => {
       })
       mockGraphql.mockRejectedValueOnce(error)
 
-      await expect(
-        fetchContributions('bad_token', 'testuser'),
-      ).rejects.toThrow(FetchError)
+      await expect(fetchContributions('bad_token', 'testuser')).rejects.toThrow(FetchError)
 
       try {
         await fetchContributions('bad_token', 'testuser')
@@ -78,9 +76,7 @@ describe('fetchContributions', () => {
       })
       mockGraphql.mockRejectedValueOnce(error)
 
-      await expect(
-        fetchContributions('ghp_token', 'nonexistent-user'),
-      ).rejects.toThrow(FetchError)
+      await expect(fetchContributions('ghp_token', 'nonexistent-user')).rejects.toThrow(FetchError)
 
       try {
         await fetchContributions('ghp_token', 'nonexistent-user')
@@ -98,9 +94,7 @@ describe('fetchContributions', () => {
       })
       mockGraphql.mockRejectedValueOnce(error)
 
-      await expect(
-        fetchContributions('ghp_token', 'testuser'),
-      ).rejects.toThrow(FetchError)
+      await expect(fetchContributions('ghp_token', 'testuser')).rejects.toThrow(FetchError)
 
       try {
         await fetchContributions('ghp_token', 'testuser')
@@ -114,9 +108,7 @@ describe('fetchContributions', () => {
       const mockGraphql = await getMockedGraphql()
       mockGraphql.mockRejectedValueOnce(new Error('network failure'))
 
-      await expect(
-        fetchContributions('ghp_token', 'testuser'),
-      ).rejects.toThrow(FetchError)
+      await expect(fetchContributions('ghp_token', 'testuser')).rejects.toThrow(FetchError)
 
       try {
         await fetchContributions('ghp_token', 'testuser')

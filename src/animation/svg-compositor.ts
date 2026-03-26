@@ -20,15 +20,8 @@ import {
   laserTimings,
   overlayKeyframeStops,
 } from './timeline-mapper.js'
-import {
-  oscillationKeyframes,
-  opacityKeyframes,
-  sharedKeyframes,
-} from './keyframes.js'
-import {
-  PALETTE_DARK,
-  type ColorPalette,
-} from './entity-templates.js'
+import { oscillationKeyframes, opacityKeyframes, sharedKeyframes } from './keyframes.js'
+import { PALETTE_DARK, type ColorPalette } from './entity-templates.js'
 
 const RENDER_MARGIN = 10
 
@@ -137,7 +130,10 @@ export function composeSvg(options: CompositeSvgOptions): string {
   const gridOffY = RENDER_MARGIN + (config.playArea.width - config.gridArea.width) / 2
 
   // Intro scoreboard total duration (used by ship/status bar to stay hidden during intro)
-  const introTotal = config.waveConfig.introScoreboardFadeIn + config.waveConfig.introScoreboardHold + config.waveConfig.introScoreboardFadeOut
+  const introTotal =
+    config.waveConfig.introScoreboardFadeIn +
+    config.waveConfig.introScoreboardHold +
+    config.waveConfig.introScoreboardFadeOut
 
   const elements: string[] = []
   const cssRules: string[] = []
@@ -156,7 +152,9 @@ export function composeSvg(options: CompositeSvgOptions): string {
     const duration = parts[1] ?? '0s'
     const timing = parts[2] ?? 'linear'
     const iteration = parts[3] ?? 'infinite'
-    cssRules.push(`.${cls} { animation-name: ${name}; animation-duration: ${duration}; animation-timing-function: ${timing}; animation-iteration-count: ${iteration}; animation-fill-mode: both; }`)
+    cssRules.push(
+      `.${cls} { animation-name: ${name}; animation-duration: ${duration}; animation-timing-function: ${timing}; animation-iteration-count: ${iteration}; animation-fill-mode: both; }`,
+    )
     return extraClasses ? `class="${extraClasses} ${cls}"` : `class="${cls}"`
   }
 
@@ -178,9 +176,14 @@ export function composeSvg(options: CompositeSvgOptions): string {
   let resetRestorePct = 100 // default: end of animation
   if (gameEndEvent) {
     const wc = config.waveConfig
-    const blackoutEndFrame = gameEndEvent.frame + wc.endingFadeoutDuration +
-      wc.endingScoreDuration + wc.endingScoreOutDuration +
-      wc.endingBoardInDuration + wc.endingHoldDuration + wc.endingBlackoutDuration
+    const blackoutEndFrame =
+      gameEndEvent.frame +
+      wc.endingFadeoutDuration +
+      wc.endingScoreDuration +
+      wc.endingScoreOutDuration +
+      wc.endingBoardInDuration +
+      wc.endingHoldDuration +
+      wc.endingBlackoutDuration
     // Cells restore midway through reset phase
     const restoreFrame = blackoutEndFrame + Math.floor(wc.endingResetDuration * 0.5)
     resetRestorePct = frameToPercent(restoreFrame, output.totalFrames)
@@ -229,10 +232,12 @@ export function composeSvg(options: CompositeSvgOptions): string {
 }`)
       elements.push(
         `<rect x="${x}" y="${y}" width="${config.cellSize}" height="${config.cellSize}" fill="${color}" ` +
-        `${anim(`${gcKfName} ${dur}s linear infinite`, 'gc')} />`
+          `${anim(`${gcKfName} ${dur}s linear infinite`, 'gc')} />`,
       )
     } else {
-      elements.push(`<rect class="gc" x="${x}" y="${y}" width="${config.cellSize}" height="${config.cellSize}" fill="${color}" />`)
+      elements.push(
+        `<rect class="gc" x="${x}" y="${y}" width="${config.cellSize}" height="${config.cellSize}" fill="${color}" />`,
+      )
     }
   }
 
@@ -242,7 +247,7 @@ export function composeSvg(options: CompositeSvgOptions): string {
   cssRules.push(opacityKeyframes(overlayKfName, overlayStops))
   elements.push(
     `<rect x="0" y="0" width="${screenW}" height="${screenH}" fill="${BG_COLOR}" ` +
-    `${anim(`${overlayKfName} ${dur}s linear infinite`, 'overlay')} />`
+      `${anim(`${overlayKfName} ${dur}s linear infinite`, 'overlay')} />`,
   )
 
   // ── Lifecycle cells ──
@@ -301,7 +306,7 @@ export function composeSvg(options: CompositeSvgOptions): string {
       cssRules.push(`@keyframes ${pluckKfName} {\n  ${pluckStops.join('\n  ')}\n}`)
       elements.push(
         `<rect x="${-invHalf}" y="${-invHalf}" width="${config.invaderSize}" height="${config.invaderSize}" fill="${PLUCK_COLOR}" opacity="0" ` +
-        `${anim(`${pluckKfName} ${dur}s linear infinite`)} />`
+          `${anim(`${pluckKfName} ${dur}s linear infinite`)} />`,
       )
 
       // Invader sprite (fades in at hatch, visible until despawn)
@@ -326,12 +331,12 @@ export function composeSvg(options: CompositeSvgOptions): string {
       cssRules.push(`@keyframes ${hatchKfName} {\n  ${hatchStops.join('\n  ')}\n}`)
       elements.push(
         `<use href="#${spriteId}" x="${-invHalf}" y="${-invHalf}" width="${config.invaderSize}" height="${config.invaderSize}" opacity="0" ` +
-        `${anim(`${hatchKfName} ${dur}s linear infinite`)} />`
+          `${anim(`${hatchKfName} ${dur}s linear infinite`)} />`,
       )
     } else {
       elements.push(
         `<rect x="${-invHalf}" y="${-invHalf}" width="${config.invaderSize}" height="${config.invaderSize}" fill="${PLUCK_COLOR}" opacity="0" ` +
-        `${anim(`${cellKfName} ${dur}s linear infinite`, 'lc')} />`
+          `${anim(`${cellKfName} ${dur}s linear infinite`, 'lc')} />`,
       )
     }
   }
@@ -377,7 +382,7 @@ export function composeSvg(options: CompositeSvgOptions): string {
         // Invader sprite + explosion on destroy
         invaderElements.push(
           `<use href="#${spriteId}" x="${sx - half}" y="${sy - half}" width="${config.invaderSize}" height="${config.invaderSize}" ` +
-          `opacity="0" ${anim(`${invKfName} ${dur}s linear infinite`)} />`
+            `opacity="0" ${anim(`${invKfName} ${dur}s linear infinite`)} />`,
         )
         // Collect explosion data for pooling (placed outside formation group)
         if (destroyIp) {
@@ -402,14 +407,14 @@ export function composeSvg(options: CompositeSvgOptions): string {
       } else {
         invaderElements.push(
           `<rect x="${sx - half}" y="${sy - half}" width="${config.invaderSize}" height="${config.invaderSize}" ` +
-          `fill="${INVADER_COLOR}" opacity="0" ${anim(`${invKfName} ${dur}s linear infinite`)} />`
+            `fill="${INVADER_COLOR}" opacity="0" ${anim(`${invKfName} ${dur}s linear infinite`)} />`,
         )
       }
     }
 
     // Formation group with oscillation
     elements.push(
-      `<g ${anim(`${fmKfName} ${dur}s linear infinite`)}>${invaderElements.join('')}</g>`
+      `<g ${anim(`${fmKfName} ${dur}s linear infinite`)}>${invaderElements.join('')}</g>`,
     )
   }
 
@@ -436,7 +441,7 @@ export function composeSvg(options: CompositeSvgOptions): string {
 }`)
       elements.push(
         `<use href="#sprite-explosion" x="${-half}" y="${-half}" width="${s}" height="${s}" ` +
-        `opacity="0" ${anim(`${kfName} ${dur}s linear infinite`)} />`
+          `opacity="0" ${anim(`${kfName} ${dur}s linear infinite`)} />`,
       )
     }
   }
@@ -457,12 +462,12 @@ export function composeSvg(options: CompositeSvgOptions): string {
     if (styled) {
       elements.push(
         `<use href="#sprite-laser" x="${ld.screenX - half}" y="${ld.screenY - half}" width="${config.laserWidth}" height="${config.laserWidth}" ` +
-        `opacity="0" ${anim(`${laserKfName} ${dur}s linear infinite`)} />`
+          `opacity="0" ${anim(`${laserKfName} ${dur}s linear infinite`)} />`,
       )
     } else {
       elements.push(
         `<rect x="${ld.screenX - half}" y="${ld.screenY - half}" width="${config.laserWidth}" height="${config.laserWidth}" ` +
-        `fill="${LASER_COLOR}" opacity="0" ${anim(`${laserKfName} ${dur}s linear infinite`)} />`
+          `fill="${LASER_COLOR}" opacity="0" ${anim(`${laserKfName} ${dur}s linear infinite`)} />`,
       )
     }
   }
@@ -488,20 +493,27 @@ export function composeSvg(options: CompositeSvgOptions): string {
     shipStops.push(`${gridFadeInStartPct.toFixed(2)}% { transform: ${initTransform}; opacity: 0; }`)
     shipStops.push(`${shipFadeInPct.toFixed(2)}% { transform: ${initTransform}; opacity: 1; }`)
     if (firstPct > shipFadeInPct + 0.02) {
-      shipStops.push(`${(firstPct - 0.01).toFixed(2)}% { transform: ${initTransform}; opacity: 1; }`)
+      shipStops.push(
+        `${(firstPct - 0.01).toFixed(2)}% { transform: ${initTransform}; opacity: 1; }`,
+      )
     }
 
     // Movement stops
     for (const p of shipKfPoints) {
       const pct = (p.time / dur) * 100
-      shipStops.push(`${pct.toFixed(2)}% { transform: translate(${p.screenX.toFixed(1)}px, ${p.screenY.toFixed(1)}px); opacity: 1; }`)
+      shipStops.push(
+        `${pct.toFixed(2)}% { transform: translate(${p.screenX.toFixed(1)}px, ${p.screenY.toFixed(1)}px); opacity: 1; }`,
+      )
     }
 
     // Ending fade: ship fades out during ending_fadeout, stays hidden through reset
     if (gameEndEvent) {
       const ewc = config.waveConfig
       const fadeStartPct = frameToPercent(gameEndEvent.frame, output.totalFrames)
-      const fadeEndPct = frameToPercent(gameEndEvent.frame + ewc.endingFadeoutDuration, output.totalFrames)
+      const fadeEndPct = frameToPercent(
+        gameEndEvent.frame + ewc.endingFadeoutDuration,
+        output.totalFrames,
+      )
       shipStops.push(`${fadeStartPct.toFixed(2)}% { opacity: 1; }`)
       shipStops.push(`${fadeEndPct.toFixed(2)}% { opacity: 0; transform: ${initTransform}; }`)
       shipStops.push(`100% { opacity: 0; transform: ${initTransform}; }`)
@@ -513,12 +525,12 @@ export function composeSvg(options: CompositeSvgOptions): string {
     if (styled) {
       elements.push(
         `<use href="#sprite-ship" x="${-half}" y="${-half}" width="${config.invaderSize}" height="${config.invaderSize}" ` +
-        `${anim(`ship-move ${dur}s linear infinite`)} />`
+          `${anim(`ship-move ${dur}s linear infinite`)} />`,
       )
     } else {
       elements.push(
         `<rect x="${-half}" y="${-half}" width="${config.invaderSize}" height="${config.invaderSize}" ` +
-        `fill="${SHIP_COLOR}" ${anim(`ship-move ${dur}s linear infinite`, 'ship')} />`
+          `fill="${SHIP_COLOR}" ${anim(`ship-move ${dur}s linear infinite`, 'ship')} />`,
       )
     }
   }
@@ -548,8 +560,8 @@ export function composeSvg(options: CompositeSvgOptions): string {
     cssRules.push(visibilityKeyframes(waveLabelKf, [[startPct, endPct]]))
     elements.push(
       `<text x="${screenW / 2}" y="${gameAreaH / 2}" text-anchor="middle" dominant-baseline="middle" ` +
-      `font-family="monospace" font-weight="bold" font-size="16" fill="${pal.text}" opacity="0" ` +
-      `${anim(`${waveLabelKf} ${dur}s linear infinite`)}>WAVE ${wi + 1}/${totalWaves}</text>`
+        `font-family="monospace" font-weight="bold" font-size="16" fill="${pal.text}" opacity="0" ` +
+        `${anim(`${waveLabelKf} ${dur}s linear infinite`)}>WAVE ${wi + 1}/${totalWaves}</text>`,
     )
   }
 
@@ -558,7 +570,9 @@ export function composeSvg(options: CompositeSvgOptions): string {
   const finalScore = output.finalScore
 
   // Status bar background
-  elements.push(`<rect x="0" y="${gameAreaH}" width="${screenW}" height="${STATUS_BAR_HEIGHT}" fill="${pal.bg}" />`)
+  elements.push(
+    `<rect x="0" y="${gameAreaH}" width="${screenW}" height="${STATUS_BAR_HEIGHT}" fill="${pal.bg}" />`,
+  )
 
   // Wave label (left): "READY" → "WAVE N/M" at each wave spawn → "READY" at reset
   // Score label (right): increments at each hit event
@@ -606,7 +620,9 @@ export function composeSvg(options: CompositeSvgOptions): string {
 
   // Ending fadeout frame for status bar
   const endingFadeoutStart = gameEndEvent ? gameEndEvent.frame : output.totalFrames
-  const endingFadeoutEnd = gameEndEvent ? gameEndEvent.frame + config.waveConfig.endingFadeoutDuration : output.totalFrames
+  const endingFadeoutEnd = gameEndEvent
+    ? gameEndEvent.frame + config.waveConfig.endingFadeoutDuration
+    : output.totalFrames
 
   const fadeoutStartPct = frameToPercent(endingFadeoutStart, output.totalFrames)
   const fadeoutEndPct = frameToPercent(endingFadeoutEnd, output.totalFrames)
@@ -635,8 +651,8 @@ export function composeSvg(options: CompositeSvgOptions): string {
     }
     elements.push(
       `<text x="${screenW - 8}" y="${statusY}" text-anchor="end" dominant-baseline="middle" ` +
-      `font-family="monospace" font-weight="bold" font-size="12" fill="${pal.scoreText}" opacity="0" ` +
-      `${anim(`${kfName} ${dur}s linear infinite`)}>${fmtScore(layer.score)} COMMITS</text>`
+        `font-family="monospace" font-weight="bold" font-size="12" fill="${pal.scoreText}" opacity="0" ` +
+        `${anim(`${kfName} ${dur}s linear infinite`)}>${fmtScore(layer.score)} COMMITS</text>`,
     )
   }
 
@@ -652,8 +668,8 @@ export function composeSvg(options: CompositeSvgOptions): string {
   cssRules.push(visibilityKeyframes('status-ready-start', [[readyStartPct, readyEndPct]]))
   elements.push(
     `<text x="8" y="${statusY}" dominant-baseline="middle" ` +
-    `font-family="monospace" font-size="11" fill="${pal.textMuted}" ` +
-    `${anim(`status-ready-start ${dur}s linear infinite`)}>READY</text>`
+      `font-family="monospace" font-size="11" fill="${pal.textMuted}" ` +
+      `${anim(`status-ready-start ${dur}s linear infinite`)}>READY</text>`,
   )
 
   // "WAVE N/M" for each wave — visible from wave spawn to wave clear
@@ -662,7 +678,11 @@ export function composeSvg(options: CompositeSvgOptions): string {
     const waveClear = output.events.find(
       (e) => e.type === 'wave_clear' && (e.data as { waveIndex: number }).waveIndex === wi,
     )
-    const clearFrame = waveClear ? waveClear.frame : (gameEndEvent ? gameEndEvent.frame : output.totalFrames)
+    const clearFrame = waveClear
+      ? waveClear.frame
+      : gameEndEvent
+        ? gameEndEvent.frame
+        : output.totalFrames
     const spawnPct = frameToPercent(spawnFrame, output.totalFrames)
     const waveKf = `status-wave-${wi}`
 
@@ -682,8 +702,8 @@ export function composeSvg(options: CompositeSvgOptions): string {
     }
     elements.push(
       `<text x="8" y="${statusY}" dominant-baseline="middle" ` +
-      `font-family="monospace" font-size="11" fill="${pal.textMuted}" opacity="0" ` +
-      `${anim(`${waveKf} ${dur}s linear infinite`)}>WAVE ${wi + 1}/${totalWaves}</text>`
+        `font-family="monospace" font-size="11" fill="${pal.textMuted}" opacity="0" ` +
+        `${anim(`${waveKf} ${dur}s linear infinite`)}>WAVE ${wi + 1}/${totalWaves}</text>`,
     )
   }
 
@@ -734,16 +754,16 @@ export function composeSvg(options: CompositeSvgOptions): string {
 }`)
     elements.push(
       `<rect x="0" y="0" width="${screenW}" height="${screenH}" fill="${pal.bg}" ` +
-      `${anim(`blackout ${dur}s linear infinite`)} />`
+        `${anim(`blackout ${dur}s linear infinite`)} />`,
     )
 
     // ── Ending score text (above blackout) ──
     const scoreText = `${fmtScore(finalScore)} COMMITS`
     elements.push(
       `<g ${anim(`wiggle-score 0.6s ease-in-out infinite`)}>` +
-      `<text x="${screenW / 2}" y="${gameAreaH / 2}" text-anchor="middle" dominant-baseline="middle" ` +
-      `font-family="monospace" font-weight="bold" font-size="14" fill="${pal.scoreText}" opacity="0" ` +
-      `${anim(`ending-score-text ${dur}s linear infinite`)}>${scoreText}</text></g>`
+        `<text x="${screenW / 2}" y="${gameAreaH / 2}" text-anchor="middle" dominant-baseline="middle" ` +
+        `font-family="monospace" font-weight="bold" font-size="14" fill="${pal.scoreText}" opacity="0" ` +
+        `${anim(`ending-score-text ${dur}s linear infinite`)}>${scoreText}</text></g>`,
     )
   }
 
@@ -777,14 +797,14 @@ export function composeSvg(options: CompositeSvgOptions): string {
     let curY = boardPad + rowPitch * 0.5
     boardElements.push(
       `<text x="${screenW / 2}" y="${curY.toFixed(1)}" text-anchor="middle" dominant-baseline="middle" ` +
-      `font-family="monospace" font-weight="bold" font-size="${titleFontSize}" fill="${pal.scoreText}">HIGH SCORES</text>`
+        `font-family="monospace" font-weight="bold" font-size="${titleFontSize}" fill="${pal.scoreText}">HIGH SCORES</text>`,
     )
     curY += rowPitch
 
     if (hasBanner) {
       boardElements.push(
         `<text x="${screenW / 2}" y="${curY.toFixed(1)}" text-anchor="middle" dominant-baseline="middle" ` +
-        `font-family="monospace" font-weight="bold" font-size="${bannerFontSize}" fill="${pal.laser}">★ NEW HIGH SCORE! ★</text>`
+          `font-family="monospace" font-weight="bold" font-size="${bannerFontSize}" fill="${pal.laser}">★ NEW HIGH SCORE! ★</text>`,
       )
       curY += rowPitch
     }
@@ -808,13 +828,13 @@ export function composeSvg(options: CompositeSvgOptions): string {
 
       boardElements.push(
         `<text x="${(colX - rankOff).toFixed(1)}" y="${y.toFixed(1)}" font-family="monospace" font-weight="${fw}" font-size="${entryFontSize}" fill="${rankColor}">${String(entry.rank).padStart(2, ' ')}.</text>` +
-        `<text x="${(colX - dateOff).toFixed(1)}" y="${y.toFixed(1)}" font-family="monospace" font-weight="${fw}" font-size="${entryFontSize}" fill="${dateColor}">${entry.date}</text>` +
-        `<text x="${(colX + scoreOff).toFixed(1)}" y="${y.toFixed(1)}" text-anchor="end" font-family="monospace" font-weight="${fw}" font-size="${entryFontSize}" fill="${scoreColor}">${fmtScore(entry.score)}</text>`
+          `<text x="${(colX - dateOff).toFixed(1)}" y="${y.toFixed(1)}" font-family="monospace" font-weight="${fw}" font-size="${entryFontSize}" fill="${dateColor}">${entry.date}</text>` +
+          `<text x="${(colX + scoreOff).toFixed(1)}" y="${y.toFixed(1)}" text-anchor="end" font-family="monospace" font-weight="${fw}" font-size="${entryFontSize}" fill="${scoreColor}">${fmtScore(entry.score)}</text>`,
       )
     }
 
     elements.push(
-      `<g opacity="0" ${anim(`intro-board ${dur}s linear infinite`)}>${boardElements.join('')}</g>`
+      `<g opacity="0" ${anim(`intro-board ${dur}s linear infinite`)}>${boardElements.join('')}</g>`,
     )
   }
 

@@ -20,33 +20,48 @@ const FC = { baseSpeed: 1, maxSpeed: 4, rowDrop: 20, dt: 1 }
 
 function makeInvader(id: string, x: number, y: number, hp = 1): InvaderState {
   return {
-    id, cell: { x: 0, y: 0, level: 1, date: '2025-01-01', count: 1 },
-    hp, maxHp: hp, position: { x, y }, destroyed: false, destroyedAtFrame: null,
+    id,
+    cell: { x: 0, y: 0, level: 1, date: '2025-01-01', count: 1 },
+    hp,
+    maxHp: hp,
+    position: { x, y },
+    destroyed: false,
+    destroyedAtFrame: null,
   }
 }
 
 /** Same prediction as simulate.ts */
 function predictWorldPos(
-  invBaseX: number, invBaseY: number,
+  invBaseX: number,
+  invBaseY: number,
   formation: ReturnType<typeof createFormation>,
   ticksAhead: number,
 ): { x: number; y: number } {
   const s = formation.getState()
   const alive = s.invaders.filter((i) => !i.destroyed)
-  let offX = s.offset.x, offY = s.offset.y, dir = s.direction
+  let offX = s.offset.x,
+    offY = s.offset.y,
+    dir = s.direction
   const spd = s.speed * FC.dt
 
   for (let t = 0; t < ticksAhead; t++) {
     const dx = dir === 'right' ? spd : -spd
     let wouldExceed = false
     for (const a of alive) {
-      if (a.position.x + offX + dx < PLAY_AREA.x ||
-          a.position.x + offX + dx >= PLAY_AREA.x + PLAY_AREA.width) {
-        wouldExceed = true; break
+      if (
+        a.position.x + offX + dx < PLAY_AREA.x ||
+        a.position.x + offX + dx >= PLAY_AREA.x + PLAY_AREA.width
+      ) {
+        wouldExceed = true
+        break
       }
     }
-    if (wouldExceed) { dir = dir === 'right' ? 'left' : 'right'; offY += FC.rowDrop }
-    else { offX += dx }
+    if (wouldExceed) {
+      dir = dir === 'right' ? 'left' : 'right'
+      offY += FC.rowDrop
+    } else {
+      offX += dx
+    }
   }
 
   return { x: invBaseX + offX, y: invBaseY + offY }
@@ -54,7 +69,8 @@ function predictWorldPos(
 
 /** Same solver as simulate.ts solveHit */
 function solveHit(
-  invBaseX: number, invBaseY: number,
+  invBaseX: number,
+  invBaseY: number,
   formation: ReturnType<typeof createFormation>,
   shipX: number,
 ): { fireFrame: number; fireX: number } | null {
@@ -67,8 +83,7 @@ function solveHit(
       if (laserY < 0) break
 
       const yOverlap =
-        laserY - 1 < predicted.y + INVADER_SIZE / 2 &&
-        laserY + 1 > predicted.y - INVADER_SIZE / 2
+        laserY - 1 < predicted.y + INVADER_SIZE / 2 && laserY + 1 > predicted.y - INVADER_SIZE / 2
 
       if (!yOverlap) continue
 
@@ -94,7 +109,9 @@ function verifyHit(
 ): { solved: boolean; hit: boolean; fireX: number; details: string } {
   const formation = createFormation(
     invaders.map((i) => ({ ...i, position: { ...i.position } })),
-    0, PLAY_AREA, FC,
+    0,
+    PLAY_AREA,
+    FC,
   )
   for (let f = 0; f < startFrame; f++) formation.tick(f)
 
@@ -107,7 +124,9 @@ function verifyHit(
   // We need a fresh formation from the same state to simulate forward.
   const simFormation = createFormation(
     invaders.map((i) => ({ ...i, position: { ...i.position } })),
-    0, PLAY_AREA, FC,
+    0,
+    PLAY_AREA,
+    FC,
   )
   for (let f = 0; f < startFrame; f++) simFormation.tick(f)
 
@@ -219,7 +238,9 @@ describe('prediction accuracy', () => {
       if (!r.solved) continue
       solved++
       if (!r.hit) {
-        failures.push(`seed=pred-${i} x=${x} y=${y} frame=${startFrame} fireX=${r.fireX.toFixed(1)}: ${r.details}`)
+        failures.push(
+          `seed=pred-${i} x=${x} y=${y} frame=${startFrame} fireX=${r.fireX.toFixed(1)}: ${r.details}`,
+        )
       }
     }
 

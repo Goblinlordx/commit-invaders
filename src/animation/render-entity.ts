@@ -32,11 +32,7 @@ export type EntityType =
   | 'lifecycle'
   | 'formation'
 
-function simToScreen(
-  simX: number,
-  simY: number,
-  config: SimConfig,
-): { sx: number; sy: number } {
+function simToScreen(simX: number, simY: number, config: SimConfig): { sx: number; sy: number } {
   return {
     sx: RENDER_MARGIN + config.playArea.height - simY,
     sy: RENDER_MARGIN + simX,
@@ -62,10 +58,12 @@ export function renderEntity(
   switch (entityType) {
     case 'grid': {
       for (const gc of state.gridCells) {
-        if (gc.status === 'plucked' || gc.status === 'traveling' || gc.status === 'hatching') continue
-        const color = (gc.status === 'transformed' || gc.status === 'destroyed')
-          ? GRID_COLORS[0]!
-          : (GRID_COLORS[gc.cell.level] ?? GRID_COLORS[0]!)
+        if (gc.status === 'plucked' || gc.status === 'traveling' || gc.status === 'hatching')
+          continue
+        const color =
+          gc.status === 'transformed' || gc.status === 'destroyed'
+            ? GRID_COLORS[0]!
+            : (GRID_COLORS[gc.cell.level] ?? GRID_COLORS[0]!)
         ctx.fillStyle = color
         ctx.fillRect(
           gridScreenOffsetX + gc.cell.x * stride,
@@ -109,7 +107,12 @@ export function renderEntity(
           ctx.fillRect(cx - half, cy - half, size, size)
         } else if (status === 'hatching') {
           ctx.fillStyle = INVADER_COLOR
-          ctx.fillRect(targetCenterX - invHalf, targetCenterY - invHalf, config.invaderSize, config.invaderSize)
+          ctx.fillRect(
+            targetCenterX - invHalf,
+            targetCenterY - invHalf,
+            config.invaderSize,
+            config.invaderSize,
+          )
         }
       }
       break
@@ -156,7 +159,8 @@ export function renderEntity(
       let alpha = 0
       const hasCompletedWaves = state.formations.length > 0
       if (phase === 'idle' || phase === 'ending_reset') alpha = 0
-      else if (phase === 'brightening') alpha = hasCompletedWaves ? 0.6 * (1 - state.wavePhaseProgress) : 0
+      else if (phase === 'brightening')
+        alpha = hasCompletedWaves ? 0.6 * (1 - state.wavePhaseProgress) : 0
       else if (phase === 'plucking') alpha = 0
       else if (phase === 'darkening') alpha = 0.6 * state.wavePhaseProgress
       else if (phase === 'ending_blackout') alpha = 0

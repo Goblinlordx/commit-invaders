@@ -45,11 +45,7 @@ export function travelProps(
 /**
  * CSS properties for a laser.
  */
-export function laserProps(
-  travelDistance: number,
-  delay: number,
-  duration: number,
-): string {
+export function laserProps(travelDistance: number, delay: number, duration: number): string {
   return cssProps({
     '--laser-travel': travelDistance,
     'animation-name': 'laser-travel',
@@ -63,11 +59,7 @@ export function laserProps(
 /**
  * CSS properties for a fade animation.
  */
-export function fadeProps(
-  name: 'fade-in' | 'fade-out',
-  delay: number,
-  duration: number,
-): string {
+export function fadeProps(name: 'fade-in' | 'fade-out', delay: number, duration: number): string {
   return cssProps({
     'animation-name': name,
     'animation-delay': `${delay}s`,
@@ -97,10 +89,7 @@ export function wiggleProps(
 /**
  * CSS properties for a formation oscillation animation.
  */
-export function oscillationProps(
-  keyframeName: string,
-  duration: number,
-): string {
+export function oscillationProps(keyframeName: string, duration: number): string {
   return cssProps({
     'animation-name': keyframeName,
     'animation-duration': `${duration}s`,

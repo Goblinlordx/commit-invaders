@@ -48,19 +48,11 @@ function classifyError(error: unknown): FetchError {
     }
 
     if (statusError.status === 403 || /rate limit/i.test(error.message)) {
-      return new FetchError(
-        'GitHub API rate limit exceeded. Try again later.',
-        'rate_limit',
-        error,
-      )
+      return new FetchError('GitHub API rate limit exceeded. Try again later.', 'rate_limit', error)
     }
 
     if (/not.found/i.test(error.message) || statusError.status === 404) {
-      return new FetchError(
-        'GitHub user not found. Check the username.',
-        'not_found',
-        error,
-      )
+      return new FetchError('GitHub user not found. Check the username.', 'not_found', error)
     }
 
     return new FetchError(error.message, 'unknown', error)
@@ -106,10 +98,7 @@ const CONTRIBUTION_HISTORY_QUERY = `
   }
 `
 
-async function fetchWithRetry<T>(
-  fn: () => Promise<T>,
-  maxRetries: number = 5,
-): Promise<T> {
+async function fetchWithRetry<T>(fn: () => Promise<T>, maxRetries: number = 5): Promise<T> {
   let lastError: unknown
   for (let attempt = 0; attempt <= maxRetries; attempt++) {
     try {

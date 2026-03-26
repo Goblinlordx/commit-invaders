@@ -25,23 +25,41 @@ export interface ColorPalette {
 
 export const PALETTE_DARK: ColorPalette = {
   grid: { 0: '#1a1a2e', 1: '#0e4429', 2: '#006d32', 3: '#26a641', 4: '#39d353' },
-  invader: '#ff4444', laser: '#ffff00', ship: '#4488ff',
-  bg: '#0d1117', pluck: '#d29922', overlay: '#0d1117',
-  text: '#e6edf3', textMuted: '#8b949e', scoreText: '#39d353',
+  invader: '#ff4444',
+  laser: '#ffff00',
+  ship: '#4488ff',
+  bg: '#0d1117',
+  pluck: '#d29922',
+  overlay: '#0d1117',
+  text: '#e6edf3',
+  textMuted: '#8b949e',
+  scoreText: '#39d353',
 }
 
 export const PALETTE_LIGHT: ColorPalette = {
   grid: { 0: '#ebedf0', 1: '#9be9a8', 2: '#40c463', 3: '#30a14e', 4: '#216e39' },
-  invader: '#cf222e', laser: '#bf8700', ship: '#0969da',
-  bg: '#ffffff', pluck: '#bf8700', overlay: '#ffffff',
-  text: '#1f2328', textMuted: '#656d76', scoreText: '#1a7f37',
+  invader: '#cf222e',
+  laser: '#bf8700',
+  ship: '#0969da',
+  bg: '#ffffff',
+  pluck: '#bf8700',
+  overlay: '#ffffff',
+  text: '#1f2328',
+  textMuted: '#656d76',
+  scoreText: '#1a7f37',
 }
 
 export const PALETTE_CLASSIC: ColorPalette = {
   grid: { 0: '#0a0a12', 1: '#003311', 2: '#005522', 3: '#1a8833', 4: '#22bb44' },
-  invader: '#ff3333', laser: '#33ff33', ship: '#33ff33',
-  bg: '#000000', pluck: '#ffaa00', overlay: '#000000',
-  text: '#33ff33', textMuted: '#227722', scoreText: '#33ff33',
+  invader: '#ff3333',
+  laser: '#33ff33',
+  ship: '#33ff33',
+  bg: '#000000',
+  pluck: '#ffaa00',
+  overlay: '#000000',
+  text: '#33ff33',
+  textMuted: '#227722',
+  scoreText: '#33ff33',
 }
 
 // Default exports for backward compatibility
@@ -68,36 +86,21 @@ export function gridCellSvg(
 
 // ── Invader ──
 
-export function invaderSvg(
-  id: string,
-  screenX: number,
-  screenY: number,
-  size: number,
-): string {
+export function invaderSvg(id: string, screenX: number, screenY: number, size: number): string {
   const half = size / 2
   return `<rect id="${id}" class="invader" x="${screenX - half}" y="${screenY - half}" width="${size}" height="${size}" fill="${INVADER_COLOR}" />`
 }
 
 // ── Ship ──
 
-export function shipSvg(
-  id: string,
-  screenX: number,
-  screenY: number,
-  size: number,
-): string {
+export function shipSvg(id: string, screenX: number, screenY: number, size: number): string {
   const half = size / 2
   return `<rect id="${id}" class="ship" x="${screenX - half}" y="${screenY - half}" width="${size}" height="${size}" fill="${SHIP_COLOR}" />`
 }
 
 // ── Laser ──
 
-export function laserSvg(
-  id: string,
-  screenX: number,
-  screenY: number,
-  width: number,
-): string {
+export function laserSvg(id: string, screenX: number, screenY: number, width: number): string {
   const half = width / 2
   return `<rect id="${id}" class="laser" x="${screenX - half}" y="${screenY - half}" width="${width}" height="${width}" fill="${LASER_COLOR}" />`
 }
@@ -115,20 +118,13 @@ export function overlaySvg(
 
 // ── Blackout Overlay ──
 
-export function blackoutSvg(
-  id: string,
-  width: number,
-  height: number,
-): string {
+export function blackoutSvg(id: string, width: number, height: number): string {
   return `<rect id="${id}" class="blackout" x="0" y="0" width="${width}" height="${height}" fill="#000000" opacity="0" />`
 }
 
 // ── Formation Group ──
 
-export function formationGroupSvg(
-  id: string,
-  children: string,
-): string {
+export function formationGroupSvg(id: string, children: string): string {
   return `<g id="${id}" class="formation">${children}</g>`
 }
 

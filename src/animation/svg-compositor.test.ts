@@ -18,7 +18,9 @@ function makeGrid(weeks: number, seed: string): Grid {
       else if (roll < 0.92) level = 3
       else level = 4
       cells.push({
-        x: w, y: d, level,
+        x: w,
+        y: d,
+        level,
         date: `2025-${String(Math.floor(w / 4) + 1).padStart(2, '0')}-${String(d + 1).padStart(2, '0')}`,
         count: level === 0 ? 0 : Math.floor(level * 3 + prng.next() * 10),
       })
@@ -27,25 +29,51 @@ function makeGrid(weeks: number, seed: string): Grid {
   return { width: weeks, height: 7, cells }
 }
 
-const STRIDE = 13, PADDING = 20
-const gridW = 7 * STRIDE + PADDING * 2, gridH = 52 * STRIDE, shipMargin = 24
+const STRIDE = 13,
+  PADDING = 20
+const gridW = 7 * STRIDE + PADDING * 2,
+  gridH = 52 * STRIDE,
+  shipMargin = 24
 
 const config: SimConfig = {
-  framesPerSecond: 60, hitChance: 0.85, fireRate: 5,
+  framesPerSecond: 60,
+  hitChance: 0.85,
+  fireRate: 5,
   waveConfig: {
-    weeksPerWave: 4, startDelay: 10, introScoreboardFadeIn: 0, introScoreboardHold: 0, introScoreboardFadeOut: 0, spawnDelay: 0,
-    brightenDuration: 10, pluckDuration: 10, darkenDuration: 10,
-    travelDuration: 10, hatchDuration: 10,
-    endingFadeoutDuration: 10, endingScoreDuration: 10,
-    endingScoreOutDuration: 5, endingBoardInDuration: 5,
-    endingHoldDuration: 10, endingBlackoutDuration: 10, endingResetDuration: 10,
+    weeksPerWave: 4,
+    startDelay: 10,
+    introScoreboardFadeIn: 0,
+    introScoreboardHold: 0,
+    introScoreboardFadeOut: 0,
+    spawnDelay: 0,
+    brightenDuration: 10,
+    pluckDuration: 10,
+    darkenDuration: 10,
+    travelDuration: 10,
+    hatchDuration: 10,
+    endingFadeoutDuration: 10,
+    endingScoreDuration: 10,
+    endingScoreOutDuration: 5,
+    endingBoardInDuration: 5,
+    endingHoldDuration: 10,
+    endingBlackoutDuration: 10,
+    endingResetDuration: 10,
   },
   playArea: { x: 0, y: 0, width: gridW, height: gridH + shipMargin },
   gridArea: { x: PADDING, y: 0, width: 7 * STRIDE, height: gridH },
-  cellSize: 11, cellGap: 2, laserSpeed: 1200, laserWidth: 4, invaderSize: 9,
-  shipSpeed: 180, shipY: gridH + shipMargin - 4,
-  formationBaseSpeed: 60, formationMaxSpeed: 240, formationRowDrop: 7,
-  shipYRange: 30, formationSpread: 10, formationRowStagger: 10,
+  cellSize: 11,
+  cellGap: 2,
+  laserSpeed: 1200,
+  laserWidth: 4,
+  invaderSize: 9,
+  shipSpeed: 180,
+  shipY: gridH + shipMargin - 4,
+  formationBaseSpeed: 60,
+  formationMaxSpeed: 240,
+  formationRowDrop: 7,
+  shipYRange: 30,
+  formationSpread: 10,
+  formationRowStagger: 10,
 }
 
 describe('svg-compositor', () => {

@@ -2,12 +2,7 @@ import { describe, it, expect } from 'vitest'
 import { computeScoreboard } from './scoreboard.js'
 import type { Grid, ContributionCell } from './types.js'
 
-function makeCell(
-  x: number,
-  y: number,
-  date: string,
-  count: number,
-): ContributionCell {
+function makeCell(x: number, y: number, date: string, count: number): ContributionCell {
   const level = count === 0 ? 0 : count < 5 ? 1 : count < 10 ? 2 : count < 15 ? 3 : 4
   return { x, y, level: level as 0 | 1 | 2 | 3 | 4, date, count }
 }
@@ -166,7 +161,9 @@ describe('computeScoreboard — performance', () => {
     // Use 20x as generous upper bound for N log N
     if (t1 > 0.01) {
       const ratio = t8 / t1
-      console.log(`    Ratio (8x data): ${ratio.toFixed(1)}x (expect <20x for N log N, >60x for N²)`)
+      console.log(
+        `    Ratio (8x data): ${ratio.toFixed(1)}x (expect <20x for N log N, >60x for N²)`,
+      )
       expect(ratio).toBeLessThan(30) // generous bound
     }
   })

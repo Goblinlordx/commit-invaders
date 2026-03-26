@@ -1,9 +1,4 @@
-import type {
-  LaserState,
-  InvaderState,
-  Position,
-  BoundingBox,
-} from '../types.js'
+import type { LaserState, InvaderState, Position, BoundingBox } from '../types.js'
 
 // Default hitbox sizes — consumers should pass these from SimConfig
 export const DEFAULT_LASER_WIDTH = 2
@@ -23,11 +18,7 @@ export interface CheckHitsResult {
 
 // ── Laser Management ──
 
-export function spawnLaser(
-  id: string,
-  shipPosition: Position,
-  speed: number,
-): LaserState {
+export function spawnLaser(id: string, shipPosition: Position, speed: number): LaserState {
   return {
     id,
     position: { x: shipPosition.x, y: shipPosition.y },
@@ -124,9 +115,7 @@ export function checkHits(
     }
   }
 
-  const updatedLasers = lasers.filter(
-    (l) => l.active && !consumedLaserIds.has(l.id),
-  )
+  const updatedLasers = lasers.filter((l) => l.active && !consumedLaserIds.has(l.id))
 
   let scoreIncrease = 0
   const updatedInvaders = invaders.map((inv) => {

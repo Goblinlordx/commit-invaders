@@ -45,9 +45,7 @@ export function makeFixtureResponse(
   }
 }
 
-export function makeWeek(
-  days: GitHubContributionDay[],
-): GitHubContributionWeek {
+export function makeWeek(days: GitHubContributionDay[]): GitHubContributionWeek {
   return { contributionDays: days }
 }
 
@@ -143,8 +141,7 @@ export const FIXTURE_PARTIAL_WEEK: GitHubGraphQLResponse = makeFixtureResponse(
 
 export const FIXTURE_ERROR_BAD_TOKEN = {
   message: 'Bad credentials',
-  documentation_url:
-    'https://docs.github.com/graphql',
+  documentation_url: 'https://docs.github.com/graphql',
 }
 
 export const FIXTURE_ERROR_USER_NOT_FOUND = {

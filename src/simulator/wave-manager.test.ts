@@ -1,18 +1,9 @@
 import { describe, it, expect } from 'vitest'
 
 import { createWaveManager } from './wave-manager.js'
-import type {
-  ContributionCell,
-  ContributionLevel,
-  Grid,
-  WaveConfig,
-} from '../types.js'
+import type { ContributionCell, ContributionLevel, Grid, WaveConfig } from '../types.js'
 
-function makeCell(
-  x: number,
-  y: number,
-  level: ContributionLevel,
-): ContributionCell {
+function makeCell(x: number, y: number, level: ContributionLevel): ContributionCell {
   return {
     x,
     y,
@@ -50,12 +41,7 @@ const defaultConfig: WaveConfig = {
 describe('WaveManager', () => {
   describe('column grouping', () => {
     it('groups cells by column into separate waves with weeksPerWave=1', () => {
-      const cells = [
-        makeCell(0, 0, 2),
-        makeCell(0, 1, 1),
-        makeCell(1, 0, 3),
-        makeCell(2, 0, 4),
-      ]
+      const cells = [makeCell(0, 0, 2), makeCell(0, 1, 1), makeCell(1, 0, 3), makeCell(2, 0, 4)]
       const grid = makeGrid(cells, 3)
       const wm = createWaveManager(grid, defaultConfig)
 
@@ -66,12 +52,7 @@ describe('WaveManager', () => {
     })
 
     it('groups multiple columns per wave with weeksPerWave=2', () => {
-      const cells = [
-        makeCell(0, 0, 1),
-        makeCell(1, 0, 2),
-        makeCell(2, 0, 3),
-        makeCell(3, 0, 4),
-      ]
+      const cells = [makeCell(0, 0, 1), makeCell(1, 0, 2), makeCell(2, 0, 3), makeCell(3, 0, 4)]
       const grid = makeGrid(cells, 4)
       const wm = createWaveManager(grid, { ...defaultConfig, weeksPerWave: 2 })
 
@@ -81,12 +62,7 @@ describe('WaveManager', () => {
     })
 
     it('handles uneven column counts with weeksPerWave=3', () => {
-      const cells = [
-        makeCell(0, 0, 1),
-        makeCell(1, 0, 2),
-        makeCell(2, 0, 3),
-        makeCell(3, 0, 4),
-      ]
+      const cells = [makeCell(0, 0, 1), makeCell(1, 0, 2), makeCell(2, 0, 3), makeCell(3, 0, 4)]
       const grid = makeGrid(cells, 4)
       const wm = createWaveManager(grid, { ...defaultConfig, weeksPerWave: 3 })
 
@@ -99,11 +75,7 @@ describe('WaveManager', () => {
 
   describe('wave ordering', () => {
     it('orders waves left-to-right by column index', () => {
-      const cells = [
-        makeCell(2, 0, 1),
-        makeCell(0, 0, 3),
-        makeCell(1, 0, 2),
-      ]
+      const cells = [makeCell(2, 0, 1), makeCell(0, 0, 3), makeCell(1, 0, 2)]
       const grid = makeGrid(cells, 3)
       const wm = createWaveManager(grid, defaultConfig)
 
@@ -118,12 +90,7 @@ describe('WaveManager', () => {
 
   describe('level-0 filtering', () => {
     it('excludes cells with level=0', () => {
-      const cells = [
-        makeCell(0, 0, 0),
-        makeCell(0, 1, 2),
-        makeCell(0, 2, 0),
-        makeCell(0, 3, 1),
-      ]
+      const cells = [makeCell(0, 0, 0), makeCell(0, 1, 2), makeCell(0, 2, 0), makeCell(0, 3, 1)]
       const grid = makeGrid(cells, 1)
       const wm = createWaveManager(grid, defaultConfig)
 
@@ -132,11 +99,7 @@ describe('WaveManager', () => {
     })
 
     it('skips columns that are entirely level=0', () => {
-      const cells = [
-        makeCell(0, 0, 0),
-        makeCell(0, 1, 0),
-        makeCell(1, 0, 3),
-      ]
+      const cells = [makeCell(0, 0, 0), makeCell(0, 1, 0), makeCell(1, 0, 3)]
       const grid = makeGrid(cells, 2)
       const wm = createWaveManager(grid, defaultConfig)
 
@@ -146,10 +109,7 @@ describe('WaveManager', () => {
     })
 
     it('produces zero waves when all cells are level=0', () => {
-      const cells = [
-        makeCell(0, 0, 0),
-        makeCell(1, 0, 0),
-      ]
+      const cells = [makeCell(0, 0, 0), makeCell(1, 0, 0)]
       const grid = makeGrid(cells, 2)
       const wm = createWaveManager(grid, defaultConfig)
 
@@ -212,12 +172,7 @@ describe('WaveManager', () => {
 
   describe('HP assignment', () => {
     it('assigns 1 HP to all invaders (one-hit kill)', () => {
-      const cells = [
-        makeCell(0, 0, 1),
-        makeCell(0, 1, 2),
-        makeCell(0, 2, 3),
-        makeCell(0, 3, 4),
-      ]
+      const cells = [makeCell(0, 0, 1), makeCell(0, 1, 2), makeCell(0, 2, 3), makeCell(0, 3, 4)]
       const grid = makeGrid(cells, 1)
       const wm = createWaveManager(grid, defaultConfig)
 

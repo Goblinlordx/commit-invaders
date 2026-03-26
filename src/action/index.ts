@@ -25,18 +25,24 @@ async function run(): Promise<void> {
     const grid = parseContributionResponse(response)
     core.info(`Grid: ${grid.width} weeks × ${grid.height} days`)
 
-    const activeCells = grid.cells.filter(c => c.level > 0).length
+    const activeCells = grid.cells.filter((c) => c.level > 0).length
     const totalCommits = grid.cells.reduce((sum, c) => sum + c.count, 0)
     core.info(`Active cells: ${activeCells}, Total commits: ${totalCommits}`)
 
     let scoreboard: ScoreboardResult | undefined
     if (!inputs.noScoreboard) {
       const contributionYears = response.user.contributionsCollection.contributionYears ?? []
-      core.info(`Fetching contribution history for scoreboard (${contributionYears.length} years)...`)
-      const historyResponses = await fetchContributionHistory(inputs.githubToken, inputs.username, contributionYears)
+      core.info(
+        `Fetching contribution history for scoreboard (${contributionYears.length} years)...`,
+      )
+      const historyResponses = await fetchContributionHistory(
+        inputs.githubToken,
+        inputs.username,
+        contributionYears,
+      )
       const historyGrid = parseMultiYearResponses(historyResponses)
       core.info(`History: ${historyGrid.cells.length} days across ${historyResponses.length} years`)
-      const lastDate = grid.cells.reduce((max, c) => (c.date > max ? c.date : max), "")
+      const lastDate = grid.cells.reduce((max, c) => (c.date > max ? c.date : max), '')
       scoreboard = computeScoreboard(historyGrid, lastDate, grid.width * 7, 10)
       core.info(`Scoreboard: ${scoreboard.entries.length} entries`)
     }
@@ -48,7 +54,9 @@ async function run(): Promise<void> {
     const svgDark = composeSvg({ grid, seed, config, scoreboard, palette: PALETTE_DARK })
     const svgLight = composeSvg({ grid, seed, config, scoreboard, palette: PALETTE_LIGHT })
 
-    core.info(`Animation: ${output.totalFrames} frames (${(output.totalFrames / config.framesPerSecond).toFixed(1)}s)`)
+    core.info(
+      `Animation: ${output.totalFrames} frames (${(output.totalFrames / config.framesPerSecond).toFixed(1)}s)`,
+    )
 
     // Write both variants
     const baseName = inputs.outputFile.replace(/\.svg$/, '')
@@ -72,7 +80,11 @@ async function run(): Promise<void> {
   }
 }
 
-async function commitToOutputBranch(branch: string, files: string[], username: string): Promise<void> {
+async function commitToOutputBranch(
+  branch: string,
+  files: string[],
+  username: string,
+): Promise<void> {
   core.info(`Committing to branch: ${branch}`)
 
   await exec.exec('git', ['config', 'user.name', 'commit-invaders[bot]'])
@@ -82,7 +94,9 @@ async function commitToOutputBranch(branch: string, files: string[], username: s
   try {
     await exec.exec('git', ['rev-parse', '--verify', `origin/${branch}`], { silent: true })
     branchExists = true
-  } catch { /* branch doesn't exist */ }
+  } catch {
+    /* branch doesn't exist */
+  }
 
   if (branchExists) {
     await exec.exec('git', ['checkout', branch])
@@ -94,7 +108,11 @@ async function commitToOutputBranch(branch: string, files: string[], username: s
   for (const f of files) await exec.exec('git', ['add', f])
 
   try {
-    await exec.exec('git', ['commit', '-m', `chore: update commit-invaders animation for ${username}`])
+    await exec.exec('git', [
+      'commit',
+      '-m',
+      `chore: update commit-invaders animation for ${username}`,
+    ])
   } catch {
     core.info('No changes to commit')
     return

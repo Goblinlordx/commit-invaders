@@ -199,9 +199,7 @@ describe('checkHits', () => {
 
   it('skips already-destroyed invaders', () => {
     const lasers = [makeLaser({ position: { x: 50, y: 50 } })]
-    const invaders = [
-      makeInvader({ destroyed: true, hp: 0, position: { x: 50, y: 50 } }),
-    ]
+    const invaders = [makeInvader({ destroyed: true, hp: 0, position: { x: 50, y: 50 } })]
 
     const result = checkHits(lasers, invaders, DEFAULT_LASER_WIDTH, DEFAULT_INVADER_SIZE)
 

@@ -26,7 +26,10 @@ export function oscillationKeyframes(
   if (points.length === 0) return ''
 
   const stops = points
-    .map((p) => `  ${p.percent.toFixed(2)}% { transform: translate(${p.x.toFixed(1)}px, ${p.y.toFixed(1)}px); }`)
+    .map(
+      (p) =>
+        `  ${p.percent.toFixed(2)}% { transform: translate(${p.x.toFixed(1)}px, ${p.y.toFixed(1)}px); }`,
+    )
     .join('\n')
 
   return `@keyframes ${name} {\n${stops}\n}`
@@ -68,11 +71,7 @@ export function travelKeyframes(name: string): string {
  * @param from - Starting opacity (0-1)
  * @param to - Ending opacity (0-1)
  */
-export function fadeKeyframes(
-  name: string,
-  from: number,
-  to: number,
-): string {
+export function fadeKeyframes(name: string, from: number, to: number): string {
   return `@keyframes ${name} {
   0% { opacity: ${from}; }
   100% { opacity: ${to}; }

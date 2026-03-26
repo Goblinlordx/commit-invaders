@@ -1,10 +1,4 @@
-import type {
-  BoundingBox,
-  FormationState,
-  InvaderState,
-  Position,
-  SimEvent,
-} from '../types.js'
+import type { BoundingBox, FormationState, InvaderState, Position, SimEvent } from '../types.js'
 
 export interface FormationConfig {
   baseSpeed: number // px/s

@@ -45,12 +45,7 @@ describe('Formation', () => {
   describe('initial positioning', () => {
     it('starts with offset at (0, 0) and direction right', () => {
       const invaders = [makeInvader('inv-0', 100, 20)]
-      const formation = createFormation(
-        invaders,
-        0,
-        defaultPlayArea,
-        defaultFormationConfig,
-      )
+      const formation = createFormation(invaders, 0, defaultPlayArea, defaultFormationConfig)
 
       expect(formation.getState().offset).toEqual({ x: 0, y: 0 })
       expect(formation.getState().direction).toBe('right')
@@ -62,12 +57,7 @@ describe('Formation', () => {
         makeInvader('inv-1', 120, 20),
         makeInvader('inv-2', 100, 40),
       ]
-      const formation = createFormation(
-        invaders,
-        0,
-        defaultPlayArea,
-        defaultFormationConfig,
-      )
+      const formation = createFormation(invaders, 0, defaultPlayArea, defaultFormationConfig)
 
       expect(formation.getState().invaders).toHaveLength(3)
     })
@@ -76,12 +66,7 @@ describe('Formation', () => {
   describe('zigzag movement', () => {
     it('moves right on tick', () => {
       const invaders = [makeInvader('inv-0', 100, 20)]
-      const formation = createFormation(
-        invaders,
-        0,
-        defaultPlayArea,
-        defaultFormationConfig,
-      )
+      const formation = createFormation(invaders, 0, defaultPlayArea, defaultFormationConfig)
 
       const events = formation.tick(1)
       expect(formation.getState().offset.x).toBeGreaterThan(0)
@@ -91,12 +76,7 @@ describe('Formation', () => {
     it('reverses direction at right boundary', () => {
       // Place invader near right edge
       const invaders = [makeInvader('inv-0', 390, 20)]
-      const formation = createFormation(
-        invaders,
-        0,
-        defaultPlayArea,
-        defaultFormationConfig,
-      )
+      const formation = createFormation(invaders, 0, defaultPlayArea, defaultFormationConfig)
 
       // Tick until boundary hit
       let reversed = false
@@ -113,12 +93,7 @@ describe('Formation', () => {
     it('drops a row when reversing direction', () => {
       // Place invader near right edge
       const invaders = [makeInvader('inv-0', 390, 20)]
-      const formation = createFormation(
-        invaders,
-        0,
-        defaultPlayArea,
-        defaultFormationConfig,
-      )
+      const formation = createFormation(invaders, 0, defaultPlayArea, defaultFormationConfig)
 
       // Tick until direction reversal
       for (let frame = 1; frame <= 20; frame++) {
@@ -131,12 +106,7 @@ describe('Formation', () => {
     it('reverses direction at left boundary', () => {
       // Place invader near right boundary so it reverses to left quickly
       const invaders = [makeInvader('inv-0', 395, 20)]
-      const formation = createFormation(
-        invaders,
-        0,
-        defaultPlayArea,
-        defaultFormationConfig,
-      )
+      const formation = createFormation(invaders, 0, defaultPlayArea, defaultFormationConfig)
 
       // Tick until first reverse (right boundary → left)
       for (let frame = 1; frame <= 20; frame++) {
@@ -150,9 +120,7 @@ describe('Formation', () => {
         formation.tick(frame)
         if (formation.getState().direction === 'right') {
           // Reversed at left boundary — should have dropped twice
-          expect(formation.getState().offset.y).toBe(
-            defaultFormationConfig.rowDrop * 2,
-          )
+          expect(formation.getState().offset.y).toBe(defaultFormationConfig.rowDrop * 2)
           return
         }
       }
@@ -166,12 +134,7 @@ describe('Formation', () => {
         makeInvader('inv-0', 50, 20),
         makeInvader('inv-1', 380, 20), // rightmost
       ]
-      const formation = createFormation(
-        invaders,
-        0,
-        defaultPlayArea,
-        defaultFormationConfig,
-      )
+      const formation = createFormation(invaders, 0, defaultPlayArea, defaultFormationConfig)
 
       // Rightmost invader at 380, play area is 400 wide
       // Should hit boundary soon
@@ -187,16 +150,8 @@ describe('Formation', () => {
     })
 
     it('uses original formation footprint for boundary even after kills', () => {
-      const invaders = [
-        makeInvader('inv-0', 50, 20),
-        makeInvader('inv-1', 380, 20),
-      ]
-      const formation = createFormation(
-        invaders,
-        0,
-        defaultPlayArea,
-        defaultFormationConfig,
-      )
+      const invaders = [makeInvader('inv-0', 50, 20), makeInvader('inv-1', 380, 20)]
+      const formation = createFormation(invaders, 0, defaultPlayArea, defaultFormationConfig)
 
       // Record steps to reverse with full formation
       let stepsFullFormation = 0
@@ -235,12 +190,7 @@ describe('Formation', () => {
         makeInvader('inv-2', 140, 20),
         makeInvader('inv-3', 160, 20),
       ]
-      const formation = createFormation(
-        invaders,
-        0,
-        defaultPlayArea,
-        defaultFormationConfig,
-      )
+      const formation = createFormation(invaders, 0, defaultPlayArea, defaultFormationConfig)
 
       expect(formation.getState().speed).toBe(defaultFormationConfig.baseSpeed)
     })
@@ -252,12 +202,7 @@ describe('Formation', () => {
         makeInvader('inv-2', 140, 20),
         makeInvader('inv-3', 160, 20),
       ]
-      const formation = createFormation(
-        invaders,
-        0,
-        defaultPlayArea,
-        defaultFormationConfig,
-      )
+      const formation = createFormation(invaders, 0, defaultPlayArea, defaultFormationConfig)
 
       formation.destroyInvader('inv-0', 1)
       formation.destroyInvader('inv-1', 1)
@@ -267,16 +212,8 @@ describe('Formation', () => {
     })
 
     it('marks formation cleared when all invaders destroyed', () => {
-      const invaders = [
-        makeInvader('inv-0', 100, 20),
-        makeInvader('inv-1', 120, 20),
-      ]
-      const formation = createFormation(
-        invaders,
-        0,
-        defaultPlayArea,
-        defaultFormationConfig,
-      )
+      const invaders = [makeInvader('inv-0', 100, 20), makeInvader('inv-1', 120, 20)]
+      const formation = createFormation(invaders, 0, defaultPlayArea, defaultFormationConfig)
 
       formation.destroyInvader('inv-0', 5)
       formation.destroyInvader('inv-1', 10)
@@ -289,12 +226,7 @@ describe('Formation', () => {
   describe('events', () => {
     it('emits formation_move event on tick', () => {
       const invaders = [makeInvader('inv-0', 100, 20)]
-      const formation = createFormation(
-        invaders,
-        0,
-        defaultPlayArea,
-        defaultFormationConfig,
-      )
+      const formation = createFormation(invaders, 0, defaultPlayArea, defaultFormationConfig)
 
       const events = formation.tick(1)
       const moveEvent = events.find((e) => e.type === 'formation_move')
@@ -303,12 +235,7 @@ describe('Formation', () => {
 
     it('emits direction_change event on boundary hit', () => {
       const invaders = [makeInvader('inv-0', 395, 20)]
-      const formation = createFormation(
-        invaders,
-        0,
-        defaultPlayArea,
-        defaultFormationConfig,
-      )
+      const formation = createFormation(invaders, 0, defaultPlayArea, defaultFormationConfig)
 
       // Tick until boundary hit
       let found = false

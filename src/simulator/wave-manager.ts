@@ -1,9 +1,4 @@
-import type {
-  ContributionCell,
-  ContributionLevel,
-  Grid,
-  WaveConfig,
-} from '../types.js'
+import type { ContributionCell, ContributionLevel, Grid, WaveConfig } from '../types.js'
 
 export interface WaveCell {
   cell: ContributionCell
