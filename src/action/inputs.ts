@@ -10,7 +10,7 @@ export interface ActionInputs {
   outputBranch: string
   outputFile: string
   /** Optional: fetch historical data for scoreboard (requires token with full repo access) */
-  enableScoreboard: boolean
+  noScoreboard: boolean
   /** Number of years to look back for scoreboard historical data */
   scoreboardYears: number
   /** Animation duration override (0 = auto) */
@@ -25,7 +25,7 @@ export function parseInputs(): ActionInputs {
     username: core.getInput('github_user_name', { required: true }),
     outputBranch: core.getInput('output_branch') || 'output',
     outputFile: core.getInput('output_file') || 'commit-invaders.svg',
-    enableScoreboard: core.getBooleanInput('enable_scoreboard'),
+    noScoreboard: core.getBooleanInput('no_scoreboard'),
     scoreboardYears: parseInt(core.getInput('scoreboard_years') || '5', 10),
     animationDuration: parseInt(core.getInput('animation_duration') || '0', 10),
     weeksPerWave: parseInt(core.getInput('weeks_per_wave') || '4', 10),
@@ -50,8 +50,8 @@ export function buildConfig(inputs: ActionInputs): SimConfig {
       travelDuration: 40, hatchDuration: 20,
       endingFadeoutDuration: 60, endingScoreDuration: 180,
       endingScoreOutDuration: 30,
-      endingBoardInDuration: inputs.enableScoreboard ? 30 : 0,
-      endingHoldDuration: inputs.enableScoreboard ? 300 : 0,
+      endingBoardInDuration: inputs.noScoreboard ? 0 : 30,
+      endingHoldDuration: inputs.noScoreboard ? 0 : 300,
       endingBlackoutDuration: 60, endingResetDuration: 60,
     },
     playArea: { x: 0, y: 0, width: gridW, height: gridH + shipMargin },

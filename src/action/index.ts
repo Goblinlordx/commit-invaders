@@ -30,7 +30,7 @@ async function run(): Promise<void> {
     core.info(`Active cells: ${activeCells}, Total commits: ${totalCommits}`)
 
     let scoreboard: ScoreboardResult | undefined
-    if (inputs.enableScoreboard) {
+    if (!inputs.noScoreboard) {
       const lastDate = grid.cells.reduce((max, c) => (c.date > max ? c.date : max), '')
       scoreboard = computeScoreboard(grid, lastDate, grid.width * 7, 10)
       core.info(`Scoreboard: ${scoreboard.entries.length} entries`)

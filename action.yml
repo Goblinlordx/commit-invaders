@@ -20,10 +20,10 @@ inputs:
     description: 'Output SVG filename'
     required: false
     default: 'commit-invaders.svg'
-  enable_scoreboard:
-    description: 'Enable high score board (requires contribution history)'
+  no_scoreboard:
+    description: 'Disable high score board'
     required: false
-    default: 'true'
+    default: 'false'
   scoreboard_years:
     description: 'Number of years to look back for scoreboard'
     required: false

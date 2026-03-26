@@ -19903,7 +19903,7 @@ function parseInputs() {
     username: getInput("github_user_name", { required: true }),
     outputBranch: getInput("output_branch") || "output",
     outputFile: getInput("output_file") || "commit-invaders.svg",
-    enableScoreboard: getBooleanInput("enable_scoreboard"),
+    noScoreboard: getBooleanInput("no_scoreboard"),
     scoreboardYears: parseInt(getInput("scoreboard_years") || "5", 10),
     animationDuration: parseInt(getInput("animation_duration") || "0", 10),
     weeksPerWave: parseInt(getInput("weeks_per_wave") || "4", 10)
@@ -19931,8 +19931,8 @@ function buildConfig(inputs) {
       endingFadeoutDuration: 60,
       endingScoreDuration: 180,
       endingScoreOutDuration: 30,
-      endingBoardInDuration: inputs.enableScoreboard ? 30 : 0,
-      endingHoldDuration: inputs.enableScoreboard ? 300 : 0,
+      endingBoardInDuration: inputs.noScoreboard ? 0 : 30,
+      endingHoldDuration: inputs.noScoreboard ? 0 : 300,
       endingBlackoutDuration: 60,
       endingResetDuration: 60
     },
@@ -22921,7 +22921,7 @@ async function run() {
     const totalCommits = grid.cells.reduce((sum, c) => sum + c.count, 0);
     info(`Active cells: ${activeCells}, Total commits: ${totalCommits}`);
     let scoreboard;
-    if (inputs.enableScoreboard) {
+    if (!inputs.noScoreboard) {
       const lastDate = grid.cells.reduce((max, c) => c.date > max ? c.date : max, "");
       scoreboard = computeScoreboard(grid, lastDate, grid.width * 7, 10);
       info(`Scoreboard: ${scoreboard.entries.length} entries`);
