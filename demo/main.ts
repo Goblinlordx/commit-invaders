@@ -24,8 +24,9 @@ function defaultConfig(): SimConfig {
   return {
     framesPerSecond: 60,
     waveConfig: {
-      weeksPerWave: 4, startDelay: 60,
+      weeksPerWave: 4,
       introScoreboardFadeIn: 30, introScoreboardHold: 300, introScoreboardFadeOut: 30,
+      startDelay: 360,
       spawnDelay: 0,
       brightenDuration: 60, pluckDuration: 20, darkenDuration: 60,
       travelDuration: 40, hatchDuration: 20,

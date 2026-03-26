@@ -41,10 +41,10 @@ export function buildConfig(inputs: ActionInputs): SimConfig {
     framesPerSecond: 60,
     waveConfig: {
       weeksPerWave: 4,
-      startDelay: 60,
       introScoreboardFadeIn: inputs.noScoreboard ? 0 : 30,
       introScoreboardHold: inputs.noScoreboard ? 0 : 300,
       introScoreboardFadeOut: inputs.noScoreboard ? 0 : 30,
+      startDelay: inputs.noScoreboard ? 60 : 30 + 300 + 30,
       spawnDelay: 0,
       brightenDuration: 60, pluckDuration: 20, darkenDuration: 60,
       travelDuration: 40, hatchDuration: 20,

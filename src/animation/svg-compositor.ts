@@ -622,13 +622,67 @@ export function composeSvg(options: CompositeSvgOptions): string {
     )
   }
 
+  // ── Intro Scoreboard (shown at animation start) ──
+  const wc = config.waveConfig
+  const introTotal = wc.introScoreboardFadeIn + wc.introScoreboardHold + wc.introScoreboardFadeOut
+  if (options.scoreboard && options.scoreboard.entries.length > 0 && introTotal > 0) {
+    const fp = (f: number) => frameToPercent(f, output.totalFrames)
+    const boardVisiblePct = fp(wc.introScoreboardFadeIn)
+    const boardHoldEndPct = fp(wc.introScoreboardFadeIn + wc.introScoreboardHold)
+    const boardFadeOutPct = fp(introTotal)
+    cssRules.push(`@keyframes intro-board {
+  0.00% { opacity: 0; }
+  ${boardVisiblePct.toFixed(2)}% { opacity: 1; }
+  ${boardHoldEndPct.toFixed(2)}% { opacity: 1; }
+  ${boardFadeOutPct.toFixed(2)}% { opacity: 0; }
+  100.00% { opacity: 0; }
+}`)
+
+    const boardElements: string[] = []
+    boardElements.push(
+      `<text x="${screenW / 2}" y="12" text-anchor="middle" dominant-baseline="middle" ` +
+      `font-family="monospace" font-weight="bold" font-size="10" fill="${pal.scoreText}">HIGH SCORES</text>`
+    )
+
+    if (options.scoreboard.isNewHighScore) {
+      boardElements.push(
+        `<text x="${screenW / 2}" y="24" text-anchor="middle" dominant-baseline="middle" ` +
+        `font-family="monospace" font-weight="bold" font-size="8" fill="${pal.laser}">★ NEW HIGH SCORE! ★</text>`
+      )
+    }
+
+    const entryStartY = options.scoreboard.isNewHighScore ? 36 : 26
+    for (let i = 0; i < options.scoreboard.entries.length; i++) {
+      const entry = options.scoreboard.entries[i]!
+      const col = i < 5 ? 0 : 1
+      const row = i < 5 ? i : i - 5
+      const colX = col === 0 ? screenW * 0.35 : screenW * 0.65
+      const y = entryStartY + row * 11
+      const isCurrent = entry.isCurrent
+      const rankColor = isCurrent ? pal.laser : pal.textMuted
+      const dateColor = isCurrent ? pal.text : pal.textMuted
+      const scoreColor = isCurrent ? pal.scoreText : pal.ship
+      const fw = isCurrent ? 'bold' : 'normal'
+
+      boardElements.push(
+        `<text x="${colX - 50}" y="${y}" font-family="monospace" font-weight="${fw}" font-size="8" fill="${rankColor}">${String(entry.rank).padStart(2, ' ')}.</text>` +
+        `<text x="${colX - 35}" y="${y}" font-family="monospace" font-weight="${fw}" font-size="8" fill="${dateColor}">${entry.date}</text>` +
+        `<text x="${colX + 55}" y="${y}" text-anchor="end" font-family="monospace" font-weight="${fw}" font-size="8" fill="${scoreColor}">${fmtScore(entry.score)}</text>`
+      )
+    }
+
+    elements.push(
+      `<g opacity="0" ${anim(`intro-board ${dur}s linear infinite`)}>${boardElements.join('')}</g>`
+    )
+  }
+
   // Wave label layers (left side): "READY" before first wave, "WAVE N/M" during each wave
-  // "READY" at start
+  // "READY" at start (after intro scoreboard fades out)
   const firstWaveLifecycleStart = waveSpawns.length > 0
     ? Math.max(0, waveSpawnFrames[0]! - (config.waveConfig.brightenDuration + config.waveConfig.pluckDuration +
         config.waveConfig.darkenDuration + config.waveConfig.travelDuration + config.waveConfig.hatchDuration))
     : output.totalFrames
-  const readyStartPct = 0
+  const readyStartPct = introTotal > 0 ? frameToPercent(introTotal, output.totalFrames) : 0
   const readyEndPct = frameToPercent(firstWaveLifecycleStart, output.totalFrames)
   cssRules.push(visibilityKeyframes('status-ready-start', [[0, readyEndPct]]))
   elements.push(
@@ -735,59 +789,7 @@ export function composeSvg(options: CompositeSvgOptions): string {
       `${anim(`ending-score-text ${dur}s linear infinite`)}>${scoreText}</text></g>`
     )
 
-    // Scoreboard — fade in over boardInDuration, hold, fade out over blackoutDuration
-    if (options.scoreboard && options.scoreboard.entries.length > 0) {
-      const boardStartPct = fp(boardInFrame)
-      const boardVisiblePct = fp(boardInFrame + wc.endingBoardInDuration)
-      const boardHoldPct = fp(boardEndFrame)
-      const boardFadePct = fp(boardEndFrame + wc.endingBlackoutDuration)
-      cssRules.push(`@keyframes ending-board {
-  0.00% { opacity: 0; }
-  ${(boardStartPct - 0.01).toFixed(2)}% { opacity: 0; }
-  ${boardStartPct.toFixed(2)}% { opacity: 0; }
-  ${boardVisiblePct.toFixed(2)}% { opacity: 1; }
-  ${boardHoldPct.toFixed(2)}% { opacity: 1; }
-  ${boardFadePct.toFixed(2)}% { opacity: 0; }
-  100.00% { opacity: 0; }
-}`)
-
-      const boardElements: string[] = []
-      boardElements.push(
-        `<text x="${screenW / 2}" y="12" text-anchor="middle" dominant-baseline="middle" ` +
-        `font-family="monospace" font-weight="bold" font-size="10" fill="${pal.scoreText}">HIGH SCORES</text>`
-      )
-
-      if (options.scoreboard.isNewHighScore) {
-        boardElements.push(
-          `<text x="${screenW / 2}" y="24" text-anchor="middle" dominant-baseline="middle" ` +
-          `font-family="monospace" font-weight="bold" font-size="8" fill="${pal.laser}">★ NEW HIGH SCORE! ★</text>`
-        )
-      }
-
-      const entryStartY = options.scoreboard.isNewHighScore ? 36 : 26
-      for (let i = 0; i < options.scoreboard.entries.length; i++) {
-        const entry = options.scoreboard.entries[i]!
-        const col = i < 5 ? 0 : 1
-        const row = i < 5 ? i : i - 5
-        const colX = col === 0 ? screenW * 0.25 : screenW * 0.75
-        const y = entryStartY + row * 11
-        const isCurrent = entry.isCurrent
-        const rankColor = isCurrent ? pal.laser : pal.textMuted
-        const dateColor = isCurrent ? pal.text : pal.textMuted
-        const scoreColor = isCurrent ? pal.scoreText : pal.ship
-        const fw = isCurrent ? 'bold' : 'normal'
-
-        boardElements.push(
-          `<text x="${colX - 50}" y="${y}" font-family="monospace" font-weight="${fw}" font-size="8" fill="${rankColor}">${String(entry.rank).padStart(2, ' ')}.</text>` +
-          `<text x="${colX - 35}" y="${y}" font-family="monospace" font-weight="${fw}" font-size="8" fill="${dateColor}">${entry.date}</text>` +
-          `<text x="${colX + 55}" y="${y}" text-anchor="end" font-family="monospace" font-weight="${fw}" font-size="8" fill="${scoreColor}">${fmtScore(entry.score)}</text>`
-        )
-      }
-
-      elements.push(
-        `<g opacity="0" ${anim(`ending-board ${dur}s linear infinite`)}>${boardElements.join('')}</g>`
-      )
-    }
+    // Scoreboard removed from ending — now rendered at intro (see intro-board above)
 
     // Blackout overlay — fade in over blackoutDuration, hold, fade out over resetDuration
     const blackoutStartPct = fp(boardEndFrame)
