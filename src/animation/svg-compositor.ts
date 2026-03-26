@@ -196,8 +196,8 @@ export function composeSvg(options: CompositeSvgOptions): string {
     pluckTimeByCell.set(`${parts[1]},${parts[2]}`, cd.pluckTime)
   }
 
-  // Transition point: grid fades from hidden→visible at a fixed frame.
-  // With intro scoreboard: synced to scoreboard fade-out.
+  // Transition point: blackout fades from 1→0, revealing everything underneath.
+  // With intro scoreboard: after scoreboard fades out + small gap.
   // Without intro: a brief fade-in at the start (0.5s).
   const gridFadeFrames = introTotal > 0
     ? config.waveConfig.introScoreboardFadeOut
@@ -205,36 +205,6 @@ export function composeSvg(options: CompositeSvgOptions): string {
   const gridVisibleFrame = introTotal > 0 ? introTotal : gridFadeFrames
   const gridFadeInStartPct = frameToPercent(gridVisibleFrame - gridFadeFrames, output.totalFrames)
   const gridVisiblePct = frameToPercent(gridVisibleFrame, output.totalFrames)
-
-  // Grid wrapper: fades entire grid in at transition point, out at reset
-  const gridResetFadeStartPct = gameEndEvent
-    ? frameToPercent(
-        gameEndEvent.frame + config.waveConfig.endingFadeoutDuration +
-        config.waveConfig.endingScoreDuration + config.waveConfig.endingScoreOutDuration +
-        config.waveConfig.endingBoardInDuration + config.waveConfig.endingHoldDuration,
-        output.totalFrames)
-    : 100
-  const gridResetFadeEndPct = gameEndEvent
-    ? frameToPercent(
-        gameEndEvent.frame + config.waveConfig.endingFadeoutDuration +
-        config.waveConfig.endingScoreDuration + config.waveConfig.endingScoreOutDuration +
-        config.waveConfig.endingBoardInDuration + config.waveConfig.endingHoldDuration +
-        config.waveConfig.endingBlackoutDuration,
-        output.totalFrames)
-    : 100
-
-  cssRules.push(`@keyframes grid-fade {
-  0.00% { opacity: 0; }
-  ${gridFadeInStartPct.toFixed(2)}% { opacity: 0; }
-  ${gridVisiblePct.toFixed(2)}% { opacity: 1; }
-  ${gridResetFadeStartPct.toFixed(2)}% { opacity: 1; }
-  ${gridResetFadeEndPct.toFixed(2)}% { opacity: 0; }
-  100.00% { opacity: 0; }
-}`)
-
-  const gridGroupOpen = `<g ${anim(`grid-fade ${dur}s linear infinite`)}>`
-  const gridGroupClose = `</g>`
-  elements.push(gridGroupOpen)
 
   for (const cell of grid.cells) {
     const color = GRID_COLORS[cell.level] ?? GRID_COLORS[0]!
@@ -264,8 +234,6 @@ export function composeSvg(options: CompositeSvgOptions): string {
       elements.push(`<rect class="gc" x="${x}" y="${y}" width="${config.cellSize}" height="${config.cellSize}" fill="${color}" />`)
     }
   }
-
-  elements.push(gridGroupClose)
 
   // ── Overlay ──
   const overlayStops = overlayKeyframeStops(output, config)
@@ -671,58 +639,7 @@ export function composeSvg(options: CompositeSvgOptions): string {
     )
   }
 
-  // ── Intro Scoreboard (shown at animation start) ──
-  if (options.scoreboard && options.scoreboard.entries.length > 0 && introTotal > 0) {
-    const wc = config.waveConfig
-    const fp = (f: number) => frameToPercent(f, output.totalFrames)
-    const boardVisiblePct = fp(wc.introScoreboardFadeIn)
-    const boardHoldEndPct = fp(wc.introScoreboardFadeIn + wc.introScoreboardHold)
-    const boardFadeOutPct = fp(introTotal)
-    cssRules.push(`@keyframes intro-board {
-  0.00% { opacity: 0; }
-  ${boardVisiblePct.toFixed(2)}% { opacity: 1; }
-  ${boardHoldEndPct.toFixed(2)}% { opacity: 1; }
-  ${boardFadeOutPct.toFixed(2)}% { opacity: 0; }
-  100.00% { opacity: 0; }
-}`)
-
-    const boardElements: string[] = []
-    boardElements.push(
-      `<text x="${screenW / 2}" y="12" text-anchor="middle" dominant-baseline="middle" ` +
-      `font-family="monospace" font-weight="bold" font-size="10" fill="${pal.scoreText}">HIGH SCORES</text>`
-    )
-
-    if (options.scoreboard.isNewHighScore) {
-      boardElements.push(
-        `<text x="${screenW / 2}" y="24" text-anchor="middle" dominant-baseline="middle" ` +
-        `font-family="monospace" font-weight="bold" font-size="8" fill="${pal.laser}">★ NEW HIGH SCORE! ★</text>`
-      )
-    }
-
-    const entryStartY = options.scoreboard.isNewHighScore ? 36 : 26
-    for (let i = 0; i < options.scoreboard.entries.length; i++) {
-      const entry = options.scoreboard.entries[i]!
-      const col = i < 5 ? 0 : 1
-      const row = i < 5 ? i : i - 5
-      const colX = col === 0 ? screenW * 0.35 : screenW * 0.65
-      const y = entryStartY + row * 11
-      const isCurrent = entry.isCurrent
-      const rankColor = isCurrent ? pal.laser : pal.textMuted
-      const dateColor = isCurrent ? pal.text : pal.textMuted
-      const scoreColor = isCurrent ? pal.scoreText : pal.ship
-      const fw = isCurrent ? 'bold' : 'normal'
-
-      boardElements.push(
-        `<text x="${colX - 50}" y="${y}" font-family="monospace" font-weight="${fw}" font-size="8" fill="${rankColor}">${String(entry.rank).padStart(2, ' ')}.</text>` +
-        `<text x="${colX - 35}" y="${y}" font-family="monospace" font-weight="${fw}" font-size="8" fill="${dateColor}">${entry.date}</text>` +
-        `<text x="${colX + 55}" y="${y}" text-anchor="end" font-family="monospace" font-weight="${fw}" font-size="8" fill="${scoreColor}">${fmtScore(entry.score)}</text>`
-      )
-    }
-
-    elements.push(
-      `<g opacity="0" ${anim(`intro-board ${dur}s linear infinite`)}>${boardElements.join('')}</g>`
-    )
-  }
+  // Intro scoreboard is rendered after the blackout overlay (see below)
 
   // Wave label layers (left side): "READY" before first wave, "WAVE N/M" during each wave
   // "READY" at start (after intro scoreboard fades out)
@@ -802,6 +719,25 @@ export function composeSvg(options: CompositeSvgOptions): string {
   ${scoreOutPct.toFixed(2)}% { opacity: 0; }
   100.00% { opacity: 0; }
 }`)
+    // ── Blackout overlay — universal transition to/from black ──
+    // Starts at opacity 1 (black), fades to 0 at transition point to reveal gameplay,
+    // fades back to 1 at ending, stays black through reset and loop point.
+    const blackoutStartPct = fp(boardEndFrame)
+    const blackoutFullPct = fp(blackoutEndFrame)
+    cssRules.push(`@keyframes blackout {
+  0.00% { opacity: 1; }
+  ${gridFadeInStartPct.toFixed(2)}% { opacity: 1; }
+  ${gridVisiblePct.toFixed(2)}% { opacity: 0; }
+  ${blackoutStartPct.toFixed(2)}% { opacity: 0; }
+  ${blackoutFullPct.toFixed(2)}% { opacity: 1; }
+  100.00% { opacity: 1; }
+}`)
+    elements.push(
+      `<rect x="0" y="0" width="${screenW}" height="${screenH}" fill="${pal.bg}" ` +
+      `${anim(`blackout ${dur}s linear infinite`)} />`
+    )
+
+    // ── Ending score text (above blackout) ──
     const scoreText = `${fmtScore(finalScore)} COMMITS`
     elements.push(
       `<g ${anim(`wiggle-score 0.6s ease-in-out infinite`)}>` +
@@ -809,24 +745,58 @@ export function composeSvg(options: CompositeSvgOptions): string {
       `font-family="monospace" font-weight="bold" font-size="14" fill="${pal.scoreText}" opacity="0" ` +
       `${anim(`ending-score-text ${dur}s linear infinite`)}>${scoreText}</text></g>`
     )
+  }
 
-    // Scoreboard removed from ending — now rendered at intro (see intro-board above)
-
-    // Blackout overlay — fade in over blackoutDuration, hold, fade out over resetDuration
-    const blackoutStartPct = fp(boardEndFrame)
-    const blackoutFullPct = fp(blackoutEndFrame)
-    const resetDonePct = fp(resetEndFrame)
-    cssRules.push(`@keyframes ending-blackout {
+  // ── Intro Scoreboard (above blackout — visible on black background) ──
+  if (options.scoreboard && options.scoreboard.entries.length > 0 && introTotal > 0) {
+    const iwc = config.waveConfig
+    const ifp = (f: number) => frameToPercent(f, output.totalFrames)
+    const boardVisiblePct = ifp(iwc.introScoreboardFadeIn)
+    const boardHoldEndPct = ifp(iwc.introScoreboardFadeIn + iwc.introScoreboardHold)
+    const boardFadeOutPct = ifp(introTotal)
+    cssRules.push(`@keyframes intro-board {
   0.00% { opacity: 0; }
-  ${(blackoutStartPct - 0.01).toFixed(2)}% { opacity: 0; }
-  ${blackoutStartPct.toFixed(2)}% { opacity: 0; }
-  ${blackoutFullPct.toFixed(2)}% { opacity: 1; }
-  ${Math.min(100, resetDonePct).toFixed(2)}% { opacity: 0; }
+  ${boardVisiblePct.toFixed(2)}% { opacity: 1; }
+  ${boardHoldEndPct.toFixed(2)}% { opacity: 1; }
+  ${boardFadeOutPct.toFixed(2)}% { opacity: 0; }
   100.00% { opacity: 0; }
 }`)
+
+    const boardElements: string[] = []
+    boardElements.push(
+      `<text x="${screenW / 2}" y="12" text-anchor="middle" dominant-baseline="middle" ` +
+      `font-family="monospace" font-weight="bold" font-size="10" fill="${pal.scoreText}">HIGH SCORES</text>`
+    )
+
+    if (options.scoreboard.isNewHighScore) {
+      boardElements.push(
+        `<text x="${screenW / 2}" y="24" text-anchor="middle" dominant-baseline="middle" ` +
+        `font-family="monospace" font-weight="bold" font-size="8" fill="${pal.laser}">★ NEW HIGH SCORE! ★</text>`
+      )
+    }
+
+    const entryStartY = options.scoreboard.isNewHighScore ? 36 : 26
+    for (let i = 0; i < options.scoreboard.entries.length; i++) {
+      const entry = options.scoreboard.entries[i]!
+      const col = i < 5 ? 0 : 1
+      const row = i < 5 ? i : i - 5
+      const colX = col === 0 ? screenW * 0.35 : screenW * 0.65
+      const y = entryStartY + row * 11
+      const isCurrent = entry.isCurrent
+      const rankColor = isCurrent ? pal.laser : pal.textMuted
+      const dateColor = isCurrent ? pal.text : pal.textMuted
+      const scoreColor = isCurrent ? pal.scoreText : pal.ship
+      const fw = isCurrent ? 'bold' : 'normal'
+
+      boardElements.push(
+        `<text x="${colX - 50}" y="${y}" font-family="monospace" font-weight="${fw}" font-size="8" fill="${rankColor}">${String(entry.rank).padStart(2, ' ')}.</text>` +
+        `<text x="${colX - 35}" y="${y}" font-family="monospace" font-weight="${fw}" font-size="8" fill="${dateColor}">${entry.date}</text>` +
+        `<text x="${colX + 55}" y="${y}" text-anchor="end" font-family="monospace" font-weight="${fw}" font-size="8" fill="${scoreColor}">${fmtScore(entry.score)}</text>`
+      )
+    }
+
     elements.push(
-      `<rect x="0" y="0" width="${screenW}" height="${screenH}" fill="${pal.bg}" opacity="0" ` +
-      `${anim(`ending-blackout ${dur}s linear infinite`)} />`
+      `<g opacity="0" ${anim(`intro-board ${dur}s linear infinite`)}>${boardElements.join('')}</g>`
     )
   }
 

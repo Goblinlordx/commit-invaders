@@ -28,7 +28,7 @@ const defaultConfig: SimConfig = {
   waveConfig: {
     weeksPerWave: 4,
     introScoreboardFadeIn: 30, introScoreboardHold: 300, introScoreboardFadeOut: 30,
-    startDelay: 360, spawnDelay: 0,
+    startDelay: 420, spawnDelay: 0,
     brightenDuration: 60, pluckDuration: 20, darkenDuration: 60,
     travelDuration: 40, hatchDuration: 20,
     endingFadeoutDuration: 60, endingScoreDuration: 180,
