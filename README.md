@@ -90,6 +90,10 @@ Options:
 | `total_commits` | Total contributions in the graph |
 | `animation_duration` | Animation length in seconds |
 
+## Live Example
+
+See it in action on [Goblinlordx's GitHub profile](https://github.com/Goblinlordx) — the animation updates daily via the GitHub Action.
+
 ## How It Works
 
 1. **Fetch** — Pull contribution graph from GitHub GraphQL API
