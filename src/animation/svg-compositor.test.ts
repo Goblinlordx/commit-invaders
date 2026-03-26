@@ -3,7 +3,7 @@ import { describe, it, expect } from 'vitest'
 import type { Grid, SimConfig, ContributionLevel } from '../types.js'
 import { createPRNG } from '../simulator/prng.js'
 import { generateAnimatedSvg } from './svg-compositor.js'
-import { INVADER_COLOR, PLUCK_COLOR } from './entity-templates.js'
+import { INVADER_COLOR, PLUCK_COLOR, PALETTE_LIGHT, PALETTE_DARK } from './entity-templates.js'
 
 function makeGrid(weeks: number, seed: string): Grid {
   const prng = createPRNG(seed)
@@ -158,5 +158,20 @@ describe('svg-compositor', () => {
     // Small grid should be under 500KB
     expect(svg.length).toBeLessThan(500 * 1024)
     console.log(`  SVG size (4 weeks): ${(svg.length / 1024).toFixed(1)} KB`)
+  })
+})
+
+describe('laser sprite uses palette color', () => {
+  it('dark palette laser sprite contains dark palette laser color', () => {
+    const grid = makeGrid(4, 'laser-dark')
+    const svg = generateAnimatedSvg(grid, 'test', config, PALETTE_DARK)
+    expect(svg).toContain(`fill="${PALETTE_DARK.laser}"`)
+  })
+
+  it('light palette laser sprite contains light palette laser color', () => {
+    const grid = makeGrid(4, 'laser-light')
+    const svg = generateAnimatedSvg(grid, 'test', config, PALETTE_LIGHT)
+    expect(svg).toContain(`fill="${PALETTE_LIGHT.laser}"`)
+    expect(svg).not.toContain('fill="#ffff00"')
   })
 })
