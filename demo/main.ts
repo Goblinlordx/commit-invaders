@@ -342,9 +342,32 @@ function setNestedValue(obj: any, path: string, val: number) {
   o[parts[parts.length - 1]!] = val
 }
 
+// ── Avatar Preview ──
+const avatarImg = document.getElementById('gh-avatar') as HTMLImageElement
+let avatarDebounce = 0
+
+function updateAvatar(username: string) {
+  avatarImg.classList.remove('loaded')
+  if (!username) return
+  avatarImg.src = `https://github.com/${username}.png?size=64`
+}
+
+avatarImg.addEventListener('load', () => { avatarImg.classList.add('loaded') })
+avatarImg.addEventListener('error', () => { avatarImg.classList.remove('loaded') })
+
+// Initial avatar for default value
+updateAvatar(usernameInput.value.trim())
+
 // ── Event Listeners ──
 generateBtn.addEventListener('click', doGenerate)
 usernameInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') doGenerate() })
+
+usernameInput.addEventListener('input', () => {
+  clearTimeout(avatarDebounce)
+  avatarDebounce = window.setTimeout(() => {
+    updateAvatar(usernameInput.value.trim())
+  }, 400)
+})
 
 playPause.addEventListener('click', () => {
   if (isPlaying) pausePlayback()
