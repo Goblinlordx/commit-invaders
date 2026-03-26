@@ -1,14 +1,15 @@
 name: Release
 
 on:
-  release:
-    types: [published]
+  push:
+    tags:
+      - 'v*'
 
 jobs:
   publish:
     runs-on: ubuntu-latest
     permissions:
-      contents: read
+      contents: write
       id-token: write
     steps:
       - uses: actions/checkout@v4
@@ -22,6 +23,21 @@ jobs:
           registry-url: 'https://registry.npmjs.org'
       - run: npm install -g npm@^11.10.0
       - run: pnpm install --frozen-lockfile
+      - run: pnpm typecheck
       - run: pnpm test
       - run: pnpm build
+
+      # Publish to npm
       - run: npm publish --access public
+
+      # Create GitHub release (auto-updates Marketplace listing)
+      - uses: softprops/action-gh-release@v2
+        with:
+          generate_release_notes: true
+
+      # Update v1 major tag
+      - run: |
+          git config user.name "commit-invaders[bot]"
+          git config user.email "commit-invaders[bot]@users.noreply.github.com"
+          git tag -fa v1 -m "v1"
+          git push origin v1 --force
