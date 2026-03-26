@@ -98,6 +98,8 @@ See it in action on [Goblinlordx's GitHub profile](https://github.com/Goblinlord
 
 The simulation uses time-based physics (`dt = 1/fps`), swept collision detection, target-locked firing, and formation path prediction for accurate laser targeting.
 
+See [How the High Score Board Works](docs/scoreboard.md) for details on the sliding-window scoring algorithm and SVG rendering.
+
 ## Development
 
 ```bash
