@@ -1,6 +1,6 @@
 {
   "name": "commit-invaders",
-  "version": "1.0.3",
+  "version": "1.0.4",
   "description": "Generate an animated Space Invaders SVG from your GitHub contribution graph",
   "type": "module",
   "engines": {
