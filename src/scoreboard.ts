@@ -16,31 +16,88 @@ export interface ScoreboardResult {
   minDistance: number // minimum days between entries
 }
 
+// ── Run Tracker ──
+// Tracks consecutive same-score runs using flat typed arrays.
+// Accepts dates as input — maps to internal indices automatically.
+// When a date is selected, its entire run is consumed in one call.
+
+class RunTracker {
+  private readonly dateToIndex: Map<string, number>
+  private readonly runStart: Int32Array
+  private readonly runEnd: Int32Array
+  private consumed: Uint8Array
+
+  constructor(dates: string[], scores: Int32Array) {
+    const N = dates.length
+    this.dateToIndex = new Map()
+    for (let i = 0; i < N; i++) this.dateToIndex.set(dates[i]!, i)
+
+    this.runStart = new Int32Array(N)
+    this.runEnd = new Int32Array(N)
+    this.consumed = new Uint8Array(N)
+
+    this.runStart[0] = 0
+    for (let i = 1; i < N; i++) {
+      this.runStart[i] = scores[i] === scores[i - 1] ? this.runStart[i - 1]! : i
+    }
+
+    this.runEnd[N - 1] = N - 1
+    for (let i = N - 2; i >= 0; i--) {
+      this.runEnd[i] = scores[i] === scores[i + 1] ? this.runEnd[i + 1]! : i
+    }
+  }
+
+  /** Check if a date has already been consumed. */
+  has(date: string): boolean {
+    const i = this.dateToIndex.get(date)
+    return i !== undefined && this.consumed[i] === 1
+  }
+
+  /** Consume a date and all dates in its consecutive same-score run. */
+  set(date: string): void {
+    const i = this.dateToIndex.get(date)
+    if (i === undefined) return
+    const start = this.runStart[i]!
+    const end = this.runEnd[i]!
+    for (let j = start; j <= end; j++) this.consumed[j] = 1
+  }
+
+  /** Reset consumed state for reuse across binary search iterations. */
+  reset(): void {
+    this.consumed = new Uint8Array(this.consumed.length)
+  }
+}
+
+// ── Scoreboard ──
+
+interface WindowRecord {
+  endIndex: number
+  date: string
+  score: number
+}
+
 /**
  * Compute the high score board from contribution data.
  *
- * Algorithm (single pass + heap):
+ * Algorithm:
  * 1. For each day, compute window score (trailing windowSize days via prefix sums)
- * 2. Inline: push non-zero records into max-heap, build run map (consecutive
- *    same-score indices → shared Set for fast consumption)
- * 3. Drain heap → score-descending array
+ * 2. Build RunTracker from scores (consecutive same-score run boundaries)
+ * 3. Exclude score-0 windows, sort descending
  * 4. Binary search for max distance that yields >= maxEntries, using run-aware
  *    distance filter (selecting a date consumes its entire run)
  * 5. Check if current day's score is on the board
  */
 export function computeScoreboard(
   grid: Grid,
-  currentDate: string, // ISO date of the current render
-  windowSize: number = 364, // default: 52 weeks
+  currentDate: string,
+  windowSize: number = 364,
   maxEntries: number = 10,
 ): ScoreboardResult {
-  // Build a date→commits map from the grid
   const commitsByDate = new Map<string, number>()
   for (const cell of grid.cells) {
     commitsByDate.set(cell.date, (commitsByDate.get(cell.date) ?? 0) + cell.count)
   }
 
-  // Get all dates sorted chronologically
   const allDates = [...commitsByDate.keys()].sort()
   if (allDates.length === 0) {
     return {
@@ -53,64 +110,37 @@ export function computeScoreboard(
     }
   }
 
-  // Compute prefix sums for efficient window scoring
-  // Map dates to indices for arithmetic
+  // Prefix sums for O(1) window scoring
   const dateToIndex = new Map<string, number>()
-  const indexToDate = new Map<number, string>()
   const dailyCounts: number[] = []
-
   for (let i = 0; i < allDates.length; i++) {
-    const d = allDates[i]!
-    dateToIndex.set(d, i)
-    indexToDate.set(i, d)
-    dailyCounts.push(commitsByDate.get(d) ?? 0)
+    dateToIndex.set(allDates[i]!, i)
+    dailyCounts.push(commitsByDate.get(allDates[i]!) ?? 0)
   }
 
-  // Prefix sum
   const prefix: number[] = new Array(dailyCounts.length + 1).fill(0) as number[]
   for (let i = 0; i < dailyCounts.length; i++) {
     prefix[i + 1] = prefix[i]! + dailyCounts[i]!
   }
 
-  // Compute window score for each day (window ends on this day, goes back windowSize days)
-  interface WindowRecord {
-    endIndex: number
-    date: string
-    score: number
-  }
-
-  // Single pass: compute window scores, build run map, and push non-zero
-  // records into a max-heap (by score). This avoids a separate filter + sort.
-  const heap: WindowRecord[] = []
-  const runMap = new Map<number, Set<number>>()
-  let currentRun: Set<number> | null = null
-  let currentRunScore = -1
-
-  for (let i = 0; i < allDates.length; i++) {
+  // Compute window scores
+  const N = allDates.length
+  const scores = new Int32Array(N)
+  for (let i = 0; i < N; i++) {
     const startIdx = Math.max(0, i - windowSize + 1)
-    const score = prefix[i + 1]! - prefix[startIdx]!
-
-    // Track consecutive same-score runs
-    if (score === currentRunScore && currentRun) {
-      currentRun.add(i)
-      runMap.set(i, currentRun)
-    } else {
-      currentRun = new Set([i])
-      currentRunScore = score
-      runMap.set(i, currentRun)
-    }
-
-    // Push non-zero records into max-heap
-    if (score > 0) {
-      heapPush(heap, { endIndex: i, date: allDates[i]!, score })
-    }
+    scores[i] = prefix[i + 1]! - prefix[startIdx]!
   }
 
-  // Drain heap into score-descending array for binary search passes
+  const runs = new RunTracker(allDates, scores)
+
+  // Collect non-zero records and sort descending
   const records: WindowRecord[] = []
-  while (heap.length > 0) {
-    records.push(heapPop(heap)!)
+  for (let i = 0; i < N; i++) {
+    if (scores[i]! > 0) {
+      records.push({ endIndex: i, date: allDates[i]!, score: scores[i]! })
+    }
   }
+  records.sort((a, b) => b.score - a.score)
 
   // Current day score
   const currentIdx = dateToIndex.get(currentDate)
@@ -120,15 +150,13 @@ export function computeScoreboard(
     currentDayScore = prefix[currentIdx + 1]! - prefix[startIdx]!
   }
 
-  // Distance filtering via binary search — O(N log N) total
-  // filterByDistance is monotonic: more distance → fewer or equal entries
   // Binary search for max distance that yields >= maxEntries
   let lo = 0
-  let hi = allDates.length
+  let hi = N
 
   while (lo < hi) {
     const mid = Math.floor((lo + hi + 1) / 2)
-    const count = filterByDistance(records, mid, runMap, maxEntries).length
+    const count = filterByDistance(records, mid, runs, maxEntries).length
     if (count >= maxEntries) {
       lo = mid
     } else {
@@ -137,17 +165,14 @@ export function computeScoreboard(
   }
 
   const bestDistance = lo
-  const bestFiltered = filterByDistance(records, bestDistance, runMap, maxEntries)
+  const bestFiltered = filterByDistance(records, bestDistance, runs, maxEntries)
   const bestEntries = bestFiltered.slice(0, maxEntries)
 
-  // The current date's score may match the top entry but get distance-filtered out.
-  // If the #1 entry has the same score as the current window, treat it as "current".
   const topScore = bestEntries.length > 0 ? bestEntries[0]!.score : 0
   const isNewHighScore = currentDayScore > 0 && currentDayScore >= topScore
 
   let currentMarked = false
   const entries: HighScoreEntry[] = bestEntries.map((e, i) => {
-    // Mark the first entry whose score matches the current window score as "current"
     const isCurrent = !currentMarked && e.score === currentDayScore && currentDayScore > 0
     if (isCurrent) currentMarked = true
     return {
@@ -169,59 +194,32 @@ export function computeScoreboard(
 }
 
 /**
- * Filter records by minimum distance between entries, with run-aware consumption.
- * Takes the highest-scoring records that are at least `minDist` days apart.
- * When a date is selected, all dates in its consecutive same-score run are
- * consumed (via the shared Set in runMap), preventing redundant selection.
- *
- * Uses a sorted array of used indices for O(log K) proximity checks per record.
- * Early-exits when `needed` entries found.
+ * Filter records by minimum distance, with run-aware consumption.
+ * When a date is selected, its entire consecutive same-score run is consumed
+ * via the RunTracker, preventing redundant selection of neighbouring dates.
  */
 function filterByDistance(
-  sortedRecords: Array<{ endIndex: number; score: number }>,
+  sortedRecords: WindowRecord[],
   minDist: number,
-  runMap: Map<number, Set<number>>,
-  needed: number = Infinity,
-): Array<{ endIndex: number; date: string; score: number }> {
-  const result: Array<{ endIndex: number; date: string; score: number }> = []
-  // Keep used indices sorted for binary search proximity check
+  runs: RunTracker,
+  needed: number,
+): WindowRecord[] {
+  runs.reset()
+  const result: WindowRecord[] = []
   const used: number[] = []
-  const consumed = new Set<number>()
 
-  for (const rec of sortedRecords) {
+  for (const r of sortedRecords) {
     if (result.length >= needed) break
+    if (runs.has(r.date)) continue
 
-    const r = rec as { endIndex: number; date: string; score: number }
-
-    // Skip if already consumed by a previous selection's run
-    if (consumed.has(r.endIndex)) continue
-
-    if (minDist <= 0 || used.length === 0) {
+    if (minDist <= 0 || used.length === 0 || !isTooClose(used, r.endIndex, minDist)) {
       result.push(r)
       insertSorted(used, r.endIndex)
-      consumeRun(r.endIndex, runMap, consumed)
-      continue
-    }
-
-    // Binary search for nearest used index
-    if (!isTooClose(used, r.endIndex, minDist)) {
-      result.push(r)
-      insertSorted(used, r.endIndex)
-      consumeRun(r.endIndex, runMap, consumed)
+      runs.set(r.date)
     }
   }
 
   return result
-}
-
-/** Mark all indices in the same consecutive run as consumed. */
-function consumeRun(index: number, runMap: Map<number, Set<number>>, consumed: Set<number>): void {
-  const run = runMap.get(index)
-  if (run) {
-    for (const idx of run) {
-      consumed.add(idx)
-    }
-  }
 }
 
 /** Insert value into a sorted array maintaining sort order. */
@@ -240,7 +238,6 @@ function insertSorted(arr: number[], val: number): void {
 function isTooClose(sorted: number[], val: number, minDist: number): boolean {
   if (sorted.length === 0) return false
 
-  // Find insertion point
   let lo = 0
   let hi = sorted.length
   while (lo < hi) {
@@ -249,44 +246,7 @@ function isTooClose(sorted: number[], val: number, minDist: number): boolean {
     else hi = mid
   }
 
-  // Check neighbors
   if (lo < sorted.length && Math.abs(sorted[lo]! - val) < minDist) return true
   if (lo > 0 && Math.abs(sorted[lo - 1]! - val) < minDist) return true
   return false
-}
-
-// ── Max-heap by score ──
-
-interface HeapItem { score: number }
-
-function heapPush<T extends HeapItem>(heap: T[], item: T): void {
-  heap.push(item)
-  let i = heap.length - 1
-  while (i > 0) {
-    const parent = (i - 1) >>> 1
-    if (heap[parent]!.score >= heap[i]!.score) break
-    ;[heap[parent], heap[i]] = [heap[i]!, heap[parent]!]
-    i = parent
-  }
-}
-
-function heapPop<T extends HeapItem>(heap: T[]): T | undefined {
-  if (heap.length === 0) return undefined
-  const top = heap[0]!
-  const last = heap.pop()!
-  if (heap.length > 0) {
-    heap[0] = last
-    let i = 0
-    while (true) {
-      let largest = i
-      const left = 2 * i + 1
-      const right = 2 * i + 2
-      if (left < heap.length && heap[left]!.score > heap[largest]!.score) largest = left
-      if (right < heap.length && heap[right]!.score > heap[largest]!.score) largest = right
-      if (largest === i) break
-      ;[heap[i], heap[largest]] = [heap[largest]!, heap[i]!]
-      i = largest
-    }
-  }
-  return top
 }
