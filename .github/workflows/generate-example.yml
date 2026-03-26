@@ -27,8 +27,9 @@ jobs:
 
       - name: Deploy to output branch
         run: |
-          # Save SVG before switching branches
+          # Save SVGs before switching branches
           cp commit-invaders.svg /tmp/commit-invaders.svg
+          cp commit-invaders-dark.svg /tmp/commit-invaders-dark.svg
 
           git config user.name "commit-invaders[bot]"
           git config user.email "commit-invaders[bot]@users.noreply.github.com"
@@ -44,8 +45,9 @@ jobs:
             git checkout --orphan output
             git rm -rf . 2>/dev/null || true
           fi
-          
+
           cp /tmp/commit-invaders.svg commit-invaders.svg
-          git add commit-invaders.svg
-          git diff --cached --quiet || git commit -m "chore: update example SVG for Goblinlordx"
+          cp /tmp/commit-invaders-dark.svg commit-invaders-dark.svg
+          git add commit-invaders.svg commit-invaders-dark.svg
+          git diff --cached --quiet || git commit -m "chore: update example SVGs for Goblinlordx"
           git push origin output

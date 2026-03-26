@@ -14,7 +14,7 @@ import { parseContributionResponse, parseMultiYearResponses } from '../src/fetch
 import { composeSvg } from '../src/animation/svg-compositor.js'
 import { simulate } from '../src/simulator/simulate.js'
 import { computeScoreboard } from '../src/scoreboard.js'
-import { PALETTE_DARK } from '../src/animation/entity-templates.js'
+import { PALETTE_DARK, PALETTE_LIGHT } from '../src/animation/entity-templates.js'
 import type { SimConfig } from '../src/types.js'
 
 const STRIDE = 13
@@ -83,12 +83,18 @@ async function main() {
     console.log(`Scoreboard: ${scoreboard.entries.length} entries, high score: ${scoreboard.isNewHighScore}`)
   }
 
-  console.log('Generating SVG...')
+  console.log('Generating SVGs...')
   const seed = `${username}-${new Date().toISOString().slice(0, 10)}`
-  const svg = composeSvg({ grid, seed, config: defaultConfig, scoreboard, palette: PALETTE_DARK })
+  const svgDark = composeSvg({ grid, seed, config: defaultConfig, scoreboard, palette: PALETTE_DARK })
+  const svgLight = composeSvg({ grid, seed, config: defaultConfig, scoreboard, palette: PALETTE_LIGHT })
 
-  writeFileSync(outputFile, svg)
-  console.log(`Written: ${outputFile} (${(svg.length / 1024).toFixed(1)} KB)`)
+  const baseName = outputFile.replace(/\.svg$/, '')
+  const darkFile = `${baseName}-dark.svg`
+  const lightFile = `${baseName}.svg`
+  writeFileSync(darkFile, svgDark)
+  writeFileSync(lightFile, svgLight)
+  console.log(`Written: ${darkFile} (${(svgDark.length / 1024).toFixed(1)} KB)`)
+  console.log(`Written: ${lightFile} (${(svgLight.length / 1024).toFixed(1)} KB)`)
 }
 
 main().catch((err) => {

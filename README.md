@@ -9,7 +9,7 @@
 Generate an animated Space Invaders game from your GitHub contribution graph. Your contribution cells are plucked from the grid, travel to formation positions, hatch into invaders, and a ship fires lasers to destroy them wave by wave — all in a seamlessly looping CSS animation.
 
 <picture>
-  <source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/Goblinlordx/commit-invaders/output/commit-invaders.svg">
+  <source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/Goblinlordx/commit-invaders/output/commit-invaders-dark.svg">
   <source media="(prefers-color-scheme: light)" srcset="https://raw.githubusercontent.com/Goblinlordx/commit-invaders/output/commit-invaders.svg">
   <img alt="Commit Invaders Animation" src="https://raw.githubusercontent.com/Goblinlordx/commit-invaders/output/commit-invaders.svg" width="100%">
 </picture>
