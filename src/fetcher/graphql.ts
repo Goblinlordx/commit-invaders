@@ -108,7 +108,7 @@ const CONTRIBUTION_HISTORY_QUERY = `
 
 async function fetchWithRetry<T>(
   fn: () => Promise<T>,
-  maxRetries: number = 3,
+  maxRetries: number = 5,
 ): Promise<T> {
   let lastError: unknown
   for (let attempt = 0; attempt <= maxRetries; attempt++) {
@@ -117,7 +117,7 @@ async function fetchWithRetry<T>(
     } catch (error: unknown) {
       lastError = error
       if (attempt < maxRetries) {
-        const delay = Math.min(1000 * 2 ** attempt, 10_000)
+        const delay = 1000 * 2 ** attempt // 1s, 2s, 4s, 8s, 16s
         await new Promise((resolve) => setTimeout(resolve, delay))
       }
     }
