@@ -32,39 +32,36 @@ GitHub GraphQL API  ──>  all contribution years (via contributionYears)
 
 ## Algorithm
 
-### Step 1: Sliding Window with Prefix Sums
+### Step 1: Window Scores + Run Map + Max-Heap (single pass)
 
-For every day in the contribution history, compute a **window score**: the total commits in the trailing 364 days (52 weeks).
+A single pass over all dates computes three things simultaneously:
 
-```
-window_score[day] = sum of commits from (day - 363) to day
-```
+1. **Window score** for each day: total commits in the trailing 364 days (52 weeks), computed in O(1) via a prefix sum array:
 
-This is computed efficiently via a **prefix sum array** over daily commit counts, giving O(1) per window:
+   ```
+   score = prefix[day + 1] - prefix[day - windowSize + 1]
+   ```
 
-```
-score = prefix[day + 1] - prefix[day - windowSize + 1]
-```
+2. **Run map**: each date index maps to a shared `Set` of all indices in its consecutive same-score run. Adjacent days often share the same window score (the window shifts by one day, adding/removing the same 0-contribution day). The shared Set enables O(1) lookup and bulk consumption during filtering.
 
-Windows with a score of 0 are excluded -- they represent periods with no contributions and cannot appear on the board.
+3. **Max-heap**: non-zero-score records are pushed into a binary max-heap keyed by score. Windows with score 0 are excluded -- no contributions in that period.
 
-### Step 2: Consecutive Run Collapsing
+After the pass, the heap is drained into a score-descending array for the distance filter.
 
-Adjacent days often share the same window score (the window shifts by one day, adding/removing the same 0-contribution day at either end). These consecutive same-score runs are collapsed into a single representative -- the **middle day** of each run. This deduplicates without losing coverage, and the representative shifts naturally as the window evolves over time.
+### Step 2: Distance Filtering via Binary Search
 
-### Step 3: Distance Filtering via Binary Search
-
-After collapsing, the remaining records are sorted by score descending. The raw sorted list often has many entries clustered around the same peak period. To produce a diverse top-10 list, the algorithm enforces a **minimum distance** (in days) between selected entries.
+The sorted records often have many entries clustered around the same peak period. To produce a diverse top-10 list, the algorithm enforces a **minimum distance** (in days) between selected entries.
 
 The optimal distance is found via **binary search**:
 
 1. Binary search over candidate distances from 0 to N (total days)
 2. For each candidate distance, greedily select the highest-scoring windows that are at least that many days apart
-3. Find the **largest** distance that still yields >= 10 entries
+3. When a date is selected, **consume its entire run** via the run map -- all dates in the same consecutive same-score run are skipped for future candidates
+4. Find the **largest** distance that still yields >= 10 entries
 
-The greedy selection maintains a **sorted array** of already-chosen indices. For each candidate window, a binary search checks whether any previously selected window is within the minimum distance. This gives O(log K) per proximity check, where K is the number of accepted entries (at most 10).
+The greedy selection maintains a **sorted array** of already-chosen indices. For each candidate window, a binary search checks whether any previously selected window is within the minimum distance. O(log K) per proximity check, where K is the number of accepted entries (at most 10).
 
-**Overall complexity: O(N log N)** -- dominated by the initial sort. The binary search runs O(log N) iterations, each filtering in O(N log K) time.
+**Complexity: O(N log N)** -- heap drain dominates. Binary search runs O(log N) iterations, each filtering in O(N log K). Run consumption is amortized O(N) total since each index is consumed at most once.
 
 ### Current Day Detection
 
