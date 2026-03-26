@@ -136,6 +136,9 @@ export function composeSvg(options: CompositeSvgOptions): string {
   const gridOffX = screenW - config.gridArea.height - RENDER_MARGIN
   const gridOffY = RENDER_MARGIN + (config.playArea.width - config.gridArea.width) / 2
 
+  // Intro scoreboard total duration (used by ship/status bar to stay hidden during intro)
+  const introTotal = config.waveConfig.introScoreboardFadeIn + config.waveConfig.introScoreboardHold + config.waveConfig.introScoreboardFadeOut
+
   const elements: string[] = []
   const cssRules: string[] = []
 
@@ -460,15 +463,25 @@ export function composeSvg(options: CompositeSvgOptions): string {
     const shipInitX = RENDER_MARGIN + config.playArea.height - config.shipY
     const shipInitY = RENDER_MARGIN + config.playArea.width / 2
 
-    // Build movement keyframe stops with opacity for ending fade
+    // Build movement keyframe stops with opacity for intro/ending transitions
     const shipStops: string[] = []
+    const initTransform = `translate(${shipInitX.toFixed(1)}px, ${shipInitY.toFixed(1)}px)`
 
-    // Hold at initial position until first movement
+    // When intro scoreboard is active, ship starts hidden and fades in after it
     const firstPoint = shipKfPoints[0]!
     const firstPct = (firstPoint.time / dur) * 100
-    if (firstPct > 0.02) {
-      shipStops.push(`0% { transform: translate(${shipInitX.toFixed(1)}px, ${shipInitY.toFixed(1)}px); opacity: 1; }`)
-      shipStops.push(`${(firstPct - 0.01).toFixed(2)}% { transform: translate(${shipInitX.toFixed(1)}px, ${shipInitY.toFixed(1)}px); opacity: 1; }`)
+    if (introTotal > 0) {
+      const introEndPct = frameToPercent(introTotal, output.totalFrames)
+      const shipFadeInPct = Math.min(introEndPct + (1.0 / dur) * 100, firstPct - 0.01)
+      shipStops.push(`0% { transform: ${initTransform}; opacity: 0; }`)
+      shipStops.push(`${introEndPct.toFixed(2)}% { transform: ${initTransform}; opacity: 0; }`)
+      shipStops.push(`${shipFadeInPct.toFixed(2)}% { transform: ${initTransform}; opacity: 1; }`)
+      if (firstPct > shipFadeInPct + 0.02) {
+        shipStops.push(`${(firstPct - 0.01).toFixed(2)}% { transform: ${initTransform}; opacity: 1; }`)
+      }
+    } else if (firstPct > 0.02) {
+      shipStops.push(`0% { transform: ${initTransform}; opacity: 1; }`)
+      shipStops.push(`${(firstPct - 0.01).toFixed(2)}% { transform: ${initTransform}; opacity: 1; }`)
     }
 
     // Movement stops
@@ -477,17 +490,23 @@ export function composeSvg(options: CompositeSvgOptions): string {
       shipStops.push(`${pct.toFixed(2)}% { transform: translate(${p.screenX.toFixed(1)}px, ${p.screenY.toFixed(1)}px); opacity: 1; }`)
     }
 
-    // Ending fade: ship fades out during ending_fadeout, stays hidden, restores at reset
+    // Ending fade: ship fades out during ending_fadeout
     if (gameEndEvent) {
-      const wc = config.waveConfig
+      const ewc = config.waveConfig
       const fadeStartPct = frameToPercent(gameEndEvent.frame, output.totalFrames)
-      const fadeEndPct = frameToPercent(gameEndEvent.frame + wc.endingFadeoutDuration, output.totalFrames)
-      const resetStartPct = resetRestorePct
-      const resetEndPct = Math.min(100, resetRestorePct + (2.5 / dur) * 100)
+      const fadeEndPct = frameToPercent(gameEndEvent.frame + ewc.endingFadeoutDuration, output.totalFrames)
       shipStops.push(`${fadeStartPct.toFixed(2)}% { opacity: 1; }`)
-      shipStops.push(`${fadeEndPct.toFixed(2)}% { opacity: 0; transform: translate(${shipInitX.toFixed(1)}px, ${shipInitY.toFixed(1)}px); }`)
-      shipStops.push(`${resetStartPct.toFixed(2)}% { opacity: 0; transform: translate(${shipInitX.toFixed(1)}px, ${shipInitY.toFixed(1)}px); }`)
-      shipStops.push(`${resetEndPct.toFixed(2)}% { opacity: 1; transform: translate(${shipInitX.toFixed(1)}px, ${shipInitY.toFixed(1)}px); }`)
+      shipStops.push(`${fadeEndPct.toFixed(2)}% { opacity: 0; transform: ${initTransform}; }`)
+      if (introTotal > 0) {
+        // Stay hidden through reset — loops back to intro scoreboard
+        shipStops.push(`100% { opacity: 0; transform: ${initTransform}; }`)
+      } else {
+        // No intro: restore ship at reset for seamless loop
+        const resetStartPct = resetRestorePct
+        const resetEndPct = Math.min(100, resetRestorePct + (2.5 / dur) * 100)
+        shipStops.push(`${resetStartPct.toFixed(2)}% { opacity: 0; transform: ${initTransform}; }`)
+        shipStops.push(`${resetEndPct.toFixed(2)}% { opacity: 1; transform: ${initTransform}; }`)
+      }
     }
 
     cssRules.push(`@keyframes ship-move {\n  ${shipStops.join('\n  ')}\n}`)
@@ -623,9 +642,8 @@ export function composeSvg(options: CompositeSvgOptions): string {
   }
 
   // ── Intro Scoreboard (shown at animation start) ──
-  const wc = config.waveConfig
-  const introTotal = wc.introScoreboardFadeIn + wc.introScoreboardHold + wc.introScoreboardFadeOut
   if (options.scoreboard && options.scoreboard.entries.length > 0 && introTotal > 0) {
+    const wc = config.waveConfig
     const fp = (f: number) => frameToPercent(f, output.totalFrames)
     const boardVisiblePct = fp(wc.introScoreboardFadeIn)
     const boardHoldEndPct = fp(wc.introScoreboardFadeIn + wc.introScoreboardHold)
@@ -723,7 +741,9 @@ export function composeSvg(options: CompositeSvgOptions): string {
   }
 
   // "READY" during ending_reset (fade in gradually with reset)
-  if (gameEndEvent) {
+  // When intro scoreboard is active, don't restore — the next loop iteration
+  // shows intro scoreboard first, then READY appears via status-ready-start
+  if (gameEndEvent && introTotal === 0) {
     const resetStartPct = resetRestorePct
     const resetEndPct = Math.min(100, resetRestorePct + (2.5 / dur) * 100)
     // Fade in from resetStart to resetEnd, stay visible to 100%
