@@ -26,9 +26,7 @@ export function parseInputs(): ActionInputs {
     outputBranch: core.getInput('output_branch') || 'output',
     outputFile: core.getInput('output_file') || 'commit-invaders.svg',
     noScoreboard: core.getBooleanInput('no_scoreboard'),
-    scoreboardYears: parseInt(core.getInput('scoreboard_years') || '5', 10),
     animationDuration: parseInt(core.getInput('animation_duration') || '0', 10),
-    weeksPerWave: parseInt(core.getInput('weeks_per_wave') || '4', 10),
   }
 }
 
@@ -44,7 +42,7 @@ export function buildConfig(inputs: ActionInputs): SimConfig {
   return {
     framesPerSecond: 60,
     waveConfig: {
-      weeksPerWave: inputs.weeksPerWave,
+      weeksPerWave: 4,
       startDelay: 60, spawnDelay: 0,
       brightenDuration: 60, pluckDuration: 20, darkenDuration: 60,
       travelDuration: 40, hatchDuration: 20,

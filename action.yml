@@ -24,14 +24,6 @@ inputs:
     description: 'Disable high score board'
     required: false
     default: 'false'
-  scoreboard_years:
-    description: 'Number of years to look back for scoreboard'
-    required: false
-    default: '5'
-  weeks_per_wave:
-    description: 'Number of weeks grouped per wave'
-    required: false
-    default: '4'
 
 outputs:
   svg_file:

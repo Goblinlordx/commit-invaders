@@ -75,7 +75,6 @@ Options:
 | `output_branch` | No | `output` | Branch to commit SVG to |
 | `output_file` | No | `commit-invaders.svg` | Output filename |
 | `no_scoreboard` | No | `false` | Disable high score board |
-| `weeks_per_wave` | No | `4` | Weeks grouped per invader wave |
 
 ## Action Outputs
 

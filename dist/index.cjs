@@ -19904,9 +19904,7 @@ function parseInputs() {
     outputBranch: getInput("output_branch") || "output",
     outputFile: getInput("output_file") || "commit-invaders.svg",
     noScoreboard: getBooleanInput("no_scoreboard"),
-    scoreboardYears: parseInt(getInput("scoreboard_years") || "5", 10),
-    animationDuration: parseInt(getInput("animation_duration") || "0", 10),
-    weeksPerWave: parseInt(getInput("weeks_per_wave") || "4", 10)
+    animationDuration: parseInt(getInput("animation_duration") || "0", 10)
   };
 }
 function buildConfig(inputs) {
@@ -19920,7 +19918,7 @@ function buildConfig(inputs) {
   return {
     framesPerSecond: 60,
     waveConfig: {
-      weeksPerWave: inputs.weeksPerWave,
+      weeksPerWave: 4,
       startDelay: 60,
       spawnDelay: 0,
       brightenDuration: 60,
