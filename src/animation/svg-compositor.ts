@@ -197,13 +197,14 @@ export function composeSvg(options: CompositeSvgOptions): string {
   }
 
   // Transition point: blackout fades from 1→0, revealing everything underneath.
-  // With intro scoreboard: after scoreboard fades out + small gap.
+  // Each scene fades fully to black before the next begins.
+  // With intro scoreboard: scoreboard fades to black → brief black gap → reveal.
   // Without intro: a brief fade-in at the start (0.5s).
-  const gridFadeFrames = introTotal > 0
-    ? config.waveConfig.introScoreboardFadeOut
-    : Math.min(30, Math.floor(output.totalFrames * 0.01))
-  const gridVisibleFrame = introTotal > 0 ? introTotal : gridFadeFrames
-  const gridFadeInStartPct = frameToPercent(gridVisibleFrame - gridFadeFrames, output.totalFrames)
+  const revealDuration = 30 // frames for blackout 1→0 fade
+  const blackGap = 30 // frames of full black between scenes
+  const gridFadeInStartFrame = introTotal > 0 ? introTotal + blackGap : 0
+  const gridVisibleFrame = introTotal > 0 ? introTotal + blackGap + revealDuration : revealDuration
+  const gridFadeInStartPct = frameToPercent(gridFadeInStartFrame, output.totalFrames)
   const gridVisiblePct = frameToPercent(gridVisibleFrame, output.totalFrames)
 
   for (const cell of grid.cells) {
@@ -643,12 +644,11 @@ export function composeSvg(options: CompositeSvgOptions): string {
 
   // Wave label layers (left side): "READY" before first wave, "WAVE N/M" during each wave
   // "READY" at start (after intro scoreboard fades out)
-  const firstWaveLifecycleStart = waveSpawns.length > 0
-    ? Math.max(0, waveSpawnFrames[0]! - (config.waveConfig.brightenDuration + config.waveConfig.pluckDuration +
-        config.waveConfig.darkenDuration + config.waveConfig.travelDuration + config.waveConfig.hatchDuration))
-    : output.totalFrames
+  // READY shows from game reveal until wave 1 spawns (not lifecycle start, which
+  // can be before the reveal when lifecycle phases overlap with intro timing)
+  const firstWaveSpawnFrame = waveSpawns.length > 0 ? waveSpawnFrames[0]! : output.totalFrames
   const readyStartPct = gridVisiblePct // READY appears at transition point (same as grid/ship)
-  const readyEndPct = frameToPercent(firstWaveLifecycleStart, output.totalFrames)
+  const readyEndPct = frameToPercent(firstWaveSpawnFrame, output.totalFrames)
   cssRules.push(visibilityKeyframes('status-ready-start', [[readyStartPct, readyEndPct]]))
   elements.push(
     `<text x="8" y="${statusY}" dominant-baseline="middle" ` +
