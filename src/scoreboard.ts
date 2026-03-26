@@ -21,10 +21,12 @@ export interface ScoreboardResult {
  *
  * Algorithm:
  * 1. For each day, compute total commits in a trailing window of `windowSize` days
- * 2. Sort all windows by score descending
- * 3. Filter with increasing distance threshold until we have exactly 10
+ * 2. Collapse consecutive days with identical scores into a single representative
+ *    (middle day of each run — shifts naturally as the window changes)
+ * 3. Sort all windows by score descending
+ * 4. Filter with increasing distance threshold until we have exactly 10
  *    (or fewer if not enough data)
- * 4. Check if current day's score is on the board
+ * 5. Check if current day's score is on the board
  */
 export function computeScoreboard(
   grid: Grid,
@@ -77,15 +79,30 @@ export function computeScoreboard(
     score: number
   }
 
-  const records: WindowRecord[] = []
+  const rawRecords: WindowRecord[] = []
   for (let i = 0; i < allDates.length; i++) {
     const startIdx = Math.max(0, i - windowSize + 1)
     const score = prefix[i + 1]! - prefix[startIdx]!
-    records.push({
+    rawRecords.push({
       endIndex: i,
       date: allDates[i]!,
       score,
     })
+  }
+
+  // Collapse consecutive same-score runs into a single representative.
+  // Picks the middle day of each run — shifts naturally as windows change.
+  const records: WindowRecord[] = []
+  let runStart = 0
+  while (runStart < rawRecords.length) {
+    let runEnd = runStart
+    while (runEnd + 1 < rawRecords.length && rawRecords[runEnd + 1]!.score === rawRecords[runStart]!.score) {
+      runEnd++
+    }
+    // Pick middle of the run
+    const mid = Math.floor((runStart + runEnd) / 2)
+    records.push(rawRecords[mid]!)
+    runStart = runEnd + 1
   }
 
   // Sort by score descending
