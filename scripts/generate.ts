@@ -73,8 +73,9 @@ async function main() {
   // Fetch historical data for scoreboard
   let scoreboard
   if (!noScoreboard) {
-    console.log('Fetching contribution history for scoreboard...')
-    const historyResponses = await fetchContributionHistory(token, username, 10)
+    const contributionYears = response.user.contributionsCollection.contributionYears ?? []
+    console.log(`Fetching contribution history for scoreboard (${contributionYears.length} years)...`)
+    const historyResponses = await fetchContributionHistory(token, username, contributionYears)
     const historyGrid = parseMultiYearResponses(historyResponses)
     console.log(`History: ${historyGrid.cells.length} days across ${historyResponses.length} years`)
     const lastDate = grid.cells.reduce((max, c) => (c.date > max ? c.date : max), '')

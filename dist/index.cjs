@@ -20720,6 +20720,7 @@ var CONTRIBUTION_QUERY = `
             }
           }
         }
+        contributionYears
       }
     }
   }
@@ -20791,25 +20792,37 @@ var CONTRIBUTION_HISTORY_QUERY = `
     }
   }
 `;
-async function fetchContributionHistory(token, username, years = 5) {
-  const results = [];
-  const currentYear = (/* @__PURE__ */ new Date()).getFullYear();
-  for (let i = 0; i < years; i++) {
-    const year = currentYear - i;
+async function fetchWithRetry(fn, maxRetries = 5) {
+  let lastError;
+  for (let attempt = 0; attempt <= maxRetries; attempt++) {
     try {
-      const response = await graphql2(CONTRIBUTION_HISTORY_QUERY, {
-        login: username,
-        from: `${year}-01-01T00:00:00Z`,
-        to: `${year + 1}-01-01T00:00:00Z`,
-        headers: {
-          authorization: `token ${token}`
-        }
-      });
-      results.push(response);
-    } catch {
-      break;
+      return await fn();
+    } catch (error2) {
+      lastError = error2;
+      if (attempt < maxRetries) {
+        const delay = 1e3 * 2 ** attempt;
+        await new Promise((resolve2) => setTimeout(resolve2, delay));
+      }
     }
   }
+  throw lastError;
+}
+async function fetchContributionHistory(token, username, years) {
+  const sorted = [...years].sort((a, b) => b - a);
+  const results = await Promise.all(
+    sorted.map(
+      (year) => fetchWithRetry(
+        () => graphql2(CONTRIBUTION_HISTORY_QUERY, {
+          login: username,
+          from: `${year}-01-01T00:00:00Z`,
+          to: `${year + 1}-01-01T00:00:00Z`,
+          headers: {
+            authorization: `token ${token}`
+          }
+        })
+      )
+    )
+  );
   return results;
 }
 
@@ -21796,8 +21809,12 @@ function simulateCore(grid, seed, config, waveHitChances = /* @__PURE__ */ new M
     if (frame % ANCHOR_INTERVAL === 0 || frame === stopAtFrame - 1) anchorSnapshots.set(frame, buildGameState(frame, frameEvents));
     totalFrames = frame + 1;
     const allSpawned = formations.length === simWM.totalWaves;
-    const allCleared = allSpawned && formations.length > 0 && formations.every((f) => !f.getState().active);
+    const noWaves = simWM.totalWaves === 0 && frame >= wc.startDelay;
+    const allCleared = noWaves || allSpawned && formations.length > 0 && formations.every((f) => !f.getState().active);
     if (allCleared && endingPhase === "none") {
+      if (noWaves) {
+        addInflection("ship", "ship", { frame, position: { ...ship.position }, type: "move_end" });
+      }
       endingPhase = "fadeout";
       endingPhaseStart = frame;
       endingPhaseFramesLeft = wc.endingFadeoutDuration;
@@ -21883,6 +21900,39 @@ function simulateToFrame(grid, seed, config, waveHitChances, targetFrame) {
 }
 
 // src/scoreboard.ts
+var RunTracker = class {
+  runStart;
+  runEnd;
+  consumed;
+  constructor(scores) {
+    const N = scores.length;
+    this.runStart = new Int32Array(N);
+    this.runEnd = new Int32Array(N);
+    this.consumed = new Uint8Array(N);
+    this.runStart[0] = 0;
+    for (let i = 1; i < N; i++) {
+      this.runStart[i] = scores[i] === scores[i - 1] ? this.runStart[i - 1] : i;
+    }
+    this.runEnd[N - 1] = N - 1;
+    for (let i = N - 2; i >= 0; i--) {
+      this.runEnd[i] = scores[i] === scores[i + 1] ? this.runEnd[i + 1] : i;
+    }
+  }
+  /** Check if an index has already been consumed. O(1). */
+  has(index) {
+    return this.consumed[index] === 1;
+  }
+  /** Consume an index and all indices in its consecutive same-score run. */
+  set(index) {
+    const start = this.runStart[index];
+    const end = this.runEnd[index];
+    for (let j = start; j <= end; j++) this.consumed[j] = 1;
+  }
+  /** Reset consumed state for reuse across binary search iterations. */
+  reset() {
+    this.consumed = new Uint8Array(this.consumed.length);
+  }
+};
 function computeScoreboard(grid, currentDate, windowSize = 364, maxEntries = 10) {
   const commitsByDate = /* @__PURE__ */ new Map();
   for (const cell of grid.cells) {
@@ -21900,40 +21950,29 @@ function computeScoreboard(grid, currentDate, windowSize = 364, maxEntries = 10)
     };
   }
   const dateToIndex = /* @__PURE__ */ new Map();
-  const indexToDate = /* @__PURE__ */ new Map();
   const dailyCounts = [];
   for (let i = 0; i < allDates.length; i++) {
-    const d = allDates[i];
-    dateToIndex.set(d, i);
-    indexToDate.set(i, d);
-    dailyCounts.push(commitsByDate.get(d) ?? 0);
+    dateToIndex.set(allDates[i], i);
+    dailyCounts.push(commitsByDate.get(allDates[i]) ?? 0);
   }
   const prefix = new Array(dailyCounts.length + 1).fill(0);
   for (let i = 0; i < dailyCounts.length; i++) {
     prefix[i + 1] = prefix[i] + dailyCounts[i];
   }
-  const rawRecords = [];
-  for (let i = 0; i < allDates.length; i++) {
+  const N = allDates.length;
+  const scores = new Int32Array(N);
+  for (let i = 0; i < N; i++) {
     const startIdx = Math.max(0, i - windowSize + 1);
-    const score = prefix[i + 1] - prefix[startIdx];
-    rawRecords.push({
-      endIndex: i,
-      date: allDates[i],
-      score
-    });
+    scores[i] = prefix[i + 1] - prefix[startIdx];
   }
+  const runs = new RunTracker(scores);
   const records = [];
-  let runStart = 0;
-  while (runStart < rawRecords.length) {
-    let runEnd = runStart;
-    while (runEnd + 1 < rawRecords.length && rawRecords[runEnd + 1].score === rawRecords[runStart].score) {
-      runEnd++;
+  for (let i = 0; i < N; i++) {
+    if (scores[i] > 0) {
+      records.push({ endIndex: i, date: allDates[i], score: scores[i] });
     }
-    const mid = Math.floor((runStart + runEnd) / 2);
-    records.push(rawRecords[mid]);
-    runStart = runEnd + 1;
   }
-  records.sort((a, b) => b.score - a.score);
+  records.sort((a, b) => b.score - a.score || a.endIndex - b.endIndex);
   const currentIdx = dateToIndex.get(currentDate);
   let currentDayScore = 0;
   if (currentIdx !== void 0) {
@@ -21941,10 +21980,10 @@ function computeScoreboard(grid, currentDate, windowSize = 364, maxEntries = 10)
     currentDayScore = prefix[currentIdx + 1] - prefix[startIdx];
   }
   let lo = 0;
-  let hi = allDates.length;
+  let hi = N;
   while (lo < hi) {
     const mid = Math.floor((lo + hi + 1) / 2);
-    const count = filterByDistance(records, mid, maxEntries).length;
+    const count = filterByDistance(records, mid, runs, maxEntries).length;
     if (count >= maxEntries) {
       lo = mid;
     } else {
@@ -21952,10 +21991,8 @@ function computeScoreboard(grid, currentDate, windowSize = 364, maxEntries = 10)
     }
   }
   const bestDistance = lo;
-  const bestFiltered = filterByDistance(records, bestDistance, maxEntries);
+  const bestFiltered = filterByDistance(records, bestDistance, runs, maxEntries);
   const bestEntries = bestFiltered.slice(0, maxEntries);
-  const topScore = bestEntries.length > 0 ? bestEntries[0].score : 0;
-  const isNewHighScore = currentDayScore > 0 && currentDayScore >= topScore;
   let currentMarked = false;
   const entries = bestEntries.map((e, i) => {
     const isCurrent = !currentMarked && e.score === currentDayScore && currentDayScore > 0;
@@ -21967,6 +22004,7 @@ function computeScoreboard(grid, currentDate, windowSize = 364, maxEntries = 10)
       isCurrent
     };
   });
+  const isNewHighScore = currentMarked;
   return {
     entries,
     isNewHighScore,
@@ -21976,20 +22014,17 @@ function computeScoreboard(grid, currentDate, windowSize = 364, maxEntries = 10)
     minDistance: bestDistance
   };
 }
-function filterByDistance(sortedRecords, minDist, needed = Infinity) {
+function filterByDistance(sortedRecords, minDist, runs, needed) {
+  runs.reset();
   const result = [];
   const used = [];
-  for (const rec of sortedRecords) {
+  for (const r of sortedRecords) {
     if (result.length >= needed) break;
-    const r = rec;
-    if (minDist <= 0 || used.length === 0) {
+    if (runs.has(r.endIndex)) continue;
+    if (minDist <= 0 || used.length === 0 || !isTooClose(used, r.endIndex, minDist)) {
       result.push(r);
       insertSorted(used, r.endIndex);
-      continue;
-    }
-    if (!isTooClose(used, r.endIndex, minDist)) {
-      result.push(r);
-      insertSorted(used, r.endIndex);
+      runs.set(r.endIndex);
     }
   }
   return result;
@@ -23023,8 +23058,9 @@ async function run() {
     info(`Active cells: ${activeCells}, Total commits: ${totalCommits}`);
     let scoreboard;
     if (!inputs.noScoreboard) {
-      info("Fetching contribution history for scoreboard...");
-      const historyResponses = await fetchContributionHistory(inputs.githubToken, inputs.username, 10);
+      const contributionYears = response.user.contributionsCollection.contributionYears ?? [];
+      info(`Fetching contribution history for scoreboard (${contributionYears.length} years)...`);
+      const historyResponses = await fetchContributionHistory(inputs.githubToken, inputs.username, contributionYears);
       const historyGrid = parseMultiYearResponses(historyResponses);
       info(`History: ${historyGrid.cells.length} days across ${historyResponses.length} years`);
       const lastDate = grid.cells.reduce((max, c) => c.date > max ? c.date : max, "");
