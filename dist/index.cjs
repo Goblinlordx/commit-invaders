@@ -19919,9 +19919,12 @@ function buildConfig(inputs) {
     framesPerSecond: 60,
     waveConfig: {
       weeksPerWave: 4,
-      startDelay: 60,
+      introScoreboardFadeIn: inputs.noScoreboard ? 0 : 30,
+      introScoreboardHold: inputs.noScoreboard ? 0 : 300,
+      introScoreboardFadeOut: inputs.noScoreboard ? 0 : 30,
+      startDelay: inputs.noScoreboard ? 90 : 480,
       spawnDelay: 0,
-      brightenDuration: 60,
+      brightenDuration: 120,
       pluckDuration: 20,
       darkenDuration: 60,
       travelDuration: 40,
@@ -19929,8 +19932,8 @@ function buildConfig(inputs) {
       endingFadeoutDuration: 60,
       endingScoreDuration: 180,
       endingScoreOutDuration: 30,
-      endingBoardInDuration: inputs.noScoreboard ? 0 : 30,
-      endingHoldDuration: inputs.noScoreboard ? 0 : 300,
+      endingBoardInDuration: 0,
+      endingHoldDuration: 0,
       endingBlackoutDuration: 60,
       endingResetDuration: 60
     },
@@ -21909,15 +21912,26 @@ function computeScoreboard(grid, currentDate, windowSize = 364, maxEntries = 10)
   for (let i = 0; i < dailyCounts.length; i++) {
     prefix[i + 1] = prefix[i] + dailyCounts[i];
   }
-  const records = [];
+  const rawRecords = [];
   for (let i = 0; i < allDates.length; i++) {
     const startIdx = Math.max(0, i - windowSize + 1);
     const score = prefix[i + 1] - prefix[startIdx];
-    records.push({
+    rawRecords.push({
       endIndex: i,
       date: allDates[i],
       score
     });
+  }
+  const records = [];
+  let runStart = 0;
+  while (runStart < rawRecords.length) {
+    let runEnd = runStart;
+    while (runEnd + 1 < rawRecords.length && rawRecords[runEnd + 1].score === rawRecords[runStart].score) {
+      runEnd++;
+    }
+    const mid = Math.floor((runStart + runEnd) / 2);
+    records.push(rawRecords[mid]);
+    runStart = runEnd + 1;
   }
   records.sort((a, b) => b.score - a.score);
   const currentIdx = dateToIndex.get(currentDate);
@@ -22181,8 +22195,13 @@ function overlayKeyframeStops(output, config) {
     if (phase === "idle") {
       alpha = anyWaveStarted ? 0.6 : 0;
     } else if (phase === "ending_reset") alpha = 0;
-    else if (phase === "brightening") alpha = 0.6 * (1 - progress);
-    else if (phase === "plucking") alpha = 0;
+    else if (phase === "brightening") {
+      if (!anyWaveStarted) {
+        alpha = 0.6 * Math.sin(progress * Math.PI);
+      } else {
+        alpha = 0.6 * (1 - progress);
+      }
+    } else if (phase === "plucking") alpha = 0;
     else if (phase === "darkening") alpha = 0.6 * progress;
     else if (phase === "ending_blackout") alpha = 0;
     else alpha = 0.6;
@@ -22479,6 +22498,7 @@ function composeSvg(options) {
   const stride = config.cellSize + config.cellGap;
   const gridOffX = screenW - config.gridArea.height - RENDER_MARGIN;
   const gridOffY = RENDER_MARGIN + (config.playArea.width - config.gridArea.width) / 2;
+  const introTotal = config.waveConfig.introScoreboardFadeIn + config.waveConfig.introScoreboardHold + config.waveConfig.introScoreboardFadeOut;
   const elements = [];
   const cssRules = [];
   let animId = 0;
@@ -22513,6 +22533,12 @@ function composeSvg(options) {
     const parts = cd.cellId.split("-");
     pluckTimeByCell.set(`${parts[1]},${parts[2]}`, cd.pluckTime);
   }
+  const revealDuration = 30;
+  const blackGap = 30;
+  const gridFadeInStartFrame = introTotal > 0 ? introTotal + blackGap : 0;
+  const gridVisibleFrame = introTotal > 0 ? introTotal + blackGap + revealDuration : revealDuration;
+  const gridFadeInStartPct = frameToPercent(gridFadeInStartFrame, output.totalFrames);
+  const gridVisiblePct = frameToPercent(gridVisibleFrame, output.totalFrames);
   for (const cell of grid.cells) {
     const color = GRID_COLORS2[cell.level] ?? GRID_COLORS2[0];
     const x = gridOffX + cell.x * stride;
@@ -22724,26 +22750,27 @@ function composeSvg(options) {
     const shipInitX = RENDER_MARGIN + config.playArea.height - config.shipY;
     const shipInitY = RENDER_MARGIN + config.playArea.width / 2;
     const shipStops = [];
+    const initTransform = `translate(${shipInitX.toFixed(1)}px, ${shipInitY.toFixed(1)}px)`;
     const firstPoint = shipKfPoints[0];
     const firstPct = firstPoint.time / dur * 100;
-    if (firstPct > 0.02) {
-      shipStops.push(`0% { transform: translate(${shipInitX.toFixed(1)}px, ${shipInitY.toFixed(1)}px); opacity: 1; }`);
-      shipStops.push(`${(firstPct - 0.01).toFixed(2)}% { transform: translate(${shipInitX.toFixed(1)}px, ${shipInitY.toFixed(1)}px); opacity: 1; }`);
+    const shipFadeInPct = Math.min(gridVisiblePct + 1 / dur * 100, firstPct - 0.01);
+    shipStops.push(`0% { transform: ${initTransform}; opacity: 0; }`);
+    shipStops.push(`${gridFadeInStartPct.toFixed(2)}% { transform: ${initTransform}; opacity: 0; }`);
+    shipStops.push(`${shipFadeInPct.toFixed(2)}% { transform: ${initTransform}; opacity: 1; }`);
+    if (firstPct > shipFadeInPct + 0.02) {
+      shipStops.push(`${(firstPct - 0.01).toFixed(2)}% { transform: ${initTransform}; opacity: 1; }`);
     }
     for (const p of shipKfPoints) {
       const pct = p.time / dur * 100;
       shipStops.push(`${pct.toFixed(2)}% { transform: translate(${p.screenX.toFixed(1)}px, ${p.screenY.toFixed(1)}px); opacity: 1; }`);
     }
     if (gameEndEvent) {
-      const wc = config.waveConfig;
+      const ewc = config.waveConfig;
       const fadeStartPct = frameToPercent(gameEndEvent.frame, output.totalFrames);
-      const fadeEndPct = frameToPercent(gameEndEvent.frame + wc.endingFadeoutDuration, output.totalFrames);
-      const resetStartPct = resetRestorePct;
-      const resetEndPct = Math.min(100, resetRestorePct + 2.5 / dur * 100);
+      const fadeEndPct = frameToPercent(gameEndEvent.frame + ewc.endingFadeoutDuration, output.totalFrames);
       shipStops.push(`${fadeStartPct.toFixed(2)}% { opacity: 1; }`);
-      shipStops.push(`${fadeEndPct.toFixed(2)}% { opacity: 0; transform: translate(${shipInitX.toFixed(1)}px, ${shipInitY.toFixed(1)}px); }`);
-      shipStops.push(`${resetStartPct.toFixed(2)}% { opacity: 0; transform: translate(${shipInitX.toFixed(1)}px, ${shipInitY.toFixed(1)}px); }`);
-      shipStops.push(`${resetEndPct.toFixed(2)}% { opacity: 1; transform: translate(${shipInitX.toFixed(1)}px, ${shipInitY.toFixed(1)}px); }`);
+      shipStops.push(`${fadeEndPct.toFixed(2)}% { opacity: 0; transform: ${initTransform}; }`);
+      shipStops.push(`100% { opacity: 0; transform: ${initTransform}; }`);
     }
     cssRules.push(`@keyframes ship-move {
   ${shipStops.join("\n  ")}
@@ -22765,7 +22792,7 @@ function composeSvg(options) {
     const spawnFrame = waveSpawnFrames[wi];
     let labelStart;
     if (wi === 0) {
-      labelStart = 0;
+      labelStart = gridVisibleFrame;
     } else {
       const prevClear = output.events.find(
         (e) => e.type === "wave_clear" && e.data.waveIndex === wi - 1
@@ -22821,7 +22848,7 @@ function composeSvg(options) {
   const fadeoutEndPct = frameToPercent(endingFadeoutEnd, output.totalFrames);
   for (let i = 0; i < scoreLayers.length; i++) {
     const layer = scoreLayers[i];
-    const startPct = frameToPercent(layer.startFrame, output.totalFrames);
+    const startPct = Math.max(gridVisiblePct, frameToPercent(layer.startFrame, output.totalFrames));
     const rawEndPct = frameToPercent(layer.endFrame, output.totalFrames);
     if (startPct >= fadeoutEndPct) continue;
     const kfName = `score-${i}`;
@@ -22841,10 +22868,10 @@ function composeSvg(options) {
       `<text x="${screenW - 8}" y="${statusY}" text-anchor="end" dominant-baseline="middle" font-family="monospace" font-weight="bold" font-size="12" fill="${pal.scoreText}" opacity="0" ${anim(`${kfName} ${dur}s linear infinite`)}>${fmtScore(layer.score)} COMMITS</text>`
     );
   }
-  const firstWaveLifecycleStart = waveSpawns.length > 0 ? Math.max(0, waveSpawnFrames[0] - (config.waveConfig.brightenDuration + config.waveConfig.pluckDuration + config.waveConfig.darkenDuration + config.waveConfig.travelDuration + config.waveConfig.hatchDuration)) : output.totalFrames;
-  const readyStartPct = 0;
-  const readyEndPct = frameToPercent(firstWaveLifecycleStart, output.totalFrames);
-  cssRules.push(visibilityKeyframes("status-ready-start", [[0, readyEndPct]]));
+  const firstWaveSpawnFrame = waveSpawns.length > 0 ? waveSpawnFrames[0] : output.totalFrames;
+  const readyStartPct = gridVisiblePct;
+  const readyEndPct = frameToPercent(firstWaveSpawnFrame, output.totalFrames);
+  cssRules.push(visibilityKeyframes("status-ready-start", [[readyStartPct, readyEndPct]]));
   elements.push(
     `<text x="8" y="${statusY}" dominant-baseline="middle" font-family="monospace" font-size="11" fill="${pal.textMuted}" ${anim(`status-ready-start ${dur}s linear infinite`)}>READY</text>`
   );
@@ -22874,28 +22901,6 @@ function composeSvg(options) {
     );
   }
   if (gameEndEvent) {
-    const resetStartPct = resetRestorePct;
-    const resetEndPct = Math.min(100, resetRestorePct + 2.5 / dur * 100);
-    cssRules.push(`@keyframes status-ready-reset {
-  0.00% { opacity: 0; }
-  ${resetStartPct.toFixed(2)}% { opacity: 0; }
-  ${resetEndPct.toFixed(2)}% { opacity: 1; }
-  100.00% { opacity: 1; }
-}`);
-    elements.push(
-      `<text x="8" y="${statusY}" dominant-baseline="middle" font-family="monospace" font-size="11" fill="${pal.textMuted}" opacity="0" ${anim(`status-ready-reset ${dur}s linear infinite`)}>READY</text>`
-    );
-    cssRules.push(`@keyframes status-score-reset {
-  0.00% { opacity: 0; }
-  ${resetStartPct.toFixed(2)}% { opacity: 0; }
-  ${resetEndPct.toFixed(2)}% { opacity: 1; }
-  100.00% { opacity: 1; }
-}`);
-    elements.push(
-      `<text x="${screenW - 8}" y="${statusY}" text-anchor="end" dominant-baseline="middle" font-family="monospace" font-weight="bold" font-size="12" fill="${pal.scoreText}" opacity="0" ${anim(`status-score-reset ${dur}s linear infinite`)}>0 COMMITS</text>`
-    );
-  }
-  if (gameEndEvent) {
     const endFrame = gameEndEvent.frame;
     const wc = config.waveConfig;
     const scoreStartFrame = endFrame + wc.endingFadeoutDuration;
@@ -22919,66 +22924,64 @@ function composeSvg(options) {
   ${scoreOutPct.toFixed(2)}% { opacity: 0; }
   100.00% { opacity: 0; }
 }`);
+    const blackoutStartPct = fp(boardEndFrame);
+    const blackoutFullPct = fp(blackoutEndFrame);
+    cssRules.push(`@keyframes blackout {
+  0.00% { opacity: 1; }
+  ${gridFadeInStartPct.toFixed(2)}% { opacity: 1; }
+  ${gridVisiblePct.toFixed(2)}% { opacity: 0; }
+  ${blackoutStartPct.toFixed(2)}% { opacity: 0; }
+  ${blackoutFullPct.toFixed(2)}% { opacity: 1; }
+  100.00% { opacity: 1; }
+}`);
+    elements.push(
+      `<rect x="0" y="0" width="${screenW}" height="${screenH}" fill="${pal.bg}" ${anim(`blackout ${dur}s linear infinite`)} />`
+    );
     const scoreText = `${fmtScore(finalScore)} COMMITS`;
     elements.push(
       `<g ${anim(`wiggle-score 0.6s ease-in-out infinite`)}><text x="${screenW / 2}" y="${gameAreaH / 2}" text-anchor="middle" dominant-baseline="middle" font-family="monospace" font-weight="bold" font-size="14" fill="${pal.scoreText}" opacity="0" ${anim(`ending-score-text ${dur}s linear infinite`)}>${scoreText}</text></g>`
     );
-    if (options.scoreboard && options.scoreboard.entries.length > 0) {
-      const boardStartPct = fp(boardInFrame);
-      const boardVisiblePct = fp(boardInFrame + wc.endingBoardInDuration);
-      const boardHoldPct = fp(boardEndFrame);
-      const boardFadePct = fp(boardEndFrame + wc.endingBlackoutDuration);
-      cssRules.push(`@keyframes ending-board {
+  }
+  if (options.scoreboard && options.scoreboard.entries.length > 0 && introTotal > 0) {
+    const iwc = config.waveConfig;
+    const ifp = (f) => frameToPercent(f, output.totalFrames);
+    const boardVisiblePct = ifp(iwc.introScoreboardFadeIn);
+    const boardHoldEndPct = ifp(iwc.introScoreboardFadeIn + iwc.introScoreboardHold);
+    const boardFadeOutPct = ifp(introTotal);
+    cssRules.push(`@keyframes intro-board {
   0.00% { opacity: 0; }
-  ${(boardStartPct - 0.01).toFixed(2)}% { opacity: 0; }
-  ${boardStartPct.toFixed(2)}% { opacity: 0; }
   ${boardVisiblePct.toFixed(2)}% { opacity: 1; }
-  ${boardHoldPct.toFixed(2)}% { opacity: 1; }
-  ${boardFadePct.toFixed(2)}% { opacity: 0; }
+  ${boardHoldEndPct.toFixed(2)}% { opacity: 1; }
+  ${boardFadeOutPct.toFixed(2)}% { opacity: 0; }
   100.00% { opacity: 0; }
 }`);
-      const boardElements = [];
+    const boardElements = [];
+    boardElements.push(
+      `<text x="${screenW / 2}" y="12" text-anchor="middle" dominant-baseline="middle" font-family="monospace" font-weight="bold" font-size="10" fill="${pal.scoreText}">HIGH SCORES</text>`
+    );
+    if (options.scoreboard.isNewHighScore) {
       boardElements.push(
-        `<text x="${screenW / 2}" y="12" text-anchor="middle" dominant-baseline="middle" font-family="monospace" font-weight="bold" font-size="10" fill="${pal.scoreText}">HIGH SCORES</text>`
-      );
-      if (options.scoreboard.isNewHighScore) {
-        boardElements.push(
-          `<text x="${screenW / 2}" y="24" text-anchor="middle" dominant-baseline="middle" font-family="monospace" font-weight="bold" font-size="8" fill="${pal.laser}">\u2605 NEW HIGH SCORE! \u2605</text>`
-        );
-      }
-      const entryStartY = options.scoreboard.isNewHighScore ? 36 : 26;
-      for (let i = 0; i < options.scoreboard.entries.length; i++) {
-        const entry = options.scoreboard.entries[i];
-        const col = i < 5 ? 0 : 1;
-        const row = i < 5 ? i : i - 5;
-        const colX = col === 0 ? screenW * 0.25 : screenW * 0.75;
-        const y = entryStartY + row * 11;
-        const isCurrent = entry.isCurrent;
-        const rankColor = isCurrent ? pal.laser : pal.textMuted;
-        const dateColor = isCurrent ? pal.text : pal.textMuted;
-        const scoreColor = isCurrent ? pal.scoreText : pal.ship;
-        const fw = isCurrent ? "bold" : "normal";
-        boardElements.push(
-          `<text x="${colX - 50}" y="${y}" font-family="monospace" font-weight="${fw}" font-size="8" fill="${rankColor}">${String(entry.rank).padStart(2, " ")}.</text><text x="${colX - 35}" y="${y}" font-family="monospace" font-weight="${fw}" font-size="8" fill="${dateColor}">${entry.date}</text><text x="${colX + 55}" y="${y}" text-anchor="end" font-family="monospace" font-weight="${fw}" font-size="8" fill="${scoreColor}">${fmtScore(entry.score)}</text>`
-        );
-      }
-      elements.push(
-        `<g opacity="0" ${anim(`ending-board ${dur}s linear infinite`)}>${boardElements.join("")}</g>`
+        `<text x="${screenW / 2}" y="24" text-anchor="middle" dominant-baseline="middle" font-family="monospace" font-weight="bold" font-size="8" fill="${pal.laser}">\u2605 NEW HIGH SCORE! \u2605</text>`
       );
     }
-    const blackoutStartPct = fp(boardEndFrame);
-    const blackoutFullPct = fp(blackoutEndFrame);
-    const resetDonePct = fp(resetEndFrame);
-    cssRules.push(`@keyframes ending-blackout {
-  0.00% { opacity: 0; }
-  ${(blackoutStartPct - 0.01).toFixed(2)}% { opacity: 0; }
-  ${blackoutStartPct.toFixed(2)}% { opacity: 0; }
-  ${blackoutFullPct.toFixed(2)}% { opacity: 1; }
-  ${Math.min(100, resetDonePct).toFixed(2)}% { opacity: 0; }
-  100.00% { opacity: 0; }
-}`);
+    const entryStartY = options.scoreboard.isNewHighScore ? 36 : 26;
+    for (let i = 0; i < options.scoreboard.entries.length; i++) {
+      const entry = options.scoreboard.entries[i];
+      const col = i < 5 ? 0 : 1;
+      const row = i < 5 ? i : i - 5;
+      const colX = col === 0 ? screenW * 0.35 : screenW * 0.65;
+      const y = entryStartY + row * 11;
+      const isCurrent = entry.isCurrent;
+      const rankColor = isCurrent ? pal.laser : pal.textMuted;
+      const dateColor = isCurrent ? pal.text : pal.textMuted;
+      const scoreColor = isCurrent ? pal.scoreText : pal.ship;
+      const fw = isCurrent ? "bold" : "normal";
+      boardElements.push(
+        `<text x="${colX - 50}" y="${y}" font-family="monospace" font-weight="${fw}" font-size="8" fill="${rankColor}">${String(entry.rank).padStart(2, " ")}.</text><text x="${colX - 35}" y="${y}" font-family="monospace" font-weight="${fw}" font-size="8" fill="${dateColor}">${entry.date}</text><text x="${colX + 55}" y="${y}" text-anchor="end" font-family="monospace" font-weight="${fw}" font-size="8" fill="${scoreColor}">${fmtScore(entry.score)}</text>`
+      );
+    }
     elements.push(
-      `<rect x="0" y="0" width="${screenW}" height="${screenH}" fill="${pal.bg}" opacity="0" ${anim(`ending-blackout ${dur}s linear infinite`)} />`
+      `<g opacity="0" ${anim(`intro-board ${dur}s linear infinite`)}>${boardElements.join("")}</g>`
     );
   }
   const css = cssRules.join("\n\n");
