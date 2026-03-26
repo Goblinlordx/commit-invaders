@@ -39,7 +39,6 @@ async function run(): Promise<void> {
       scoreboard = computeScoreboard(historyGrid, lastDate, grid.width * 7, 10)
       core.info(`Scoreboard: ${scoreboard.entries.length} entries`)
     }
-    }
 
     core.info('Generating SVGs...')
     const seed = `${inputs.username}-${new Date().toISOString().slice(0, 10)}`
