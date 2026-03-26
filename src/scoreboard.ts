@@ -132,7 +132,7 @@ export function computeScoreboard(
       records.push({ endIndex: i, date: allDates[i]!, score: scores[i]! })
     }
   }
-  records.sort((a, b) => b.score - a.score)
+  records.sort((a, b) => b.score - a.score || a.endIndex - b.endIndex)
 
   // Current day score
   const currentIdx = dateToIndex.get(currentDate)
@@ -160,9 +160,6 @@ export function computeScoreboard(
   const bestFiltered = filterByDistance(records, bestDistance, runs, maxEntries)
   const bestEntries = bestFiltered.slice(0, maxEntries)
 
-  const topScore = bestEntries.length > 0 ? bestEntries[0]!.score : 0
-  const isNewHighScore = currentDayScore > 0 && currentDayScore >= topScore
-
   let currentMarked = false
   const entries: HighScoreEntry[] = bestEntries.map((e, i) => {
     const isCurrent = !currentMarked && e.score === currentDayScore && currentDayScore > 0
@@ -174,6 +171,9 @@ export function computeScoreboard(
       isCurrent,
     }
   })
+
+  // Current day is a "new high score" if it appears anywhere on the board
+  const isNewHighScore = currentMarked
 
   return {
     entries,

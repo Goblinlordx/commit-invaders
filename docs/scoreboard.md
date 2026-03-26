@@ -73,7 +73,9 @@ O(log K) per proximity check (K = accepted entries, at most 10). Run consumption
 
 ### Step 4: Current Day Detection
 
-The current day's window score is computed independently. If it ties or beats the #1 entry on the board, `isNewHighScore` is set. The first board entry matching the current score is marked `isCurrent` for highlight rendering.
+The current day's window score is computed independently. If it matches any entry on the board, that entry is marked `isCurrent` for highlight rendering and `isNewHighScore` is set to trigger the "NEW HIGH SCORE!" banner.
+
+Ties are broken by date -- earlier dates are prioritized (they happened first).
 
 ## Score Formatting
 
