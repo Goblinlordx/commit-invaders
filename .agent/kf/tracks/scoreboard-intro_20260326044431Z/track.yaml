@@ -1,0 +1,74 @@
+id: scoreboard-intro_20260326044431Z
+title: Move Scoreboard to Animation Start & Tighten Column Spacing
+type: chore
+status: pending
+created: '2026-03-26'
+updated: '2026-03-26'
+spec:
+  summary: |
+    Relocate the high-score board from the ending sequence to the animation
+    intro (visible at start), and reduce the wide 50% screenW gap between
+    the two score columns.
+  context: |
+    Most viewers loop the animation and never watch through the full ending
+    sequence to see the scoreboard. Moving it to the start ensures visibility.
+    The two score columns are currently spaced at screenW*0.25 / screenW*0.75
+    (50% gap, ~210px on a typical 420px SVG), which is far wider than needed.
+  codebase_analysis: |
+    - Scoreboard SVG rendering: src/animation/svg-compositor.ts:738-790
+    - Column positioning: colX = screenW * 0.25 / 0.75 (line 772)
+    - Per-entry offsets: rank at colX-50, date at colX-35, score at colX+55
+    - Ending phase order in src/types.ts:129-144 (WavePhase union type)
+    - Duration config: endingBoardInDuration, endingHoldDuration in WaveConfig
+    - Start delay / READY label: svg-compositor.ts:625-638
+    - screenW = playArea.height + RENDER_MARGIN*2 (~420px typical)
+  acceptance_criteria:
+    - Scoreboard is visible at the very start of the animation (during intro hold)
+    - Scoreboard fades in, holds, then fades out before first wave lifecycle begins
+    - Scoreboard is removed from the ending sequence
+    - Score text display + blackout + reset still work in the ending
+    - Two score columns are noticeably closer together than before
+    - No visual overlap between rank, date, and score text within columns
+    - Existing scoreboard tests pass (src/scoreboard.test.ts)
+    - Animation still loops seamlessly (first/last frame match)
+  out_of_scope: |
+    Changing scoreboard data/algorithm. Adding new scoreboard features.
+    Changing the score text ending phase. Changing the blackout/reset timing.
+  technical_notes: |
+    Add intro scoreboard duration config fields (fadeIn, hold, fadeOut) to
+    WaveConfig. Render scoreboard keyframes at frame 0 through intro durations.
+    Remove ending_board_in / ending_hold phases or repurpose them. Adjust
+    totalFrames calculation. Tighten column X from 0.25/0.75 to approximately
+    0.35/0.65 — exact values determined by visual testing.
+plan:
+  - phase: Config & Types
+    tasks:
+      - text: Add intro scoreboard duration fields to WaveConfig (introScoreboardFadeIn, introScoreboardHold, introScoreboardFadeOut)
+        done: false
+      - text: Set sensible defaults for intro timing in config defaults
+        done: false
+      - text: Remove or repurpose ending scoreboard duration fields (endingBoardInDuration, endingHoldDuration) if no longer needed
+        done: false
+  - phase: Move Scoreboard to Intro
+    tasks:
+      - text: Create scoreboard CSS keyframes that appear at animation start (frame 0 through intro durations) instead of ending
+        done: false
+      - text: Adjust startDelay or total frame calculation to accommodate intro scoreboard hold
+        done: false
+      - text: Remove scoreboard rendering from the ending sequence (keep score text + blackout/reset)
+        done: false
+      - text: Ensure READY label timing works correctly after intro scoreboard fades out
+        done: false
+  - phase: Tighten Column Spacing
+    tasks:
+      - text: Change column X positions from screenW*0.25/0.75 to tighter values (approx 0.35/0.65)
+        done: false
+      - text: Verify rank/date/score offsets (-50, -35, +55) still work with tighter spacing, adjust if needed
+        done: false
+  - phase: Verification
+    tasks:
+      - text: Run existing tests (scoreboard, compositor) and fix any failures
+        done: false
+      - text: Generate test SVG and visually verify intro scoreboard timing and column spacing
+        done: false
+extra: {}

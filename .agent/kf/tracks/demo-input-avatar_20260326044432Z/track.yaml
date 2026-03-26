@@ -1,0 +1,68 @@
+id: demo-input-avatar_20260326044432Z
+title: Polish Demo Username Input with GitHub Avatar Preview
+type: feature
+status: pending
+created: '2026-03-26'
+updated: '2026-03-26'
+spec:
+  summary: |
+    Upgrade the demo page username input with refined styling and a live
+    GitHub avatar that appears on typing (debounced). No name change —
+    just visual polish and avatar integration.
+  context: |
+    The demo page username input is functional but plain. Adding a live
+    avatar preview gives immediate visual feedback and makes the page feel
+    more polished. Reference pattern: GitHub avatars are publicly available
+    at https://github.com/{username}.png (no auth required).
+  codebase_analysis: |
+    - Demo page HTML: demo/index.html:29-36 (input group with type="search")
+    - CSS selector mismatch: style.css targets input[type="text"] but input is type="search"
+    - Input styling: demo/style.css:86-121 (.input-group, .input-row)
+    - Event handling: demo/main.ts (vanilla TS, no framework)
+    - Theme: retro arcade (Press Start 2P, JetBrains Mono, dark bg, green accent)
+    - Layout: flexbox input-row with input + Generate button
+  acceptance_criteria:
+    - CSS selector mismatch is fixed (input[type="search"] or generic selector)
+    - Username input has polished styling consistent with arcade theme
+    - GitHub avatar loads automatically on typing with ~400ms debounce
+    - Avatar container is fixed-size, always present in DOM — no layout shifts
+    - Empty/error state shows a neutral placeholder at same dimensions
+    - Avatar transitions in via opacity, not display toggling
+    - Works with valid GitHub usernames (shows avatar) and invalid ones (shows placeholder)
+    - Responsive layout preserved on mobile
+    - Input name/ID unchanged
+  out_of_scope: |
+    Renaming the input. Changing input behavior or generate logic.
+    GitHub API authentication. Caching avatars. User profile data beyond avatar.
+  technical_notes: |
+    Add a fixed-size circular img container to the input-row (e.g., 32x32px).
+    Always present in DOM with a placeholder background (subtle border/silhouette).
+    On input change (debounced ~400ms), set img.src to https://github.com/{username}.png.
+    On load: fade in via opacity transition. On error: reset to placeholder.
+    Fix CSS selector from input[type="text"] to input[type="search"] or use a class.
+plan:
+  - phase: HTML & CSS
+    tasks:
+      - text: Fix CSS selector mismatch (input[type="text"] vs actual type="search")
+        done: false
+      - text: Add fixed-size avatar container (img + wrapper) to input-row in index.html
+        done: false
+      - text: Style avatar container as circular, fixed dimensions, with placeholder background — no layout shift on load
+        done: false
+      - text: Add opacity transition for avatar load/error states
+        done: false
+  - phase: Avatar Logic
+    tasks:
+      - text: Add debounced input listener (~400ms) in main.ts for username changes
+        done: false
+      - text: Set avatar img src to https://github.com/{username}.png on debounced input
+        done: false
+      - text: Handle load event (fade in) and error event (reset to placeholder)
+        done: false
+  - phase: Verification
+    tasks:
+      - text: Test with valid usernames, invalid usernames, empty input, and rapid typing
+        done: false
+      - text: Verify no layout shifts during avatar loading — container stays fixed size
+        done: false
+extra: {}
