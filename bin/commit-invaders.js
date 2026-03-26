@@ -51,8 +51,8 @@ if (!token) {
 }
 
 // Dynamic import to support ESM
-const { fetchContributions } = await import('../src/fetcher/graphql.js')
-const { parseContributionResponse } = await import('../src/fetcher/parser.js')
+const { fetchContributions, fetchContributionHistory } = await import('../src/fetcher/graphql.js')
+const { parseContributionResponse, parseMultiYearResponses } = await import('../src/fetcher/parser.js')
 const { composeSvg } = await import('../src/animation/svg-compositor.js')
 const { simulate } = await import('../src/simulator/simulate.js')
 const { computeScoreboard } = await import('../src/scoreboard.js')
@@ -96,8 +96,13 @@ console.log(`Active cells: ${activeCells}, Total commits: ${totalCommits}`)
 
 let scoreboard
 if (!noScoreboard) {
+  const contributionYears = response.user.contributionsCollection.contributionYears ?? []
+  console.log(`Fetching contribution history (${contributionYears.length} years)...`)
+  const historyResponses = await fetchContributionHistory(token, username, contributionYears)
+  const historyGrid = parseMultiYearResponses(historyResponses)
+  console.log(`History: ${historyGrid.cells.length} days across ${historyResponses.length} years`)
   const lastDate = grid.cells.reduce((max, c) => (c.date > max ? c.date : max), '')
-  scoreboard = computeScoreboard(grid, lastDate, grid.width * 7, 10)
+  scoreboard = computeScoreboard(historyGrid, lastDate, grid.width * 7, 10)
 }
 
 console.log('Generating SVG...')

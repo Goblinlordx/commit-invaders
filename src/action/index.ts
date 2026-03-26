@@ -31,8 +31,9 @@ async function run(): Promise<void> {
 
     let scoreboard: ScoreboardResult | undefined
     if (!inputs.noScoreboard) {
-      core.info("Fetching contribution history for scoreboard...")
-      const historyResponses = await fetchContributionHistory(inputs.githubToken, inputs.username, 10)
+      const contributionYears = response.user.contributionsCollection.contributionYears ?? []
+      core.info(`Fetching contribution history for scoreboard (${contributionYears.length} years)...`)
+      const historyResponses = await fetchContributionHistory(inputs.githubToken, inputs.username, contributionYears)
       const historyGrid = parseMultiYearResponses(historyResponses)
       core.info(`History: ${historyGrid.cells.length} days across ${historyResponses.length} years`)
       const lastDate = grid.cells.reduce((max, c) => (c.date > max ? c.date : max), "")
