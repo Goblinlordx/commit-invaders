@@ -24,6 +24,7 @@ export interface GitHubGraphQLResponse {
   user: {
     contributionsCollection: {
       contributionCalendar: GitHubContributionCalendar
+      contributionYears?: number[]
     }
   }
 }

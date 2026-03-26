@@ -16,6 +16,7 @@ const CONTRIBUTION_QUERY = `
             }
           }
         }
+        contributionYears
       }
     }
   }
@@ -105,35 +106,51 @@ const CONTRIBUTION_HISTORY_QUERY = `
   }
 `
 
+async function fetchWithRetry<T>(
+  fn: () => Promise<T>,
+  maxRetries: number = 3,
+): Promise<T> {
+  let lastError: unknown
+  for (let attempt = 0; attempt <= maxRetries; attempt++) {
+    try {
+      return await fn()
+    } catch (error: unknown) {
+      lastError = error
+      if (attempt < maxRetries) {
+        const delay = Math.min(1000 * 2 ** attempt, 10_000)
+        await new Promise((resolve) => setTimeout(resolve, delay))
+      }
+    }
+  }
+  throw lastError
+}
+
 /**
- * Fetch contribution history for multiple years.
+ * Fetch contribution history for the given years concurrently.
+ * Each year is fetched in parallel with automatic retries + exponential backoff.
  * Returns an array of yearly responses, newest first.
  */
 export async function fetchContributionHistory(
   token: string,
   username: string,
-  years: number = 5,
+  years: number[],
 ): Promise<GitHubGraphQLResponse[]> {
-  const results: GitHubGraphQLResponse[] = []
-  const currentYear = new Date().getFullYear()
+  const sorted = [...years].sort((a, b) => b - a) // newest first
 
-  for (let i = 0; i < years; i++) {
-    const year = currentYear - i
-    try {
-      const response = await graphql<GitHubGraphQLResponse>(CONTRIBUTION_HISTORY_QUERY, {
-        login: username,
-        from: `${year}-01-01T00:00:00Z`,
-        to: `${year + 1}-01-01T00:00:00Z`,
-        headers: {
-          authorization: `token ${token}`,
-        },
-      })
-      results.push(response)
-    } catch {
-      // Stop on error (e.g., account didn't exist yet)
-      break
-    }
-  }
+  const results = await Promise.all(
+    sorted.map((year) =>
+      fetchWithRetry(() =>
+        graphql<GitHubGraphQLResponse>(CONTRIBUTION_HISTORY_QUERY, {
+          login: username,
+          from: `${year}-01-01T00:00:00Z`,
+          to: `${year + 1}-01-01T00:00:00Z`,
+          headers: {
+            authorization: `token ${token}`,
+          },
+        }),
+      ),
+    ),
+  )
 
   return results
 }
