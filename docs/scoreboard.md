@@ -32,33 +32,37 @@ GitHub GraphQL API  ──>  all contribution years (via contributionYears)
 
 ## Algorithm
 
-### Sliding Window with Prefix Sums
+### Step 1: Sliding Window with Prefix Sums
 
-Every day in your contribution history gets a **window score**: the total commits in the trailing 364 days (52 weeks).
+For every day in the contribution history, compute a **window score**: the total commits in the trailing 364 days (52 weeks).
 
 ```
 window_score[day] = sum of commits from (day - 363) to day
 ```
 
-To compute this efficiently, the algorithm builds a **prefix sum array** over daily commit counts. This allows any window's total to be calculated in O(1):
+This is computed efficiently via a **prefix sum array** over daily commit counts, giving O(1) per window:
 
 ```
 score = prefix[day + 1] - prefix[day - windowSize + 1]
 ```
 
-All windows are then sorted by score in descending order.
+Windows with a score of 0 are excluded -- they represent periods with no contributions and cannot appear on the board.
 
-### Distance Filtering
+### Step 2: Consecutive Run Collapsing
 
-The raw sorted list often has many overlapping windows clustered around the same peak period. To produce a diverse top-10 list, the algorithm enforces a **minimum distance** (in days) between selected entries.
+Adjacent days often share the same window score (the window shifts by one day, adding/removing the same 0-contribution day at either end). These consecutive same-score runs are collapsed into a single representative -- the **middle day** of each run. This deduplicates without losing coverage, and the representative shifts naturally as the window evolves over time.
+
+### Step 3: Distance Filtering via Binary Search
+
+After collapsing, the remaining records are sorted by score descending. The raw sorted list often has many entries clustered around the same peak period. To produce a diverse top-10 list, the algorithm enforces a **minimum distance** (in days) between selected entries.
 
 The optimal distance is found via **binary search**:
 
 1. Binary search over candidate distances from 0 to N (total days)
 2. For each candidate distance, greedily select the highest-scoring windows that are at least that many days apart
-3. Find the largest distance that still yields 10 or more entries
+3. Find the **largest** distance that still yields >= 10 entries
 
-The greedy selection uses a **sorted set** of already-chosen indices. For each candidate window, a binary search checks whether any previously selected window is too close. This gives O(log K) per proximity check, where K is the number of entries selected so far (at most 10).
+The greedy selection maintains a **sorted array** of already-chosen indices. For each candidate window, a binary search checks whether any previously selected window is within the minimum distance. This gives O(log K) per proximity check, where K is the number of accepted entries (at most 10).
 
 **Overall complexity: O(N log N)** -- dominated by the initial sort. The binary search runs O(log N) iterations, each filtering in O(N log K) time.
 

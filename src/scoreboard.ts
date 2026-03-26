@@ -90,18 +90,21 @@ export function computeScoreboard(
     })
   }
 
+  // Exclude windows with score 0 — no contributions in that period
+  const nonZeroRecords = rawRecords.filter((r) => r.score > 0)
+
   // Collapse consecutive same-score runs into a single representative.
   // Picks the middle day of each run — shifts naturally as windows change.
   const records: WindowRecord[] = []
   let runStart = 0
-  while (runStart < rawRecords.length) {
+  while (runStart < nonZeroRecords.length) {
     let runEnd = runStart
-    while (runEnd + 1 < rawRecords.length && rawRecords[runEnd + 1]!.score === rawRecords[runStart]!.score) {
+    while (runEnd + 1 < nonZeroRecords.length && nonZeroRecords[runEnd + 1]!.score === nonZeroRecords[runStart]!.score) {
       runEnd++
     }
     // Pick middle of the run
     const mid = Math.floor((runStart + runEnd) / 2)
-    records.push(rawRecords[mid]!)
+    records.push(nonZeroRecords[mid]!)
     runStart = runEnd + 1
   }
 
