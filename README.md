@@ -48,7 +48,17 @@ jobs:
           github_user_name: ${{ github.repository_owner }}
 ```
 
-Then add to your `README.md`:
+The action generates **two SVGs** — a light-mode and a dark-mode variant — and commits both to the output branch. Add this to your `README.md` so GitHub automatically picks the right one based on the viewer's theme:
+
+```html
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/YOUR_USERNAME/YOUR_REPO/output/commit-invaders-dark.svg">
+  <source media="(prefers-color-scheme: light)" srcset="https://raw.githubusercontent.com/YOUR_USERNAME/YOUR_REPO/output/commit-invaders.svg">
+  <img alt="Commit Invaders" src="https://raw.githubusercontent.com/YOUR_USERNAME/YOUR_REPO/output/commit-invaders.svg" width="100%">
+</picture>
+```
+
+Or, if you only need a single variant:
 
 ```markdown
 ![Commit Invaders](https://raw.githubusercontent.com/YOUR_USERNAME/YOUR_REPO/output/commit-invaders.svg)
@@ -82,8 +92,9 @@ Options:
 
 | Output | Description |
 |--------|-------------|
-| `svg_file` | Path to the generated SVG |
-| `svg_size` | SVG file size in bytes |
+| `svg_file` | Path to the generated light-mode SVG |
+| `svg_dark_file` | Path to the generated dark-mode SVG |
+| `svg_size` | SVG file size in bytes (light variant) |
 | `total_commits` | Total contributions in the graph |
 | `animation_duration` | Animation length in seconds |
 
