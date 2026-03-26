@@ -326,7 +326,16 @@ export function overlayKeyframeStops(
       // Before first wave: no overlay. Between waves: hold overlay at 0.6
       alpha = anyWaveStarted ? 0.6 : 0
     } else if (phase === 'ending_reset') alpha = 0
-    else if (phase === 'brightening') alpha = 0.6 * (1 - progress)
+    else if (phase === 'brightening') {
+      if (!anyWaveStarted) {
+        // First wave: smoothly ramp 0→0.6→0 (darken then brighten for pluck)
+        // Uses a sine curve for a natural bell shape
+        alpha = 0.6 * Math.sin(progress * Math.PI)
+      } else {
+        // Subsequent waves: overlay was already at 0.6, fade to 0
+        alpha = 0.6 * (1 - progress)
+      }
+    }
     else if (phase === 'plucking') alpha = 0
     else if (phase === 'darkening') alpha = 0.6 * progress
     else if (phase === 'ending_blackout') alpha = 0

@@ -46,7 +46,7 @@ export function buildConfig(inputs: ActionInputs): SimConfig {
       introScoreboardFadeOut: inputs.noScoreboard ? 0 : 30,
       startDelay: inputs.noScoreboard ? 90 : 480,
       spawnDelay: 0,
-      brightenDuration: 60, pluckDuration: 20, darkenDuration: 60,
+      brightenDuration: 120, pluckDuration: 20, darkenDuration: 60,
       travelDuration: 40, hatchDuration: 20,
       endingFadeoutDuration: 60, endingScoreDuration: 180,
       endingScoreOutDuration: 30,
