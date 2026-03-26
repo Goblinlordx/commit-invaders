@@ -854,9 +854,14 @@ function simulateCore(
 
     // Ending sequence
     const allSpawned = formations.length === simWM.totalWaves
-    const allCleared = allSpawned && formations.length > 0 && formations.every((f) => !f.getState().active)
+    const noWaves = simWM.totalWaves === 0 && frame >= wc.startDelay
+    const allCleared = noWaves || (allSpawned && formations.length > 0 && formations.every((f) => !f.getState().active))
 
     if (allCleared && endingPhase === 'none') {
+      if (noWaves) {
+        // Ship needs at least one inflection for the compositor to render it
+        addInflection('ship', 'ship', { frame, position: { ...ship.position }, type: 'move_end' })
+      }
       endingPhase = 'fadeout'
       endingPhaseStart = frame
       endingPhaseFramesLeft = wc.endingFadeoutDuration
