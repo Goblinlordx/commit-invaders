@@ -207,6 +207,42 @@ body {
   gap: 0.4rem;
 }
 
+/* ── Profile Display ── */
+.profile-display {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 1.5rem;
+}
+
+.profile-avatar {
+  width: 80px;
+  height: 80px;
+  border-radius: 50%;
+  border: 3px solid var(--accent);
+  box-shadow: 0 0 12px rgba(57, 211, 83, 0.25), 0 4px 12px rgba(0, 0, 0, 0.4);
+  object-fit: cover;
+  background: var(--bg-surface);
+}
+
+.profile-username {
+  font-family: var(--font-mono);
+  font-size: 0.9rem;
+  font-weight: 700;
+  color: var(--accent);
+  text-decoration: none;
+  letter-spacing: 0.5px;
+  border-bottom: 2px solid transparent;
+  padding-bottom: 2px;
+  transition: border-color 0.2s, color 0.2s;
+}
+
+.profile-username:hover {
+  border-color: var(--accent);
+  color: var(--text);
+}
+
 /* ── Preview ── */
 .preview-section {
   margin-bottom: 1rem;

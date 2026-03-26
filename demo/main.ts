@@ -66,6 +66,9 @@ const statsRow = $('#stats-row') as HTMLElement
 const actionsRow = $('#actions-row') as HTMLElement
 const debugPanel = $('#debug-panel') as HTMLElement
 const debugGrid = $('#debug-grid') as HTMLElement
+const profileDisplay = $('#profile-display') as HTMLElement
+const profileAvatar = $('#profile-avatar') as HTMLImageElement
+const profileUsername = $('#profile-username') as HTMLAnchorElement
 
 // ── Fetch real GitHub contributions ──
 async function fetchContributionGrid(username: string): Promise<Grid | null> {
@@ -268,6 +271,12 @@ async function doGenerate() {
         statsRow.style.display = 'flex'
         actionsRow.style.display = 'flex'
 
+        // Show prominent profile display
+        profileAvatar.src = `https://github.com/${username}.png?size=160`
+        profileUsername.href = `https://github.com/${username}`
+        profileUsername.textContent = `@${username}`
+        profileDisplay.style.display = 'flex'
+
         scrubber.value = '0'
         updateTimeDisplay(0)
         isPlaying = true
@@ -361,6 +370,14 @@ avatarImg.addEventListener('error', () => { avatarImg.classList.remove('loaded')
 
 // Initial avatar for default value
 updateAvatar(usernameInput.value.trim())
+
+// ── Profile avatar fallback ──
+profileAvatar.addEventListener('error', () => {
+  profileAvatar.style.display = 'none'
+})
+profileAvatar.addEventListener('load', () => {
+  profileAvatar.style.display = 'block'
+})
 
 // ── Event Listeners ──
 generateBtn.addEventListener('click', doGenerate)
