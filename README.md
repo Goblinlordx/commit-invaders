@@ -15,10 +15,6 @@ Generate an animated Space Invaders game from your GitHub contribution graph. Yo
 ## Features
 
 - **Space Invaders gameplay** from your actual contribution data
-- **Per-cell staggered lifecycle** — cells pluck, travel, and hatch individually
-- **Wave-by-wave combat** with formation oscillation and ballistics solver
-- **Pixel-art sprites** — ship, invaders (4 variants by level), explosions, laser glow
-- **Ending sequence** — score display, optional high score board, seamless loop
 - **Pure CSS animation** — no JavaScript in the SVG, GitHub README-safe
 - **Light / Dark / Classic themes** via color palette system
 - **Interactive demo** with animation scrubber and debug parameter tuning
