@@ -1,59 +1,81 @@
 id: laser-light-mode_20260326102400Z
-title: "Fix laser visibility in light mode"
+title: Fix laser visibility in light mode
 type: bug
 status: pending
 created: 2026-03-26
-updated: 2026-03-26
+updated: '2026-03-26'
 spec:
-  summary: |
-    Make laser sprite colors dynamic from palette instead of hardcoded yellow.
+  summary: 'Make laser sprite colors dynamic from palette instead of hardcoded yellow.
+
     Fixes near-invisible lasers on white background in light mode.
-  context: |
-    The project generates separate dark and light SVGs with different palettes.
+
+    '
+  context: 'The project generates separate dark and light SVGs with different palettes.
+
     PALETTE_LIGHT defines laser as #bf8700 (dark orange/brown for contrast on
+
     white), but the laser sprite in sprites.ts hardcodes #ffff00 (bright yellow)
+
     and #ffffaa (light yellow highlight), making lasers nearly invisible on the
+
     white background in light mode.
-  codebase_analysis: |
-    - sprites.ts:117-125 laserSymbol() hardcodes fill="#ffff00" and "#ffffaa"
-    - entity-templates.ts defines PALETTE_LIGHT.laser = '#bf8700'
+
+    '
+  codebase_analysis: '- sprites.ts:117-125 laserSymbol() hardcodes fill="#ffff00" and "#ffffaa"
+
+    - entity-templates.ts defines PALETTE_LIGHT.laser = ''#bf8700''
+
     - svg-compositor.ts styled mode uses <use href="#sprite-laser"> (sprite)
+
     - svg-compositor.ts basic mode uses LASER_COLOR directly (works correctly)
+
     - composeSvg receives palette param but never passes laser color to sprites
+
     - LASER_COLOR export is hardcoded to PALETTE_DARK.laser (not dynamic)
+
+    '
   acceptance_criteria:
-    - Laser sprite uses palette.laser color instead of hardcoded yellow
-    - Lasers are clearly visible on both dark (#0d1117) and light (#ffffff) backgrounds
-    - Highlight color derived from base laser color (lighter variant)
-    - No visual regression in dark mode or classic mode
-  out_of_scope: |
-    Changing the actual laser color values in the palettes. Ship sprite colors.
+  - Laser sprite uses palette.laser color instead of hardcoded yellow
+  - Lasers are clearly visible on both dark (#0d1117) and light (#ffffff) backgrounds
+  - Highlight color derived from base laser color (lighter variant)
+  - No visual regression in dark mode or classic mode
+  out_of_scope: 'Changing the actual laser color values in the palettes. Ship sprite colors.
+
     CSS-based theme switching (project generates separate SVGs).
-  technical_notes: |
-    Pass palette.laser into laserSymbol(). Derive highlight by blending toward
+
+    '
+  technical_notes: 'Pass palette.laser into laserSymbol(). Derive highlight by blending toward
+
     white (dark mode) or toward the base color with higher lightness (light mode).
+
     Simple approach: use the laser color as-is for the outer rect, and a
+
     50%-lightened variant for the inner rect.
+
+    '
 plan:
-  - phase: "Core fix"
-    tasks:
-      - text: >
-          Add laser color params to laserSymbol() in sprites.ts —
-          accept base color and derive highlight
-        done: false
-      - text: >
-          Update composeSvg/sprite generation to pass palette.laser
-          to laserSymbol()
-        done: false
-      - text: >
-          Remove hardcoded LASER_COLOR export or make it palette-aware
-        done: false
-      - text: >
-          Verify PALETTE_LIGHT laser (#bf8700) renders visibly on white
-        done: false
-  - phase: "Verification"
-    tasks:
-      - text: >
-          Add/update tests for laser color per palette
-        done: false
+- phase: Core fix
+  tasks:
+  - text: 'Add laser color params to laserSymbol() in sprites.ts — accept base color and derive highlight
+
+      '
+    done: true
+  - text: 'Update composeSvg/sprite generation to pass palette.laser to laserSymbol()
+
+      '
+    done: true
+  - text: 'Remove hardcoded LASER_COLOR export or make it palette-aware
+
+      '
+    done: true
+  - text: 'Verify PALETTE_LIGHT laser (#bf8700) renders visibly on white
+
+      '
+    done: true
+- phase: Verification
+  tasks:
+  - text: 'Add/update tests for laser color per palette
+
+      '
+    done: true
 extra: {}
