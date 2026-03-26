@@ -18,20 +18,15 @@ export interface ScoreboardResult {
 
 // ── Run Tracker ──
 // Tracks consecutive same-score runs using flat typed arrays.
-// Accepts dates as input — maps to internal indices automatically.
-// When a date is selected, its entire run is consumed in one call.
+// All operations use integer indices — no string hashing in the hot path.
 
 class RunTracker {
-  private readonly dateToIndex: Map<string, number>
   private readonly runStart: Int32Array
   private readonly runEnd: Int32Array
   private consumed: Uint8Array
 
-  constructor(dates: string[], scores: Int32Array) {
-    const N = dates.length
-    this.dateToIndex = new Map()
-    for (let i = 0; i < N; i++) this.dateToIndex.set(dates[i]!, i)
-
+  constructor(scores: Int32Array) {
+    const N = scores.length
     this.runStart = new Int32Array(N)
     this.runEnd = new Int32Array(N)
     this.consumed = new Uint8Array(N)
@@ -47,18 +42,15 @@ class RunTracker {
     }
   }
 
-  /** Check if a date has already been consumed. */
-  has(date: string): boolean {
-    const i = this.dateToIndex.get(date)
-    return i !== undefined && this.consumed[i] === 1
+  /** Check if an index has already been consumed. O(1). */
+  has(index: number): boolean {
+    return this.consumed[index] === 1
   }
 
-  /** Consume a date and all dates in its consecutive same-score run. */
-  set(date: string): void {
-    const i = this.dateToIndex.get(date)
-    if (i === undefined) return
-    const start = this.runStart[i]!
-    const end = this.runEnd[i]!
+  /** Consume an index and all indices in its consecutive same-score run. */
+  set(index: number): void {
+    const start = this.runStart[index]!
+    const end = this.runEnd[index]!
     for (let j = start; j <= end; j++) this.consumed[j] = 1
   }
 
@@ -131,7 +123,7 @@ export function computeScoreboard(
     scores[i] = prefix[i + 1]! - prefix[startIdx]!
   }
 
-  const runs = new RunTracker(allDates, scores)
+  const runs = new RunTracker(scores)
 
   // Collect non-zero records and sort descending
   const records: WindowRecord[] = []
@@ -210,12 +202,12 @@ function filterByDistance(
 
   for (const r of sortedRecords) {
     if (result.length >= needed) break
-    if (runs.has(r.date)) continue
+    if (runs.has(r.endIndex)) continue
 
     if (minDist <= 0 || used.length === 0 || !isTooClose(used, r.endIndex, minDist)) {
       result.push(r)
       insertSorted(used, r.endIndex)
-      runs.set(r.date)
+      runs.set(r.endIndex)
     }
   }
 
