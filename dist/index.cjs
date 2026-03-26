@@ -22579,12 +22579,22 @@ function invaderSymbolL4(size) {
   </g>
 </symbol>`;
 }
-function laserSymbol(width) {
+function laserSymbol(width, color) {
   const h = width / 2;
+  const highlight = lightenHex(color, 0.5);
   return `<symbol id="sprite-laser" viewBox="${-h} ${-h} ${width} ${width}">
-  <rect x="${-h}" y="${-h * 0.5}" width="${width}" height="${width * 0.5}" fill="#ffff00" rx="1" />
-  <rect x="${-h * 0.6}" y="${-h * 0.3}" width="${width * 0.6}" height="${width * 0.3}" fill="#ffffaa" />
+  <rect x="${-h}" y="${-h * 0.5}" width="${width}" height="${width * 0.5}" fill="${color}" rx="1" />
+  <rect x="${-h * 0.6}" y="${-h * 0.3}" width="${width * 0.6}" height="${width * 0.3}" fill="${highlight}" />
 </symbol>`;
+}
+function lightenHex(hex, factor) {
+  const r = parseInt(hex.slice(1, 3), 16);
+  const g = parseInt(hex.slice(3, 5), 16);
+  const b = parseInt(hex.slice(5, 7), 16);
+  const lr = Math.round(r + (255 - r) * factor);
+  const lg = Math.round(g + (255 - g) * factor);
+  const lb = Math.round(b + (255 - b) * factor);
+  return `#${lr.toString(16).padStart(2, "0")}${lg.toString(16).padStart(2, "0")}${lb.toString(16).padStart(2, "0")}`;
 }
 function explosionSymbol(size) {
   const h = size / 2;
@@ -22598,14 +22608,14 @@ function explosionSymbol(size) {
   <rect x="${h - p * 3}" y="${h - p * 3}" width="${p * 2}" height="${p * 2}" fill="#ffaa44" />
 </symbol>`;
 }
-function spriteDefs(invaderSize, laserWidth) {
+function spriteDefs(invaderSize, laserWidth, laserColor = "#ffff00") {
   return `<defs>
 ${shipSymbol(invaderSize)}
 ${invaderSymbolL1(invaderSize)}
 ${invaderSymbolL2(invaderSize)}
 ${invaderSymbolL3(invaderSize)}
 ${invaderSymbolL4(invaderSize)}
-${laserSymbol(laserWidth)}
+${laserSymbol(laserWidth, laserColor)}
 ${explosionSymbol(invaderSize)}
 </defs>`;
 }
@@ -22702,7 +22712,7 @@ function composeSvg(options) {
     cssRules.push(explosionKeyframes());
     cssRules.push(explosionCss());
   }
-  const defsBlock = styled ? spriteDefs(config.invaderSize, config.laserWidth) : "";
+  const defsBlock = styled ? spriteDefs(config.invaderSize, config.laserWidth, LASER_COLOR2) : "";
   elements.push(`<rect width="${screenW}" height="${screenH}" fill="${BG_COLOR2}" />`);
   const gameEndEvent = output.events.find((e) => e.type === "game_end");
   let resetRestorePct = 100;
