@@ -29,10 +29,14 @@ jobs:
         run: |
           # Save SVG before switching branches
           cp commit-invaders.svg /tmp/commit-invaders.svg
-          
+
           git config user.name "commit-invaders[bot]"
           git config user.email "commit-invaders[bot]@users.noreply.github.com"
-          
+
+          # Clean build artifacts so branch checkout succeeds
+          git checkout -- . 2>/dev/null || true
+          git clean -fd 2>/dev/null || true
+
           git fetch origin output 2>/dev/null || true
           if git rev-parse --verify origin/output >/dev/null 2>&1; then
             git checkout output
